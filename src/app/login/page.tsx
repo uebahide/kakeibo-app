@@ -1,42 +1,49 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
+function errorMessage(code: string | undefined, message: string): string {
+  if (code === "invalid_credentials") return "メールアドレスかパスワードが違います";
+  if (code === "email_not_confirmed") return "このアカウントはまだ確認されていません。Supabase でユーザーを確認済みにしてください";
+  if (code === "over_request_rate_limit") return "試行回数が多すぎます。少し時間をおいてからお試しください";
+  return `ログインできませんでした：${message}`;
+}
+
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function send(e: React.FormEvent) {
+  async function signIn(e: React.FormEvent) {
     e.preventDefault();
-    setState("sending");
-    const { error } = await createClient().auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
+    setBusy(true);
+    setError("");
+    const { error } = await createClient().auth.signInWithPassword({ email, password });
     if (error) {
-      setError(error.message);
-      setState("error");
-    } else setState("sent");
+      setError(errorMessage(error.code, error.message));
+      setBusy(false);
+      return;
+    }
+    router.replace("/");
+    router.refresh();
   }
 
   return (
     <main className="mx-auto grid min-h-dvh max-w-sm content-center gap-6 px-4">
       <div>
         <h1 className="font-display text-3xl tracking-[0.06em]">家計簿ノート</h1>
-        <p className="mt-1 text-sm text-muted">メールアドレスにログイン用のリンクを送ります。</p>
+        <p className="mt-1 text-sm text-muted">メールアドレスとパスワードでログインします。</p>
       </div>
       {!isSupabaseConfigured ? (
         <p className="rounded-xl bg-warn-soft p-3 text-sm">Supabase が設定されていないため、ログインなしのデモモードで動いています。</p>
-      ) : state === "sent" ? (
-        <p className="rounded-xl bg-good-soft p-3 text-sm">
-          {email} にリンクを送りました。メールを開いてリンクをタップしてください。
-        </p>
       ) : (
-        <form onSubmit={send} className="grid gap-3">
+        <form onSubmit={signIn} className="grid gap-3">
           <label className="grid gap-1">
             <span className="text-xs text-muted">メールアドレス</span>
             <input
@@ -49,10 +56,22 @@ export default function LoginPage() {
               className="rounded-xl border border-line bg-surface px-3 py-2.5"
             />
           </label>
-          <Button type="submit" variant="primary" disabled={state === "sending"}>
-            {state === "sending" ? "送信しています…" : "ログインリンクを送る"}
+          <label className="grid gap-1">
+            <span className="text-xs text-muted">パスワード</span>
+            <input
+              id="login-password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="rounded-xl border border-line bg-surface px-3 py-2.5"
+            />
+          </label>
+          <Button type="submit" variant="primary" disabled={busy}>
+            {busy ? "ログインしています…" : "ログイン"}
           </Button>
-          {state === "error" && <p className="text-sm text-bad">送れませんでした：{error}</p>}
+          {error && <p className="text-sm text-bad">{error}</p>}
         </form>
       )}
     </main>

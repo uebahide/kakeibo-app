@@ -11,7 +11,7 @@
 ## 技術構成
 
 - Next.js 16（App Router）+ TypeScript + Tailwind CSS v4
-- Supabase（メールのログインリンクによるログインと、データの保存。行レベルセキュリティで本人のデータだけに制限）
+- Supabase（メールアドレスとパスワードでのログインと、データの保存。行レベルセキュリティで本人のデータだけに制限）
 - Claude API（`@anthropic-ai/sdk`。APIキーはサーバー側の Route Handler だけで使用）
 - Recharts（グラフ）
 - PWA 用の Web App Manifest（ホーム画面に追加できます）
@@ -31,7 +31,9 @@ AI分析を試すときは `.env.local` に `ANTHROPIC_API_KEY` を入れてく�
 ## 本番の設定
 
 1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/0001_init.sql` を実行します。
-2. Supabase の Authentication → URL Configuration で、Site URL とリダイレクト先に `https://<あなたのドメイン>/auth/callback` を追加します。
+2. ログイン用のアカウントを Supabase で作ります。アプリには新規登録画面がないので、知らない人は登録できません。
+   - Authentication → Users →「Add user」→「Create new user」で、メールアドレスとパスワードを入れ、「Auto Confirm User」にチェックを入れて作成
+   - Authentication の設定で「Allow new users to sign up」をオフにしておくと、より安全です
 3. `.env.example` を `.env.local` にコピーして値を入れます（Vercel では環境変数に同じ値を設定）。
 
 | 変数 | 内容 |
@@ -45,7 +47,7 @@ AI分析を試すときは `.env.local` に `ANTHROPIC_API_KEY` を入れてく�
 
 ```
 src/
-  app/            画面（/、/login）、APIルート（/api/ai/*）、ログイン後の戻り先（/auth/callback）
+  app/            画面（/、/login）、APIルート（/api/ai/*）
   components/     画面の部品（ホーム、履歴、分析、AI分析、設定、入力シート）
   lib/            集計ロジック、カテゴリ、日付、保存先（ブラウザ / Supabase）、Supabase と Claude のクライアント
   proxy.ts        ログイン状態の更新と、未ログイン時の /login への誘導
