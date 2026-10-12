@@ -99,6 +99,7 @@ export function TxRow({ tx, onClick }: { tx: Transaction; onClick: () => void })
       <span className="min-w-0">
         <span className="block truncate text-sm">
           {tx.memo || cat.name}
+          {tx.outsideBudget && <span className="ml-1.5 rounded bg-warn-soft px-1 align-[1px] text-[10px] font-bold text-warn">予算外</span>}
           {tx.isSample && <span className="ml-1.5 rounded border border-line px-1 align-[1px] text-[10px] text-muted">サンプル</span>}
         </span>
         <span className="block text-[11px] text-muted">

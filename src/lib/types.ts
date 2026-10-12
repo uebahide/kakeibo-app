@@ -8,6 +8,8 @@ export type Transaction = {
   type: TxType;
   category: string;
   memo: string;
+  /** an expense paid from the month's spare money (trips, events…) instead of the budget */
+  outsideBudget?: boolean;
   isSample: boolean;
   createdAt: string;
 };
