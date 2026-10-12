@@ -2,19 +2,20 @@
 
 import { useState } from "react";
 import { getCategory } from "@/lib/categories";
-import { dayLabel, monthOf } from "@/lib/date";
+import { dayLabel } from "@/lib/date";
+import { periodOf } from "@/lib/period";
 import { yen } from "@/lib/format";
 import type { Transaction } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
 import { Card, EmptyState, TxRow } from "./ui";
 
 export function HistoryView() {
-  const { transactions, month, openEntry } = useKakeibo();
+  const { transactions, settings, month, openEntry } = useKakeibo();
   const [query, setQuery] = useState("");
   const q = query.trim();
 
   const list = transactions.filter(
-    (t) => monthOf(t.date) === month && (!q || t.memo.includes(q) || getCategory(t.category).name.includes(q)),
+    (t) => periodOf(t.date, settings.monthStartDay) === month && (!q || t.memo.includes(q) || getCategory(t.category).name.includes(q)),
   );
   const groups = new Map<string, Transaction[]>();
   for (const t of list) groups.set(t.date, [...(groups.get(t.date) ?? []), t]);

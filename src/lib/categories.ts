@@ -73,6 +73,7 @@ export const DEFAULT_SETTINGS: Settings = {
     other: 5000,
   },
   fixedCosts: {},
+  monthStartDay: 1,
   goal: { target: 0, saved: 0, monthly: {} },
   noSpendDays: [],
   lastAi: null,

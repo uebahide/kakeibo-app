@@ -1,5 +1,6 @@
 import { FIXED_COST_CATEGORIES, VARIABLE_CATEGORIES, getCategory } from "./categories";
-import { addMonths, currentMonth, daysInMonth, monthOf, parseDate, shiftDays, today, WEEKDAYS } from "./date";
+import { addMonths, parseDate, shiftDays, today, WEEKDAYS } from "./date";
+import { currentPeriod, periodDayIndex, periodDays, periodOf, periodStart } from "./period";
 import { fixedCostsFor, sumFixed } from "./fixed";
 import { monthSavings, totalSaved } from "./savings";
 import type { Settings, Transaction, TxType } from "./types";
@@ -23,7 +24,8 @@ export type MonthStats = {
 
 /** Totals for a month. Pass `settings` to include that month's fixed costs. */
 export function monthStats(txs: Transaction[], month: string, settings?: Settings): MonthStats {
-  const list = txs.filter((t) => monthOf(t.date) === month);
+  const startDay = settings?.monthStartDay ?? 1;
+  const list = txs.filter((t) => periodOf(t.date, startDay) === month);
   const variableByCategory: Record<string, number> = {};
   let income = 0;
   let variable = 0;
@@ -55,12 +57,12 @@ export function variableBudget(settings: Settings): number {
 
 export type PaceLevel = "good" | "warn" | "bad";
 
-/** Fraction of the month that has elapsed (1 for past months, 0 for future ones). */
-export function elapsedFraction(month: string, now = new Date()): number {
-  const cur = currentMonth();
+/** Fraction of the month (period) that has elapsed (1 for past months, 0 for future ones). */
+export function elapsedFraction(month: string, startDay: number): number {
+  const cur = currentPeriod(startDay);
   if (month < cur) return 1;
   if (month > cur) return 0;
-  return now.getDate() / daysInMonth(month);
+  return periodDayIndex(today(), month, startDay) / periodDays(month);
 }
 
 /** Compare spending against how far into the month we are. */
@@ -126,14 +128,15 @@ export function weekdayAverages(txs: Transaction[], days = 90): number[] {
   return sums.map((s, i) => (counts[i] ? s / counts[i] : 0));
 }
 
-/** Cumulative recorded (variable) expense per day of the month, up to today (or month end for past months). */
-export function cumulativeDaily(txs: Transaction[], month: string): { day: number; total: number }[] {
-  const cur = currentMonth();
-  const lastDay = month === cur ? new Date().getDate() : month < cur ? daysInMonth(month) : 0;
-  const daily = Array(daysInMonth(month) + 1).fill(0);
+/** Cumulative recorded (variable) expense per day of the period (day 1 = its first day), up to today. */
+export function cumulativeDaily(txs: Transaction[], month: string, startDay: number): { day: number; total: number }[] {
+  const cur = currentPeriod(startDay);
+  const n = periodDays(month);
+  const lastDay = month === cur ? periodDayIndex(today(), month, startDay) : month < cur ? n : 0;
+  const daily = Array(n + 1).fill(0);
   for (const t of txs) {
-    if (t.type === "income" || t.outsideBudget || monthOf(t.date) !== month) continue;
-    daily[Number(t.date.slice(8))] += t.amount;
+    if (t.type === "income" || t.outsideBudget || periodOf(t.date, startDay) !== month) continue;
+    daily[periodDayIndex(t.date, month, startDay)] += t.amount;
   }
   const out: { day: number; total: number }[] = [];
   let sum = 0;
@@ -146,9 +149,10 @@ export function cumulativeDaily(txs: Transaction[], month: string): { day: numbe
 
 /** Compact summary of the household data sent to the AI. Totals, not raw rows. */
 export function buildAiDigest(txs: Transaction[], settings: Settings) {
-  const now = currentMonth();
+  const startDay = settings.monthStartDay;
+  const now = currentPeriod(startDay);
   const months = [0, 1, 2].map((k) => addMonths(now, -k));
-  const oldest = `${months[2]}-01`;
+  const oldest = periodStart(months[2], startDay);
   const recent = txs.filter((t) => t.type !== "income" && t.date >= oldest);
 
   const items = new Map<string, { count: number; total: number }>();
@@ -166,8 +170,9 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
 
   return {
     today: today(),
-    dayOfMonth: new Date().getDate(),
-    daysInMonth: daysInMonth(now),
+    monthStartDay: startDay,
+    dayOfMonth: periodDayIndex(today(), now, startDay),
+    daysInMonth: periodDays(now),
     months: months.map((m) => {
       const s = monthStats(txs, m, settings);
       return {
