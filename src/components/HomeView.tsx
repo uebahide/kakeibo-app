@@ -141,7 +141,7 @@ export function HomeView() {
             label="収入"
             sub={incomeList.length ? `${incomeList.length}件` : "給料などを記録する"}
             amount={stats.income || null}
-            income
+            tone="income"
             onClick={() => setPanel("income")}
           />
           <MoneyRow
@@ -154,6 +154,7 @@ export function HomeView() {
             label="貯金"
             sub={`これまで ${yen(saved)}${target ? `・目標の${Math.min(100, Math.round((saved / target) * 100))}%` : ""}`}
             amount={saving || null}
+            tone="saving"
             onClick={() => setPanel("saving")}
           />
           {stats.extra > 0 && (
@@ -266,7 +267,21 @@ export function HomeView() {
   );
 }
 
-function MoneyRow({ label, sub, amount, income = false, onClick }: { label: string; sub: string; amount: number | null; income?: boolean; onClick: () => void }) {
+const MONEY_TONE = { income: "text-good", saving: "text-accent" } as const;
+
+function MoneyRow({
+  label,
+  sub,
+  amount,
+  tone,
+  onClick,
+}: {
+  label: string;
+  sub: string;
+  amount: number | null;
+  tone?: keyof typeof MONEY_TONE;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -277,7 +292,7 @@ function MoneyRow({ label, sub, amount, income = false, onClick }: { label: stri
         <span className="block text-sm font-medium">{label}</span>
         <span className="block truncate text-[11px] text-muted">{sub}</span>
       </span>
-      {amount === null ? <span className="text-sm text-muted">未入力</span> : <span className={cx("num text-base font-semibold", income && "text-good")}>{income && "+"}{yen(amount)}</span>}
+      {amount === null ? <span className="text-sm text-muted">未入力</span> : <span className={cx("num text-base font-semibold", tone && MONEY_TONE[tone])}>{tone === "income" && "+"}{yen(amount)}</span>}
       <span aria-hidden className="text-lg text-muted">
         ›
       </span>
@@ -326,7 +341,7 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
               cy="42"
               r={R}
               fill="none"
-              stroke="var(--good)"
+              stroke="var(--accent)"
               strokeWidth="9"
               strokeLinecap="round"
               strokeDasharray={`${C * progress} ${C}`}
@@ -342,7 +357,7 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
             これまでの貯金
             <TextButton onClick={() => setView("settings")}>{target ? "目標を変更" : "目標額を設定"}</TextButton>
           </div>
-          <div className="num text-xl font-semibold">
+          <div className="num text-xl font-semibold text-accent">
             {yen(total)} {target > 0 && <span className="text-[13px] text-muted">/ 目標 {yen(target)}</span>}
           </div>
           {target > 0 && <div className="text-xs text-muted">{eta}</div>}
