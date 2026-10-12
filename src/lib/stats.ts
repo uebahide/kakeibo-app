@@ -80,6 +80,20 @@ export const PACE_LABEL: Record<PaceLevel, string> = {
   bad: "予算オーバー",
 };
 
+/** Finer pace scale for the home badge, from plenty of room (0) to over budget (5). */
+export const PACE_STEPS = ["ゆとりあり", "順調なペース", "少し早め", "使うペースが早め", "かなり早め", "予算オーバー"] as const;
+
+export function paceStep(spent: number, budget: number, fraction: number): number {
+  const ratio = spent / budget;
+  if (ratio > 1) return 5;
+  const ahead = ratio - fraction;
+  if (ahead > 0.15) return 4;
+  if (ahead > 0.08) return 3;
+  if (ahead > 0.03) return 2;
+  if (ahead > -0.1) return 1;
+  return 0;
+}
+
 export function recordStreak(txs: Transaction[], noSpendDays: string[]) {
   const days = new Set([...txs.map((t) => t.date), ...noSpendDays]);
   const t = today();
@@ -171,6 +185,7 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
   return {
     today: today(),
     monthStartDay: startDay,
+    currency: settings.currency,
     dayOfMonth: periodDayIndex(today(), now, startDay),
     daysInMonth: periodDays(now),
     months: months.map((m) => {

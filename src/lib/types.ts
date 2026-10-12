@@ -1,3 +1,5 @@
+import type { Currency } from "./format";
+
 export type TxType = "expense" | "income";
 
 export type Transaction = {
@@ -52,6 +54,8 @@ export type Settings = {
   fixedCosts: Record<string, FixedCost[]>;
   /** day of the month (1–28) each month starts on, e.g. payday */
   monthStartDay: number;
+  /** currency amounts are shown in; numbers are never converted */
+  currency: Currency;
   goal: SavingsGoal;
   /** days marked as "no spending" (YYYY-MM-DD) */
   noSpendDays: string[];

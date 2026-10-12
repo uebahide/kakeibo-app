@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES, getCategory } from "@/lib/categories";
 import { today } from "@/lib/date";
 import { currentPeriod, periodOf, periodStart } from "@/lib/period";
-import { formatAmountInput, parseAmount, yen } from "@/lib/format";
+import { currencySymbol, formatAmountInput, parseAmount, yen } from "@/lib/format";
 import { quickPicks } from "@/lib/stats";
 import type { NewTransaction, TxType } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
@@ -145,7 +145,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
         </div>
 
         <label className="my-3.5 flex items-baseline gap-1.5 border-b-2 border-accent pb-1">
-          <span className="num text-2xl text-muted">¥</span>
+          {currencySymbol() === "¥" && <span className="num text-2xl text-muted">¥</span>}
           <input
             id="entry-amount"
             ref={amountRef}
@@ -158,6 +158,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
             aria-label="金額"
             className="num w-full min-w-0 bg-transparent text-[40px] font-bold outline-none"
           />
+          {currencySymbol() === "Ft" && <span className="num text-2xl text-muted">Ft</span>}
         </label>
 
         <div className="grid grid-cols-3 gap-1.5 min-[400px]:grid-cols-4">

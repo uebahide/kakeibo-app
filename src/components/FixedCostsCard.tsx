@@ -9,8 +9,8 @@ import type { FixedCost } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
 import { Button, Card, CardTitle, EmptyState, Meter, Stamp, TextButton, cx } from "./ui";
 
-/** The month's fixed costs: counted as spending automatically, with a paid check per item. */
-export function FixedCostsCard() {
+/** The month's fixed costs: counted as spending automatically, with a paid check per item. `bare` drops the card frame for use inside a sheet. */
+export function FixedCostsCard({ bare = false }: { bare?: boolean }) {
   const { settings, month, updateSettings } = useKakeibo();
   const [editing, setEditing] = useState(false);
   const { items, inheritedFrom } = fixedCostsFor(settings.fixedCosts, month);
@@ -30,7 +30,7 @@ export function FixedCostsCard() {
   };
 
   return (
-    <Card>
+    <Card className={cx(bare && "border-0! p-0!")}>
       <CardTitle
         action={
           items.length > 0 && (
@@ -38,7 +38,7 @@ export function FixedCostsCard() {
           )
         }
       >
-        {monthLabel(month)}の固定費
+        {!bare && `${monthLabel(month)}の固定費`}
       </CardTitle>
 
       {!items.length ? (

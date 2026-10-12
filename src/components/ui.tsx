@@ -1,6 +1,6 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useEffect, useId, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { categoryColor, getCategory } from "@/lib/categories";
 import { dayLabel } from "@/lib/date";
 import { yen } from "@/lib/format";
@@ -86,7 +86,7 @@ export function Meter({ ratio, level, className }: { ratio: number; level: PaceL
   );
 }
 
-export function TxRow({ tx, onClick }: { tx: Transaction; onClick: () => void }) {
+export function TxRow({ tx, onClick, showDate = true }: { tx: Transaction; onClick: () => void; showDate?: boolean }) {
   const cat = getCategory(tx.category);
   const income = tx.type === "income";
   return (
@@ -100,10 +100,11 @@ export function TxRow({ tx, onClick }: { tx: Transaction; onClick: () => void })
         <span className="block truncate text-sm">
           {tx.memo || cat.name}
           {tx.outsideBudget && <span className="ml-1.5 rounded bg-warn-soft px-1 align-[1px] text-[10px] font-bold text-warn">予算外</span>}
-          {tx.isSample && <span className="ml-1.5 rounded border border-line px-1 align-[1px] text-[10px] text-muted">サンプル</span>}
         </span>
         <span className="block text-[11px] text-muted">
-          {cat.name}・{dayLabel(tx.date)}
+          {cat.name}
+          {showDate && `・${dayLabel(tx.date)}`}
+          {tx.isSample && "・サンプル"}
         </span>
       </span>
       <span className={cx("num whitespace-nowrap text-base font-semibold", income && "text-good")}>
@@ -111,6 +112,35 @@ export function TxRow({ tx, onClick }: { tx: Transaction; onClick: () => void })
         {yen(tx.amount)}
       </span>
     </button>
+  );
+}
+
+/** Bottom sheet on phones, centered dialog on wide screens. */
+export function Sheet({ title, onClose, children }: { title: ReactNode; onClose: () => void; children: ReactNode }) {
+  const titleId = useId();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim lg:items-center" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="max-h-[90%] w-full max-w-[560px] animate-sheet-up overflow-auto rounded-t-[20px] bg-surface px-4 pt-3.5 pb-[calc(16px+env(safe-area-inset-bottom,0px))] motion-reduce:animate-none lg:max-w-[520px] lg:rounded-[20px]"
+      >
+        <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-line lg:hidden" />
+        <div className="mb-1 flex items-center justify-between">
+          <b id={titleId}>{title}</b>
+          <Button variant="ghost" onClick={onClose}>
+            閉じる
+          </Button>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -131,5 +161,7 @@ export const Icons = {
   chart: <svg {...iconProps}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>,
   ai: <svg {...iconProps}><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z" /><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z" /></svg>,
   settings: <svg {...iconProps}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>,
+  eye: <svg {...iconProps}><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>,
+  eyeOff: <svg {...iconProps}><path d="M10.7 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.2 3.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" /></svg>,
   plus: <svg {...iconProps} strokeWidth={2.4}><path d="M12 5v14M5 12h14" /></svg>,
 };
