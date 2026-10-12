@@ -8,7 +8,7 @@ import { fixedCostsFor } from "@/lib/fixed";
 import { parseAmount, yen } from "@/lib/format";
 import { averageMonthlySavings, monthSavings, totalSaved } from "@/lib/savings";
 import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
-import { PACE_LABEL, elapsedFraction, monthStats, paceLevel, recordStreak, variableBudget } from "@/lib/stats";
+import { PACE_STEPS, elapsedFraction, monthStats, paceLevel, paceStep, recordStreak, variableBudget } from "@/lib/stats";
 import { AiShortcut } from "./AiShortcut";
 import { FixedCostsCard } from "./FixedCostsCard";
 import { useKakeibo } from "./KakeiboProvider";
@@ -30,6 +30,16 @@ export function useSeedSamples() {
   };
 }
 
+/** Badge colors along the pace scale: calm teal and green, through yellow and orange, to red. */
+const PACE_BADGE = [
+  "bg-linear-to-r from-teal-500 to-emerald-600 text-white",
+  "bg-linear-to-r from-green-500 to-green-700 text-white",
+  "bg-linear-to-r from-yellow-300 to-amber-400 text-amber-950",
+  "bg-linear-to-r from-amber-400 to-orange-500 text-orange-950",
+  "bg-linear-to-r from-orange-500 to-red-500 text-white",
+  "bg-linear-to-r from-red-600 to-rose-700 text-white",
+];
+
 type Panel = "income" | "fixed" | "saving" | "extra";
 
 export function HomeView() {
@@ -40,7 +50,7 @@ export function HomeView() {
   const budget = variableBudget(settings);
   const startDay = settings.monthStartDay;
   const fraction = elapsedFraction(month, startDay);
-  const level = paceLevel(stats.variable, budget, fraction);
+  const step = budget ? paceStep(stats.variable, budget, fraction) : -1;
   const isCurrent = month === currentPeriod(startDay);
   const left = budget - stats.variable;
   const daysLeft = isCurrent ? periodDays(month) - periodDayIndex(today(), month, startDay) + 1 : 0;
@@ -77,7 +87,11 @@ export function HomeView() {
         <section className="rounded-2xl bg-accent p-4 text-accent-ink shadow-[0_6px_20px_rgb(22_32_54/0.08)]">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs tracking-wider opacity-85">{monthLabel(month)}の予算の残り</span>
-            <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold">{budget ? PACE_LABEL[level] : "予算未設定"}</span>
+            <span
+              className={cx("rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm", step < 0 ? "bg-white/20" : PACE_BADGE[step])}
+            >
+              {step < 0 ? "予算未設定" : PACE_STEPS[step]}
+            </span>
           </div>
           <div className="num mt-1 text-[34px] leading-tight font-bold min-[400px]:text-[40px]">
             {left >= 0 ? yen(left) : `${yen(-left)} オーバー`}
