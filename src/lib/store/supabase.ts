@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_SETTINGS } from "../categories";
+import { normalizeGoal } from "../savings";
 import type { NewTransaction, Settings, Transaction } from "../types";
 import type { KakeiboStore } from "./types";
 
@@ -65,7 +66,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
           ? {
               budgets: { ...DEFAULT_SETTINGS.budgets, ...s.budgets },
               fixedCosts: s.fixed_costs ?? {},
-              goal: { ...DEFAULT_SETTINGS.goal, ...s.goal },
+              goal: normalizeGoal(s.goal),
               noSpendDays: s.no_spend_days ?? [],
               lastAi: s.last_ai ?? null,
             }

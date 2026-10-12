@@ -73,7 +73,7 @@ export const DEFAULT_SETTINGS: Settings = {
     other: 5000,
   },
   fixedCosts: {},
-  goal: { name: "旅行資金", target: 300000, saved: 0 },
+  goal: { target: 0, saved: 0, monthly: {} },
   noSpendDays: [],
   lastAi: null,
 };

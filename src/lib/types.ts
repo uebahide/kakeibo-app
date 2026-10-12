@@ -15,9 +15,12 @@ export type Transaction = {
 export type NewTransaction = Omit<Transaction, "id" | "createdAt">;
 
 export type SavingsGoal = {
-  name: string;
+  /** target amount; 0 means no target */
   target: number;
+  /** savings from before the app was used */
   saved: number;
+  /** amount saved each month (YYYY-MM). Counted out of that month's balance. */
+  monthly: Record<string, number>;
 };
 
 export type AiInsight = { title: string; detail: string; kind: "good" | "warn" | "info" };

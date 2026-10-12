@@ -44,11 +44,11 @@ ${DIGEST_NOTE}
 数字は必ずデータから引用し、データにない金額を作らないでください。
 
 返す内容:
-- score: 予算の守り具合・黒字かどうか・貯金目標の進み具合から付けた 0〜100 の整数
+- score: 予算の守り具合・黒字かどうか・毎月の貯金（目標があればその進み具合）から付けた 0〜100 の整数
 - headline: 全体を一言で（30字以内）
 - insights: 3〜5件。title は20字以内、detail は60〜100字でデータの数字を引用。kind は良い点なら good、注意点なら warn、それ以外は info
 - actions: 2〜3件。具体的な行動（detail は60字以内）と、見込める月の節約額 monthlySaving（円・整数、見積もれなければ 0）
-- cheer: 貯金目標に向けた励ましの一言（50字以内）`;
+- cheer: 貯金を続ける励ましの一言（50字以内）`;
 
 export async function POST(request: Request) {
   const denied = await authorizeAiRequest();

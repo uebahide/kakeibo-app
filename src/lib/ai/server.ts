@@ -49,4 +49,4 @@ export function aiErrorResponse(err: unknown): Response {
 }
 
 export const DIGEST_NOTE =
-  "金額はすべて円。months[0] が今月（途中）で、dayOfMonth / daysInMonth まで経過しています。expense は変動費（記録した支出）と固定費（毎月自動で計上）の合計です。予算は変動費だけに設定しています。";
+  "金額はすべて円。months[0] が今月（途中）で、dayOfMonth / daysInMonth まで経過しています。savings はその月に貯金に回した額で、収支から差し引いています。expense は変動費（記録した支出）と固定費（毎月自動で計上）の合計です。予算は変動費だけに設定しています。";

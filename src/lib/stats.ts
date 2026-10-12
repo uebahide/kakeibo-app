@@ -1,6 +1,7 @@
 import { FIXED_COST_CATEGORIES, VARIABLE_CATEGORIES, getCategory } from "./categories";
 import { addMonths, currentMonth, daysInMonth, monthOf, parseDate, shiftDays, today, WEEKDAYS } from "./date";
 import { fixedCostsFor, sumFixed } from "./fixed";
+import { monthSavings, totalSaved } from "./savings";
 import type { Settings, Transaction, TxType } from "./types";
 
 export type MonthStats = {
@@ -77,20 +78,6 @@ export function recordStreak(txs: Transaction[], noSpendDays: string[]) {
   }
   const last7 = Array.from({ length: 7 }, (_, i) => days.has(shiftDays(t, i - 6)));
   return { count, last7, recordedToday: days.has(t) };
-}
-
-/** Average monthly surplus over the last 3 months that have records. */
-export function averageSurplus(txs: Transaction[], settings: Settings): number {
-  let sum = 0;
-  let n = 0;
-  for (let k = 1; k <= 3; k++) {
-    const s = monthStats(txs, addMonths(currentMonth(), -k), settings);
-    if (s.list.length) {
-      sum += s.income - s.expense;
-      n++;
-    }
-  }
-  return n ? sum / n : 0;
 }
 
 export type QuickPick = { category: string; memo: string; amount: number; count: number };
@@ -178,6 +165,7 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
         expense: s.expense,
         variableExpense: s.variable,
         fixedExpense: s.fixed,
+        savings: monthSavings(settings, m),
         fixedCosts: fixedCostsFor(settings.fixedCosts, m).items.map((f) => ({
           name: f.name,
           category: getCategory(f.category).name,
@@ -194,7 +182,10 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
       VARIABLE_CATEGORIES.map((c) => [c.name, settings.budgets[c.id] ?? 0]),
     ),
     variableBudget: variableBudget(settings),
-    savingsGoal: settings.goal,
+    savings: {
+      total: totalSaved(settings),
+      target: settings.goal.target || null,
+    },
     topSpendingItems: [...items.entries()]
       .sort((a, b) => b[1].total - a[1].total)
       .slice(0, 15)
