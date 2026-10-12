@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CATEGORIES } from "@/lib/categories";
+import { VARIABLE_CATEGORIES } from "@/lib/categories";
 import { parseAmount, yen } from "@/lib/format";
-import { totalBudget } from "@/lib/stats";
+import { variableBudget } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/client";
 import { useSeedSamples } from "./HomeView";
 import { useKakeibo } from "./KakeiboProvider";
@@ -24,8 +24,8 @@ export function SettingsView() {
   return (
     <div className="grid items-start gap-3.5 lg:grid-cols-[1.15fr_1fr]">
       <Card>
-        <CardTitle action={<span className="num text-ink">合計 {yen(totalBudget(settings))}</span>}>月の予算</CardTitle>
-        {CATEGORIES.expense.map((c) => (
+        <CardTitle action={<span className="num text-ink">合計 {yen(variableBudget(settings))}</span>}>変動費の月の予算</CardTitle>
+        {VARIABLE_CATEGORIES.map((c) => (
           <label key={c.id} className="grid grid-cols-[auto_1fr_120px] items-center gap-2.5 py-1.5">
             <Stamp category={c.id} size="sm" />
             <span>{c.name}</span>
@@ -44,7 +44,7 @@ export function SettingsView() {
             />
           </label>
         ))}
-        <p className="mt-1.5 text-xs text-muted">入力欄から離れると保存されます。0 にするとそのカテゴリの予算は表示されません。</p>
+        <p className="mt-1.5 text-xs text-muted">入力欄から離れると保存されます。0 にするとそのカテゴリの予算は表示されません。家賃や通信費などの固定費は、ホームの「固定費」で月ごとに設定します。</p>
       </Card>
 
       <div className="grid gap-3.5">
