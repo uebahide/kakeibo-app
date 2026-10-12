@@ -43,7 +43,23 @@ type Ctx = {
   updateSettings: (change: (s: Settings) => Settings) => Promise<void>;
   toast: (msg: string) => void;
   toastMessage: string | null;
+  /** Savings amounts masked as ***** on this device (a screen-privacy aid, like hiding a balance). */
+  savingsHidden: boolean;
+  hideSavings: () => void;
+  /** Show savings again. Signed in, this checks the login password; resolves false if it is wrong. */
+  revealSavings: (password: string) => Promise<boolean>;
 };
+
+const HIDE_KEY = "kakeibo-app.hideSavings";
+
+function storeHidden(hidden: boolean) {
+  try {
+    if (hidden) localStorage.setItem(HIDE_KEY, "1");
+    else localStorage.removeItem(HIDE_KEY);
+  } catch {
+    // storage blocked: the choice lasts until reload
+  }
+}
 
 const KakeiboContext = createContext<Ctx | null>(null);
 
@@ -72,6 +88,7 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
   const [view, setViewState] = useState<View>("home");
   const [entry, setEntry] = useState<Ctx["entry"]>({ open: false, editing: null });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [savingsHidden, setSavingsHidden] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const settingsRef = useRef(settings);
   const settingsQueue = useRef(Promise.resolve());
@@ -86,6 +103,11 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
         setSettings(data.settings);
         settingsRef.current = data.settings;
         setMonth(currentPeriod(data.settings.monthStartDay));
+        try {
+          setSavingsHidden(localStorage.getItem(HIDE_KEY) === "1");
+        } catch {
+          // storage blocked: start shown
+        }
         setReady(true);
       })
       .catch((e: Error) => !cancelled && setLoadError(e.message));
@@ -151,6 +173,32 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     }
   }, [store, updateSettings]);
 
+  const hideSavings = useCallback(() => {
+    setSavingsHidden(true);
+    storeHidden(true);
+  }, []);
+
+  const revealSavings = useCallback(
+    async (password: string) => {
+      if (store.kind === "supabase") {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        const email = data.user?.email;
+        if (!email) throw new Error("ログインが切れました。もう一度ログインしてください");
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          // 400 is a wrong password; anything else (offline, rate limit) is not the user's typo
+          if (error.status === 400) return false;
+          throw new Error("確認できませんでした。時間をおいてもう一度お試しください");
+        }
+      }
+      setSavingsHidden(false);
+      storeHidden(false);
+      return true;
+    },
+    [store],
+  );
+
   const value: Ctx = {
     ready,
     loadError,
@@ -171,6 +219,9 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     updateSettings,
     toast,
     toastMessage,
+    savingsHidden,
+    hideSavings,
+    revealSavings,
   };
 
   return <KakeiboContext.Provider value={value}>{children}</KakeiboContext.Provider>;

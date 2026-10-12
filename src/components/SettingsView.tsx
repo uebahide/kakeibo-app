@@ -10,10 +10,11 @@ import { variableBudget } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/client";
 import { useSeedSamples } from "./HomeView";
 import { useKakeibo } from "./KakeiboProvider";
+import { SavingsEye } from "./SavingsPrivacy";
 import { Button, Card, CardTitle, Stamp, cx } from "./ui";
 
 export function SettingsView() {
-  const { settings, updateSettings, storeKind, deleteSamples, toast, transactions, setMonth } = useKakeibo();
+  const { settings, updateSettings, storeKind, deleteSamples, toast, transactions, setMonth, savingsHidden } = useKakeibo();
   const startDay = settings.monthStartDay;
   const example = currentPeriod(startDay);
   const seed = useSeedSamples();
@@ -109,41 +110,45 @@ export function SettingsView() {
         </Card>
 
         <Card>
-          <CardTitle>貯金</CardTitle>
-          <form
-            className="grid gap-1"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              await updateSettings((s) => ({
-                ...s,
-                goal: { ...s.goal, target: parseAmount(goal.target), saved: parseAmount(goal.saved) },
-              }));
-              toast("保存しました");
-            }}
-          >
-            {(
-              [
-                ["target", "目標の貯金額（任意・空欄なら目標なし）"],
-                ["saved", "アプリを使う前からの貯金"],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="block">
-                <span className="mt-2 mb-1 block text-[11px] tracking-wide text-muted">{label}</span>
-                <input
-                  id={`goal-${key}`}
-                  value={goal[key]}
-                  inputMode="numeric"
-                  placeholder="0"
-                  onChange={(e) => setGoal({ ...goal, [key]: e.target.value })}
-                  className="num w-full rounded-xl border border-line bg-bg px-3 py-2"
-                />
-              </label>
-            ))}
-            <Button type="submit" variant="primary" className="mt-3 justify-self-start">
-              保存
-            </Button>
-            <p className="mt-2 text-xs text-muted">毎月の貯金額はホームの「貯金」で入れます。これまでの貯金は、ここで入れた額と毎月の貯金額の合計です。</p>
-          </form>
+          <CardTitle action={<SavingsEye className="-my-1.5" />}>貯金</CardTitle>
+          {savingsHidden ? (
+            <p className="text-sm text-muted">貯金額を隠しています。目のマークから表示すると、目標額などを変えられます。</p>
+          ) : (
+            <form
+              className="grid gap-1"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                await updateSettings((s) => ({
+                  ...s,
+                  goal: { ...s.goal, target: parseAmount(goal.target), saved: parseAmount(goal.saved) },
+                }));
+                toast("保存しました");
+              }}
+            >
+              {(
+                [
+                  ["target", "目標の貯金額（任意・空欄なら目標なし）"],
+                  ["saved", "アプリを使う前からの貯金"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="block">
+                  <span className="mt-2 mb-1 block text-[11px] tracking-wide text-muted">{label}</span>
+                  <input
+                    id={`goal-${key}`}
+                    value={goal[key]}
+                    inputMode="numeric"
+                    placeholder="0"
+                    onChange={(e) => setGoal({ ...goal, [key]: e.target.value })}
+                    className="num w-full rounded-xl border border-line bg-bg px-3 py-2"
+                  />
+                </label>
+              ))}
+              <Button type="submit" variant="primary" className="mt-3 justify-self-start">
+                保存
+              </Button>
+              <p className="mt-2 text-xs text-muted">毎月の貯金額はホームの「貯金」で入れます。これまでの貯金は、ここで入れた額と毎月の貯金額の合計です。</p>
+            </form>
+          )}
         </Card>
 
         <Card>

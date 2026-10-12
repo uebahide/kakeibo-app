@@ -11,6 +11,7 @@ import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
 import { PACE_STEPS, elapsedFraction, monthStats, paceLevel, paceStep, recordStreak, variableBudget } from "@/lib/stats";
 import { AiShortcut } from "./AiShortcut";
 import { FixedCostsCard } from "./FixedCostsCard";
+import { SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
 import { useKakeibo } from "./KakeiboProvider";
 import { Button, Card, CardTitle, EmptyState, Meter, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
 
@@ -43,7 +44,7 @@ const PACE_BADGE = [
 type Panel = "income" | "fixed" | "saving" | "extra";
 
 export function HomeView() {
-  const { transactions, settings, month, setView, openEntry } = useKakeibo();
+  const { transactions, settings, month, setView, openEntry, savingsHidden } = useKakeibo();
   const seed = useSeedSamples();
   const [panel, setPanel] = useState<Panel | null>(null);
   const stats = monthStats(transactions, month, settings);
@@ -127,7 +128,7 @@ export function HomeView() {
                 <dt>固定費</dt>
                 <dd className="text-right">−{yen(stats.fixed)}</dd>
                 <dt>貯金</dt>
-                <dd className="text-right">−{yen(saving)}</dd>
+                <dd className="text-right">{savingsHidden ? SAVINGS_MASK : `−${yen(saving)}`}</dd>
                 <dt>{stats.variable > budget ? "変動費（予算超え）" : "変動費の予算"}</dt>
                 <dd className="text-right">−{yen(plannedVariable)}</dd>
                 {stats.extra > 0 && (
@@ -150,7 +151,7 @@ export function HomeView() {
         <StreakLine />
 
         <Card>
-          <CardTitle>{monthLabel(month)}のお金</CardTitle>
+          <CardTitle action={<SavingsEye className="-my-1.5" />}>{monthLabel(month)}のお金</CardTitle>
           <MoneyRow
             label="収入"
             sub={incomeList.length ? `${incomeList.length}件` : "給料などを記録する"}
@@ -166,8 +167,12 @@ export function HomeView() {
           />
           <MoneyRow
             label="貯金"
-            sub={`これまで ${yen(saved)}${target ? `・目標の${Math.min(100, Math.round((saved / target) * 100))}%` : ""}`}
-            amount={saving || null}
+            sub={
+              savingsHidden
+                ? `これまで ${SAVINGS_MASK}`
+                : `これまで ${yen(saved)}${target ? `・目標の${Math.min(100, Math.round((saved / target) * 100))}%` : ""}`
+            }
+            amount={savingsHidden ? SAVINGS_MASK : saving || null}
             tone="saving"
             onClick={() => setPanel("saving")}
           />
@@ -292,7 +297,7 @@ function MoneyRow({
 }: {
   label: string;
   sub: string;
-  amount: number | null;
+  amount: number | string | null;
   tone?: keyof typeof MONEY_TONE;
   onClick: () => void;
 }) {
@@ -306,7 +311,7 @@ function MoneyRow({
         <span className="block text-sm font-medium">{label}</span>
         <span className="block truncate text-[11px] text-muted">{sub}</span>
       </span>
-      {amount === null ? <span className="text-sm text-muted">未入力</span> : <span className={cx("num text-base font-semibold", tone && MONEY_TONE[tone])}>{tone === "income" && "+"}{yen(amount)}</span>}
+      {amount === null ? <span className="text-sm text-muted">未入力</span> : <span className={cx("num text-base font-semibold", tone && MONEY_TONE[tone])}>{typeof amount === "string" ? amount : `${tone === "income" ? "+" : ""}${yen(amount)}`}</span>}
       <span aria-hidden className="text-lg text-muted">
         ›
       </span>
@@ -315,7 +320,7 @@ function MoneyRow({
 }
 
 function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; leftover: number }) {
-  const { settings, month, updateSettings, setView, toast } = useKakeibo();
+  const { settings, month, updateSettings, setView, toast, savingsHidden: hidden } = useKakeibo();
   const current = monthSavings(settings, month);
   const [input, setInput] = useState<{ month: string; value: string } | null>(null);
   const value = input?.month === month ? input.value : current ? String(current) : "";
@@ -346,8 +351,8 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
 
   return (
     <div>
-      <div className={cx("grid items-center gap-3.5", target > 0 && "grid-cols-[auto_1fr]")}>
-        {target > 0 && (
+      <div className={cx("grid items-center gap-3.5", target > 0 && !hidden && "grid-cols-[auto_1fr]")}>
+        {target > 0 && !hidden && (
           <svg width="84" height="84" viewBox="0 0 84 84" role="img" aria-label={`達成率 ${Math.round(progress * 100)}%`}>
             <circle cx="42" cy="42" r={R} fill="none" stroke="var(--surface-2)" strokeWidth="9" />
             <circle
@@ -368,44 +373,52 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
         )}
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-2 text-xs text-muted">
-            これまでの貯金
-            <TextButton onClick={() => setView("settings")}>{target ? "目標を変更" : "目標額を設定"}</TextButton>
+            <span className="flex items-center gap-1">
+              これまでの貯金
+              <SavingsEye className="size-7 [&_svg]:size-4" />
+            </span>
+            {!hidden && <TextButton onClick={() => setView("settings")}>{target ? "目標を変更" : "目標額を設定"}</TextButton>}
           </div>
           <div className="num text-xl font-semibold text-accent">
-            {yen(total)} {target > 0 && <span className="text-[13px] text-muted">/ 目標 {yen(target)}</span>}
+            {hidden ? SAVINGS_MASK : yen(total)}{" "}
+            {target > 0 && !hidden && <span className="text-[13px] text-muted">/ 目標 {yen(target)}</span>}
           </div>
-          {target > 0 && <div className="text-xs text-muted">{eta}</div>}
+          {target > 0 && !hidden && <div className="text-xs text-muted">{eta}</div>}
         </div>
       </div>
-      <form
-        className="mt-3 grid gap-1.5"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save(parseAmount(value));
-        }}
-      >
-        <label htmlFor="month-saving" className="text-[11px] tracking-wide text-muted">
-          {monthLabel(month)}の貯金額（収支から差し引きます）
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <input
-            id="month-saving"
-            value={value}
-            onChange={(e) => setInput({ month, value: e.target.value })}
-            inputMode="numeric"
-            placeholder="0"
-            className="num min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 py-2"
-          />
-          <Button type="submit" variant="primary" disabled={parseAmount(value) === current}>
-            {current ? "変更" : "保存"}
-          </Button>
-          {canMoveLeftover && (
-            <Button onClick={() => save(current + leftover)} title="今月の変動費の予算の残りを貯金に足す">
-              残り予算を回す
+      {hidden ? (
+        <p className="mt-3 text-xs text-muted">貯金額を隠しています。目のマークから表示すると、金額を入れたり変えたりできます。</p>
+      ) : (
+        <form
+          className="mt-3 grid gap-1.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save(parseAmount(value));
+          }}
+        >
+          <label htmlFor="month-saving" className="text-[11px] tracking-wide text-muted">
+            {monthLabel(month)}の貯金額（収支から差し引きます）
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <input
+              id="month-saving"
+              value={value}
+              onChange={(e) => setInput({ month, value: e.target.value })}
+              inputMode="numeric"
+              placeholder="0"
+              className="num min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 py-2"
+            />
+            <Button type="submit" variant="primary" disabled={parseAmount(value) === current}>
+              {current ? "変更" : "保存"}
             </Button>
-          )}
-        </div>
-      </form>
+            {canMoveLeftover && (
+              <Button onClick={() => save(current + leftover)} title="今月の変動費の予算の残りを貯金に足す">
+                残り予算を回す
+              </Button>
+            )}
+          </div>
+        </form>
+      )}
     </div>
   );
 }
