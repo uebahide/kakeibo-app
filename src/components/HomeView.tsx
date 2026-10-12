@@ -141,6 +141,7 @@ export function HomeView() {
             label="収入"
             sub={incomeList.length ? `${incomeList.length}件` : "給料などを記録する"}
             amount={stats.income || null}
+            income
             onClick={() => setPanel("income")}
           />
           <MoneyRow
@@ -265,7 +266,7 @@ export function HomeView() {
   );
 }
 
-function MoneyRow({ label, sub, amount, onClick }: { label: string; sub: string; amount: number | null; onClick: () => void }) {
+function MoneyRow({ label, sub, amount, income = false, onClick }: { label: string; sub: string; amount: number | null; income?: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -276,7 +277,7 @@ function MoneyRow({ label, sub, amount, onClick }: { label: string; sub: string;
         <span className="block text-sm font-medium">{label}</span>
         <span className="block truncate text-[11px] text-muted">{sub}</span>
       </span>
-      {amount === null ? <span className="text-sm text-muted">未入力</span> : <span className="num text-base font-semibold">{yen(amount)}</span>}
+      {amount === null ? <span className="text-sm text-muted">未入力</span> : <span className={cx("num text-base font-semibold", income && "text-good")}>{income && "+"}{yen(amount)}</span>}
       <span aria-hidden className="text-lg text-muted">
         ›
       </span>
