@@ -1,6 +1,6 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useEffect, useId, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { categoryColor, getCategory } from "@/lib/categories";
 import { dayLabel } from "@/lib/date";
 import { yen } from "@/lib/format";
@@ -86,7 +86,7 @@ export function Meter({ ratio, level, className }: { ratio: number; level: PaceL
   );
 }
 
-export function TxRow({ tx, onClick }: { tx: Transaction; onClick: () => void }) {
+export function TxRow({ tx, onClick, showDate = true }: { tx: Transaction; onClick: () => void; showDate?: boolean }) {
   const cat = getCategory(tx.category);
   const income = tx.type === "income";
   return (
@@ -100,10 +100,11 @@ export function TxRow({ tx, onClick }: { tx: Transaction; onClick: () => void })
         <span className="block truncate text-sm">
           {tx.memo || cat.name}
           {tx.outsideBudget && <span className="ml-1.5 rounded bg-warn-soft px-1 align-[1px] text-[10px] font-bold text-warn">予算外</span>}
-          {tx.isSample && <span className="ml-1.5 rounded border border-line px-1 align-[1px] text-[10px] text-muted">サンプル</span>}
         </span>
         <span className="block text-[11px] text-muted">
-          {cat.name}・{dayLabel(tx.date)}
+          {cat.name}
+          {showDate && `・${dayLabel(tx.date)}`}
+          {tx.isSample && "・サンプル"}
         </span>
       </span>
       <span className={cx("num whitespace-nowrap text-base font-semibold", income && "text-good")}>
@@ -111,6 +112,35 @@ export function TxRow({ tx, onClick }: { tx: Transaction; onClick: () => void })
         {yen(tx.amount)}
       </span>
     </button>
+  );
+}
+
+/** Bottom sheet on phones, centered dialog on wide screens. */
+export function Sheet({ title, onClose, children }: { title: ReactNode; onClose: () => void; children: ReactNode }) {
+  const titleId = useId();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim lg:items-center" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="max-h-[90%] w-full max-w-[560px] animate-sheet-up overflow-auto rounded-t-[20px] bg-surface px-4 pt-3.5 pb-[calc(16px+env(safe-area-inset-bottom,0px))] motion-reduce:animate-none lg:max-w-[520px] lg:rounded-[20px]"
+      >
+        <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-line lg:hidden" />
+        <div className="mb-1 flex items-center justify-between">
+          <b id={titleId}>{title}</b>
+          <Button variant="ghost" onClick={onClose}>
+            閉じる
+          </Button>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 
