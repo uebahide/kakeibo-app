@@ -11,11 +11,13 @@ type TxRow = {
   type: Transaction["type"];
   category: string;
   memo: string;
+  outside_budget?: boolean;
   is_sample: boolean;
   created_at: string;
 };
 
-const TX_COLUMNS = "id, date, amount, type, category, memo, is_sample, created_at";
+// "*" so the app still loads before the outside_budget column (migration 0003) exists
+const TX_COLUMNS = "*";
 
 const fromRow = (r: TxRow): Transaction => ({
   id: r.id,
@@ -24,6 +26,7 @@ const fromRow = (r: TxRow): Transaction => ({
   type: r.type,
   category: r.category,
   memo: r.memo ?? "",
+  outsideBudget: r.outside_budget ?? false,
   isSample: r.is_sample,
   createdAt: r.created_at,
 });
@@ -34,6 +37,8 @@ const toRow = (t: NewTransaction) => ({
   type: t.type,
   category: t.category,
   memo: t.memo,
+  // only sent when set, so normal records still save before migration 0003 is run
+  ...(t.outsideBudget ? { outside_budget: true } : {}),
   is_sample: t.isSample,
 });
 
@@ -79,7 +84,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
     },
     async updateTransaction(id, item) {
       const row = check(
-        await supabase.from("transactions").update(toRow(item)).eq("id", id).select(TX_COLUMNS).single(),
+        await supabase.from("transactions").update({ ...toRow(item), outside_budget: Boolean(item.outsideBudget) }).eq("id", id).select(TX_COLUMNS).single(),
       );
       return fromRow(row as TxRow);
     },

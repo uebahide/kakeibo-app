@@ -7,6 +7,7 @@ import { parseAmount, yen } from "@/lib/format";
 import { averageMonthlySavings, monthSavings, totalSaved } from "@/lib/savings";
 import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
 import { PACE_LABEL, elapsedFraction, monthStats, paceLevel, recordStreak, variableBudget } from "@/lib/stats";
+import type { Transaction } from "@/lib/types";
 import { FixedCostsCard } from "./FixedCostsCard";
 import { useKakeibo } from "./KakeiboProvider";
 import { Button, Card, CardTitle, EmptyState, Meter, Pill, Stamp, TextButton, TxRow, cx } from "./ui";
@@ -42,7 +43,7 @@ export function HomeView() {
   const balance = stats.income - stats.expense - saving;
   // Money left over this month if variable spending ends exactly at the budget (or at what was spent, if over).
   const plannedVariable = Math.max(budget, stats.variable);
-  const spare = stats.income - stats.fixed - saving - plannedVariable;
+  const spare = stats.income - stats.fixed - saving - plannedVariable - stats.extra;
   const recent = transactions.slice(0, 5);
 
   return (
@@ -106,11 +107,13 @@ export function HomeView() {
             <p className="num mt-1 text-xs text-muted">
               収入 {yen(stats.income)} − 固定費 {yen(stats.fixed)} − 貯金 {yen(saving)} −{" "}
               {stats.variable > budget ? `変動費（予算超え）${yen(stats.variable)}` : `変動費の予算 ${yen(budget)}`}
+              {stats.extra > 0 && ` − 予算外の支出 ${yen(stats.extra)}`}
             </p>
             {!stats.income && <p className="mt-1 text-xs text-muted">この月の収入を記録すると、浮くお金がわかります。</p>}
           </div>
         </Card>
 
+        <OutsideBudgetCard items={stats.extraList} total={stats.extra} spare={spare} />
         <FixedCostsCard />
         <SavingsCard canMoveLeftover={isCurrent && left > 0 && balance > 0} leftover={Math.min(left, balance)} />
         <StreakCard />
@@ -246,6 +249,29 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
           )}
         </div>
       </form>
+    </Card>
+  );
+}
+
+function OutsideBudgetCard({ items, total, spare }: { items: Transaction[]; total: number; spare: number }) {
+  const { month, openEntry } = useKakeibo();
+  return (
+    <Card>
+      <CardTitle action={total > 0 && <span className="num text-ink">合計 {yen(total)}</span>}>{monthLabel(month)}の予算外の支出</CardTitle>
+      {items.length ? (
+        <>
+          {items.map((t) => (
+            <TxRow key={t.id} tx={t} onClick={() => openEntry(t)} />
+          ))}
+          <p className="mt-2 text-xs text-muted">
+            予算ではなく浮くお金から引いています。浮くお金の残りは {spare >= 0 ? yen(spare) : `−${yen(-spare)}`} です。
+          </p>
+        </>
+      ) : (
+        <p className="text-sm text-muted">
+          旅行やイベントなど、予算とは別に浮くお金から使う出費は、記入するときに「予算外」を選ぶとここにまとまります。
+        </p>
+      )}
     </Card>
   );
 }

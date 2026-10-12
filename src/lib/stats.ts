@@ -7,13 +7,17 @@ import type { Settings, Transaction, TxType } from "./types";
 export type MonthStats = {
   list: Transaction[];
   income: number;
-  /** variable spending (recorded expenses) plus the month's fixed costs */
+  /** all spending: variable + fixed + outside the budget */
   expense: number;
+  /** recorded expenses counted against the budget */
   variable: number;
   fixed: number;
+  /** recorded expenses marked outside the budget (paid from the spare money) */
+  extra: number;
+  extraList: Transaction[];
   /** all spending per category, fixed costs included */
   byCategory: Record<string, number>;
-  /** recorded expenses per category */
+  /** budgeted recorded expenses per category */
   variableByCategory: Record<string, number>;
 };
 
@@ -23,18 +27,25 @@ export function monthStats(txs: Transaction[], month: string, settings?: Setting
   const variableByCategory: Record<string, number> = {};
   let income = 0;
   let variable = 0;
+  const extraList: Transaction[] = [];
+  const byCategory: Record<string, number> = {};
   for (const t of list) {
-    if (t.type === "income") income += t.amount;
+    if (t.type === "income") {
+      income += t.amount;
+      continue;
+    }
+    byCategory[t.category] = (byCategory[t.category] ?? 0) + t.amount;
+    if (t.outsideBudget) extraList.push(t);
     else {
       variable += t.amount;
       variableByCategory[t.category] = (variableByCategory[t.category] ?? 0) + t.amount;
     }
   }
+  const extra = extraList.reduce((s, t) => s + t.amount, 0);
   const fixedItems = settings ? fixedCostsFor(settings.fixedCosts, month).items : [];
-  const byCategory = { ...variableByCategory };
   for (const item of fixedItems) byCategory[item.category] = (byCategory[item.category] ?? 0) + item.amount;
   const fixed = sumFixed(fixedItems);
-  return { list, income, expense: variable + fixed, variable, fixed, byCategory, variableByCategory };
+  return { list, income, expense: variable + fixed + extra, variable, fixed, extra, extraList, byCategory, variableByCategory };
 }
 
 /** Monthly budget for variable costs (fixed costs are set per month instead). */
@@ -109,7 +120,7 @@ export function weekdayAverages(txs: Transaction[], days = 90): number[] {
   const counts = Array(7).fill(0);
   for (let i = 0; i < days; i++) counts[parseDate(shiftDays(today(), -i)).getDay()]++;
   for (const t of txs) {
-    if (t.type === "income" || t.date < since || FIXED_COST_CATEGORIES.has(t.category)) continue;
+    if (t.type === "income" || t.outsideBudget || t.date < since || FIXED_COST_CATEGORIES.has(t.category)) continue;
     sums[parseDate(t.date).getDay()] += t.amount;
   }
   return sums.map((s, i) => (counts[i] ? s / counts[i] : 0));
@@ -121,7 +132,7 @@ export function cumulativeDaily(txs: Transaction[], month: string): { day: numbe
   const lastDay = month === cur ? new Date().getDate() : month < cur ? daysInMonth(month) : 0;
   const daily = Array(daysInMonth(month) + 1).fill(0);
   for (const t of txs) {
-    if (t.type === "income" || monthOf(t.date) !== month) continue;
+    if (t.type === "income" || t.outsideBudget || monthOf(t.date) !== month) continue;
     daily[Number(t.date.slice(8))] += t.amount;
   }
   const out: { day: number; total: number }[] = [];
@@ -150,7 +161,7 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
   }
   const wd = Array(7).fill(0);
   for (const t of recent) {
-    if (!FIXED_COST_CATEGORIES.has(t.category)) wd[parseDate(t.date).getDay()] += t.amount;
+    if (!t.outsideBudget && !FIXED_COST_CATEGORIES.has(t.category)) wd[parseDate(t.date).getDay()] += t.amount;
   }
 
   return {
@@ -165,6 +176,7 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
         expense: s.expense,
         variableExpense: s.variable,
         fixedExpense: s.fixed,
+        outsideBudgetExpense: s.extra,
         savings: monthSavings(settings, m),
         fixedCosts: fixedCostsFor(settings.fixedCosts, m).items.map((f) => ({
           name: f.name,

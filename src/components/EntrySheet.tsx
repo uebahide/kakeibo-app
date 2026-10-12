@@ -24,6 +24,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   const [amount, setAmount] = useState(editing ? editing.amount.toLocaleString("ja-JP") : "");
   const [date, setDate] = useState(editing?.date ?? (month === currentMonth() ? today() : `${month}-01`));
   const [memo, setMemo] = useState(editing?.memo ?? "");
+  const [outsideBudget, setOutsideBudget] = useState(editing?.outsideBudget ?? false);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -62,6 +63,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
       type,
       category,
       memo: memo.trim().slice(0, 60),
+      outsideBudget: type === "expense" && outsideBudget,
       isSample: editing?.isSample ?? false,
     };
     setBusy(true);
@@ -175,6 +177,29 @@ function EntryForm({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
+
+        {type === "expense" && (
+          <div className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label="予算に入れるか">
+            {(
+              [
+                [false, "予算内", "ふだんの支出"],
+                [true, "予算外", "旅行・イベントなど"],
+              ] as const
+            ).map(([value, label, hint]) => (
+              <button
+                key={label}
+                type="button"
+                role="radio"
+                aria-checked={outsideBudget === value}
+                onClick={() => setOutsideBudget(value)}
+                className={cx("rounded-lg py-1.5 text-sm font-bold", outsideBudget === value ? "bg-surface text-ink shadow-sm" : "text-muted")}
+              >
+                {label}
+                <span className="block text-[10px] font-normal text-muted">{hint}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {picks.length > 0 && (
           <div className="no-scrollbar mt-2.5 flex gap-1.5 overflow-x-auto pb-1" aria-label="よく使う記録">
