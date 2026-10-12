@@ -76,7 +76,7 @@ export function HomeView() {
       <div className="grid gap-3.5">
         <section className="rounded-2xl bg-accent p-4 text-accent-ink shadow-[0_6px_20px_rgb(22_32_54/0.08)]">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs tracking-wider opacity-85">{monthLabel(month)}の変動費の残り</span>
+            <span className="text-xs tracking-wider opacity-85">{monthLabel(month)}の予算の残り</span>
             <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold">{budget ? PACE_LABEL[level] : "予算未設定"}</span>
           </div>
           <div className="num mt-1 text-[34px] leading-tight font-bold min-[400px]:text-[40px]">
