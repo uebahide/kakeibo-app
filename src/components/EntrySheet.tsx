@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES, getCategory } from "@/lib/categories";
-import { currentMonth, monthOf, today } from "@/lib/date";
+import { today } from "@/lib/date";
+import { currentPeriod, periodOf, periodStart } from "@/lib/period";
 import { formatAmountInput, parseAmount, yen } from "@/lib/format";
 import { quickPicks } from "@/lib/stats";
 import type { NewTransaction, TxType } from "@/lib/types";
@@ -17,12 +18,13 @@ export function EntrySheet() {
 }
 
 function EntryForm({ onClose }: { onClose: () => void }) {
-  const { entry, transactions, month, setMonth, addTransactions, updateTransaction, deleteTransaction, toast } = useKakeibo();
+  const { entry, transactions, settings, month, setMonth, addTransactions, updateTransaction, deleteTransaction, toast } = useKakeibo();
   const editing = entry.editing;
   const [type, setType] = useState<TxType>(editing?.type ?? "expense");
   const [category, setCategory] = useState(editing?.category ?? "food");
   const [amount, setAmount] = useState(editing ? editing.amount.toLocaleString("ja-JP") : "");
-  const [date, setDate] = useState(editing?.date ?? (month === currentMonth() ? today() : `${month}-01`));
+  const startDay = settings.monthStartDay;
+  const [date, setDate] = useState(editing?.date ?? (month === currentPeriod(startDay) ? today() : periodStart(month, startDay)));
   const [memo, setMemo] = useState(editing?.memo ?? "");
   const [outsideBudget, setOutsideBudget] = useState(editing?.outsideBudget ?? false);
   const [busy, setBusy] = useState(false);
@@ -81,7 +83,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
           amountRef.current?.focus();
         } else onClose();
       }
-      if (!keepOpen && monthOf(item.date) !== month) setMonth(monthOf(item.date));
+      if (!keepOpen && periodOf(item.date, startDay) !== month) setMonth(periodOf(item.date, startDay));
     } catch {
       toast("保存できませんでした。もう一度お試しください");
     } finally {

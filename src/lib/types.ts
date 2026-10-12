@@ -50,6 +50,8 @@ export type Settings = {
   budgets: Record<string, number>;
   /** fixed costs per month (YYYY-MM). A month without an entry inherits the latest earlier month. */
   fixedCosts: Record<string, FixedCost[]>;
+  /** day of the month (1–28) each month starts on, e.g. payday */
+  monthStartDay: number;
   goal: SavingsGoal;
   /** days marked as "no spending" (YYYY-MM-DD) */
   noSpendDays: string[];

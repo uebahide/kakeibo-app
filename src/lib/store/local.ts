@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from "../categories";
+import { clampStartDay } from "../period";
 import { normalizeGoal } from "../savings";
 import type { NewTransaction, Settings, Transaction } from "../types";
 import type { KakeiboStore } from "./types";
@@ -14,7 +15,12 @@ function read(): Saved {
       const saved = JSON.parse(raw) as Partial<Saved>;
       return {
         transactions: saved.transactions ?? [],
-        settings: { ...DEFAULT_SETTINGS, ...saved.settings, goal: normalizeGoal(saved.settings?.goal) },
+        settings: {
+          ...DEFAULT_SETTINGS,
+          ...saved.settings,
+          goal: normalizeGoal(saved.settings?.goal),
+          monthStartDay: clampStartDay(saved.settings?.monthStartDay),
+        },
       };
     }
   } catch {

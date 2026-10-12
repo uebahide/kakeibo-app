@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { VARIABLE_CATEGORIES } from "@/lib/categories";
 import { parseAmount, yen } from "@/lib/format";
+import { monthLabel } from "@/lib/date";
+import { clampStartDay, currentPeriod, periodRangeLabel } from "@/lib/period";
 import { variableBudget } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/client";
 import { useSeedSamples } from "./HomeView";
@@ -11,7 +13,9 @@ import { useKakeibo } from "./KakeiboProvider";
 import { Button, Card, CardTitle, Stamp } from "./ui";
 
 export function SettingsView() {
-  const { settings, updateSettings, storeKind, deleteSamples, toast, transactions } = useKakeibo();
+  const { settings, updateSettings, storeKind, deleteSamples, toast, transactions, setMonth } = useKakeibo();
+  const startDay = settings.monthStartDay;
+  const example = currentPeriod(startDay);
   const seed = useSeedSamples();
   const router = useRouter();
   const [goal, setGoal] = useState({
@@ -47,6 +51,37 @@ export function SettingsView() {
       </Card>
 
       <div className="grid gap-3.5">
+        <Card>
+          <CardTitle>月の始まり</CardTitle>
+          <label className="flex flex-wrap items-center gap-2 text-sm">
+            毎月
+            <select
+              id="month-start-day"
+              value={startDay}
+              onChange={async (e) => {
+                const day = clampStartDay(e.target.value);
+                await updateSettings((s) => ({ ...s, monthStartDay: day }));
+                setMonth(currentPeriod(day));
+                toast(day === 1 ? "月の始まりを1日に戻しました" : `毎月${day}日を月の始まりにしました`);
+              }}
+              className="num rounded-xl border border-line bg-bg px-3 py-2"
+            >
+              {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+            日から1か月として集計する
+          </label>
+          <p className="mt-2 text-xs text-muted">
+            給料日に合わせると、予算・固定費・貯金がお給料の周期で区切られます。
+            {startDay === 1
+              ? "今はカレンダーどおり（1日〜月末）です。"
+              : `たとえば「${monthLabel(example)}」は ${periodRangeLabel(example, startDay)} です。`}
+          </p>
+        </Card>
+
         <Card>
           <CardTitle>貯金</CardTitle>
           <form

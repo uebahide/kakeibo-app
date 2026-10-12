@@ -16,7 +16,8 @@ import {
   YAxis,
 } from "recharts";
 import { CATEGORIES, categoryColor } from "@/lib/categories";
-import { WEEKDAYS, addMonths, daysInMonth, monthLabel } from "@/lib/date";
+import { WEEKDAYS, addMonths, monthLabel } from "@/lib/date";
+import { periodDateLabel, periodDays } from "@/lib/period";
 import { shortYen, yen } from "@/lib/format";
 import { cumulativeDaily, monthStats, variableBudget, weekdayAverages } from "@/lib/stats";
 import { useKakeibo } from "./KakeiboProvider";
@@ -91,8 +92,10 @@ function CategoryBreakdown() {
 function BudgetPace() {
   const { transactions, settings, month } = useKakeibo();
   const budget = variableBudget(settings);
-  const n = daysInMonth(month);
-  const cumulative = cumulativeDaily(transactions, month);
+  const startDay = settings.monthStartDay;
+  const n = periodDays(month);
+  const cumulative = cumulativeDaily(transactions, month, startDay);
+  const dayName = (d: number) => (startDay === 1 ? `${d}日` : periodDateLabel(month, startDay, d));
   const data = Array.from({ length: n }, (_, i) => ({
     day: i + 1,
     actual: cumulative[i]?.total,
@@ -106,9 +109,9 @@ function BudgetPace() {
         <ResponsiveContainer>
           <ComposedChart data={data} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--line)" />
-            <XAxis dataKey="day" ticks={[1, 10, 20, n]} tickFormatter={(d) => `${d}日`} tick={axisTick} axisLine={false} tickLine={false} />
+            <XAxis dataKey="day" ticks={[1, 10, 20, n]} tickFormatter={dayName} tick={axisTick} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={shortYen} tick={axisTick} axisLine={false} tickLine={false} width={44} />
-            <Tooltip formatter={(v, name) => [yen(Number(v)), name === "actual" ? "変動費の累計" : "予算どおり"]} labelFormatter={(d) => `${d}日`} {...tooltipStyle} />
+            <Tooltip formatter={(v, name) => [yen(Number(v)), name === "actual" ? "変動費の累計" : "予算どおり"]} labelFormatter={(d) => dayName(Number(d))} {...tooltipStyle} />
             <Area dataKey="actual" stroke="var(--accent)" strokeWidth={2.5} fill="var(--accent)" fillOpacity={0.12} isAnimationActive={false} dot={false} />
             {budget > 0 && <Line dataKey="pace" stroke="var(--muted)" strokeWidth={1.5} strokeDasharray="5 5" dot={false} isAnimationActive={false} />}
           </ComposedChart>

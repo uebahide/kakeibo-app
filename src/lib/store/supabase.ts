@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_SETTINGS } from "../categories";
+import { clampStartDay } from "../period";
 import { normalizeGoal } from "../savings";
 import type { NewTransaction, Settings, Transaction } from "../types";
 import type { KakeiboStore } from "./types";
@@ -49,6 +50,8 @@ function check<T>(res: { data: T; error: { message: string } | null }): T {
 
 /** Signed-in store. Row level security limits every query to the signed-in user's rows. */
 export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
+  // Before migration 0004 the month_start_day column is missing; only send it once it exists or is needed.
+  let hasStartDayColumn = false;
   return {
     kind: "supabase",
     async load() {
@@ -58,9 +61,11 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         supabase.from("user_settings").select("*").maybeSingle(),
       ]);
       const rows = check(txRes) as TxRow[];
+      hasStartDayColumn = Boolean(setRes.data && "month_start_day" in setRes.data);
       const s = check(setRes) as {
         budgets: Settings["budgets"];
         fixed_costs?: Settings["fixedCosts"] | null;
+        month_start_day?: number | null;
         goal: Settings["goal"];
         no_spend_days: string[];
         last_ai: Settings["lastAi"];
@@ -71,6 +76,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
           ? {
               budgets: { ...DEFAULT_SETTINGS.budgets, ...s.budgets },
               fixedCosts: s.fixed_costs ?? {},
+              monthStartDay: clampStartDay(s.month_start_day),
               goal: normalizeGoal(s.goal),
               noSpendDays: s.no_spend_days ?? [],
               lastAi: s.last_ai ?? null,
@@ -102,6 +108,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
           user_id: auth.user.id,
           budgets: settings.budgets,
           fixed_costs: settings.fixedCosts,
+          ...(hasStartDayColumn || settings.monthStartDay !== 1 ? { month_start_day: settings.monthStartDay } : {}),
           goal: settings.goal,
           no_spend_days: settings.noSpendDays,
           last_ai: settings.lastAi,

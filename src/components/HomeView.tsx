@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { VARIABLE_CATEGORIES } from "@/lib/categories";
-import { currentMonth, daysInMonth, monthLabel, today } from "@/lib/date";
+import { monthLabel, today } from "@/lib/date";
+import { currentPeriod, periodDayIndex, periodDays } from "@/lib/period";
 import { parseAmount, yen } from "@/lib/format";
 import { averageMonthlySavings, monthSavings, totalSaved } from "@/lib/savings";
 import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
@@ -33,11 +34,12 @@ export function HomeView() {
   const seed = useSeedSamples();
   const stats = monthStats(transactions, month, settings);
   const budget = variableBudget(settings);
-  const fraction = elapsedFraction(month);
+  const startDay = settings.monthStartDay;
+  const fraction = elapsedFraction(month, startDay);
   const level = paceLevel(stats.variable, budget, fraction);
-  const isCurrent = month === currentMonth();
+  const isCurrent = month === currentPeriod(startDay);
   const left = budget - stats.variable;
-  const daysLeft = isCurrent ? daysInMonth(month) - new Date().getDate() + 1 : 0;
+  const daysLeft = isCurrent ? periodDays(month) - periodDayIndex(today(), month, startDay) + 1 : 0;
   const perDay = isCurrent && left > 0 ? left / daysLeft : 0;
   const saving = monthSavings(settings, month);
   const balance = stats.income - stats.expense - saving;

@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_SETTINGS } from "@/lib/categories";
-import { currentMonth } from "@/lib/date";
+import { currentPeriod } from "@/lib/period";
 import { createLocalStore } from "@/lib/store/local";
 import { createSupabaseStore } from "@/lib/store/supabase";
 import type { KakeiboStore } from "@/lib/store/types";
@@ -82,7 +82,7 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
         setTransactions(data.transactions.sort(byNewest));
         setSettings(data.settings);
         settingsRef.current = data.settings;
-        setMonth(currentMonth());
+        setMonth(currentPeriod(data.settings.monthStartDay));
         setReady(true);
       })
       .catch((e: Error) => !cancelled && setLoadError(e.message));
