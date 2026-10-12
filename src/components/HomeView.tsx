@@ -40,6 +40,9 @@ export function HomeView() {
   const perDay = isCurrent && left > 0 ? left / daysLeft : 0;
   const saving = monthSavings(settings, month);
   const balance = stats.income - stats.expense - saving;
+  // Money left over this month if variable spending ends exactly at the budget (or at what was spent, if over).
+  const plannedVariable = Math.max(budget, stats.variable);
+  const spare = stats.income - stats.fixed - saving - plannedVariable;
   const recent = transactions.slice(0, 5);
 
   return (
@@ -91,6 +94,20 @@ export function HomeView() {
                 <div className={cx("num truncate text-lg font-semibold", cls)}>{v}</div>
               </div>
             ))}
+          </div>
+          <div className="mt-3 border-t border-line pt-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <span className="text-[13px] font-bold">予算どおりなら浮くお金</span>
+              <span className={cx("num text-2xl font-bold", spare >= 0 ? "text-good" : "text-bad")}>
+                {spare >= 0 ? "" : "−"}
+                {yen(Math.abs(spare))}
+              </span>
+            </div>
+            <p className="num mt-1 text-xs text-muted">
+              収入 {yen(stats.income)} − 固定費 {yen(stats.fixed)} − 貯金 {yen(saving)} −{" "}
+              {stats.variable > budget ? `変動費（予算超え）${yen(stats.variable)}` : `変動費の予算 ${yen(budget)}`}
+            </p>
+            {!stats.income && <p className="mt-1 text-xs text-muted">この月の収入を記録すると、浮くお金がわかります。</p>}
           </div>
         </Card>
 
