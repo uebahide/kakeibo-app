@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_SETTINGS } from "@/lib/categories";
+import { setCurrency } from "@/lib/format";
 import { currentPeriod } from "@/lib/period";
 import { createLocalStore } from "@/lib/store/local";
 import { createSupabaseStore } from "@/lib/store/supabase";
@@ -64,6 +65,8 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  // Money labels read the currency from format.ts; set it before any child renders.
+  setCurrency(settings.currency);
   // Set after mount: the current date must not be read while prerendering.
   const [month, setMonth] = useState("");
   const [view, setViewState] = useState<View>("home");

@@ -3,14 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { VARIABLE_CATEGORIES } from "@/lib/categories";
-import { parseAmount, yen } from "@/lib/format";
+import { CURRENCIES, normalizeCurrency, parseAmount, yen } from "@/lib/format";
 import { monthLabel } from "@/lib/date";
 import { clampStartDay, currentPeriod, periodRangeLabel } from "@/lib/period";
 import { variableBudget } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/client";
 import { useSeedSamples } from "./HomeView";
 import { useKakeibo } from "./KakeiboProvider";
-import { Button, Card, CardTitle, Stamp } from "./ui";
+import { Button, Card, CardTitle, Stamp, cx } from "./ui";
 
 export function SettingsView() {
   const { settings, updateSettings, storeKind, deleteSamples, toast, transactions, setMonth } = useKakeibo();
@@ -80,6 +80,32 @@ export function SettingsView() {
               ? "今はカレンダーどおり（1日〜月末）です。"
               : `たとえば「${monthLabel(example)}」は ${periodRangeLabel(example, startDay)} です。`}
           </p>
+        </Card>
+
+        <Card>
+          <CardTitle>通貨</CardTitle>
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label="通貨">
+            {CURRENCIES.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                role="radio"
+                aria-checked={settings.currency === c.id}
+                onClick={async () => {
+                  if (settings.currency === c.id) return;
+                  await updateSettings((s) => ({ ...s, currency: normalizeCurrency(c.id) }));
+                  toast(`金額を ${c.symbol}（${c.name}）で表示します`);
+                }}
+                className={cx(
+                  "rounded-lg py-2 text-sm font-bold",
+                  settings.currency === c.id ? "bg-surface text-ink shadow-sm" : "text-muted",
+                )}
+              >
+                {c.symbol} {c.name}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted">表示の単位だけを切り替えます。入力済みの金額は為替で換算しません。</p>
         </Card>
 
         <Card>

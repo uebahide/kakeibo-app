@@ -185,6 +185,7 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
   return {
     today: today(),
     monthStartDay: startDay,
+    currency: settings.currency,
     dayOfMonth: periodDayIndex(today(), now, startDay),
     daysInMonth: periodDays(now),
     months: months.map((m) => {
