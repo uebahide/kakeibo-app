@@ -10,6 +10,16 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/client";
 import type { NewTransaction, Settings, Transaction } from "@/lib/types";
 
+function withoutSampleFixedCosts(fixedCosts: Settings["fixedCosts"]): Settings["fixedCosts"] {
+  const out: Settings["fixedCosts"] = {};
+  for (const [month, items] of Object.entries(fixedCosts)) {
+    const kept = items.filter((f) => !f.isSample);
+    // a month left only with samples goes back to inheriting
+    if (kept.length || !items.length) out[month] = kept;
+  }
+  return out;
+}
+
 export type View = "home" | "history" | "analysis" | "ai" | "settings";
 
 type Ctx = {
@@ -117,11 +127,6 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     [store],
   );
 
-  const deleteSamples = useCallback(async () => {
-    await store.deleteSamples();
-    setTransactions((prev) => prev.filter((t) => !t.isSample));
-  }, [store]);
-
   /** Apply a settings change right away, then save in order (one write at a time). */
   const updateSettings = useCallback(
     (change: (s: Settings) => Settings) => {
@@ -134,6 +139,14 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     },
     [store, toast],
   );
+
+  const deleteSamples = useCallback(async () => {
+    await store.deleteSamples();
+    setTransactions((prev) => prev.filter((t) => !t.isSample));
+    if (Object.values(settingsRef.current.fixedCosts).some((items) => items.some((f) => f.isSample))) {
+      await updateSettings((s) => ({ ...s, fixedCosts: withoutSampleFixedCosts(s.fixedCosts) }));
+    }
+  }, [store, updateSettings]);
 
   const value: Ctx = {
     ready,

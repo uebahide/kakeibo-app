@@ -18,7 +18,7 @@ import {
 import { CATEGORIES, categoryColor } from "@/lib/categories";
 import { WEEKDAYS, addMonths, daysInMonth, monthLabel } from "@/lib/date";
 import { shortYen, yen } from "@/lib/format";
-import { cumulativeDaily, monthStats, totalBudget, weekdayAverages } from "@/lib/stats";
+import { cumulativeDaily, monthStats, variableBudget, weekdayAverages } from "@/lib/stats";
 import { useKakeibo } from "./KakeiboProvider";
 import { Card, CardTitle, EmptyState, cx } from "./ui";
 
@@ -41,8 +41,8 @@ export function AnalysisView() {
 }
 
 function CategoryBreakdown() {
-  const { transactions, month } = useKakeibo();
-  const stats = monthStats(transactions, month);
+  const { transactions, settings, month } = useKakeibo();
+  const stats = monthStats(transactions, month, settings);
   const items = CATEGORIES.expense
     .map((c) => ({ id: c.id, name: c.name, value: stats.byCategory[c.id] ?? 0 }))
     .filter((x) => x.value > 0)
@@ -51,7 +51,7 @@ function CategoryBreakdown() {
 
   return (
     <Card>
-      <CardTitle>{monthLabel(month)}のカテゴリ別支出</CardTitle>
+      <CardTitle>{monthLabel(month)}のカテゴリ別支出（固定費込み）</CardTitle>
       {!items.length ? (
         <EmptyState title="この月の支出はまだありません" />
       ) : (
@@ -90,7 +90,7 @@ function CategoryBreakdown() {
 
 function BudgetPace() {
   const { transactions, settings, month } = useKakeibo();
-  const budget = totalBudget(settings);
+  const budget = variableBudget(settings);
   const n = daysInMonth(month);
   const cumulative = cumulativeDaily(transactions, month);
   const data = Array.from({ length: n }, (_, i) => ({
@@ -101,29 +101,29 @@ function BudgetPace() {
 
   return (
     <Card>
-      <CardTitle>予算に対するペース</CardTitle>
+      <CardTitle>変動費の予算に対するペース</CardTitle>
       <div className="h-56">
         <ResponsiveContainer>
           <ComposedChart data={data} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--line)" />
             <XAxis dataKey="day" ticks={[1, 10, 20, n]} tickFormatter={(d) => `${d}日`} tick={axisTick} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={shortYen} tick={axisTick} axisLine={false} tickLine={false} width={44} />
-            <Tooltip formatter={(v, name) => [yen(Number(v)), name === "actual" ? "支出の累計" : "予算どおり"]} labelFormatter={(d) => `${d}日`} {...tooltipStyle} />
+            <Tooltip formatter={(v, name) => [yen(Number(v)), name === "actual" ? "変動費の累計" : "予算どおり"]} labelFormatter={(d) => `${d}日`} {...tooltipStyle} />
             <Area dataKey="actual" stroke="var(--accent)" strokeWidth={2.5} fill="var(--accent)" fillOpacity={0.12} isAnimationActive={false} dot={false} />
             {budget > 0 && <Line dataKey="pace" stroke="var(--muted)" strokeWidth={1.5} strokeDasharray="5 5" dot={false} isAnimationActive={false} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <Legend items={[["var(--accent)", "支出の累計"], ...(budget ? ([["var(--muted)", "予算どおりのペース"]] as const) : [])]} />
+      <Legend items={[["var(--accent)", "変動費の累計"], ...(budget ? ([["var(--muted)", "予算どおりのペース"]] as const) : [])]} />
     </Card>
   );
 }
 
 function MonthlyTrend() {
-  const { transactions, month } = useKakeibo();
+  const { transactions, settings, month } = useKakeibo();
   const data = Array.from({ length: 6 }, (_, i) => {
     const m = addMonths(month, i - 5);
-    const s = monthStats(transactions, m);
+    const s = monthStats(transactions, m, settings);
     return { label: `${Number(m.slice(5))}月`, income: s.income, expense: s.expense };
   });
   return (

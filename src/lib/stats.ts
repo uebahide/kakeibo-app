@@ -1,31 +1,45 @@
-import { CATEGORIES, FIXED_COST_CATEGORIES, getCategory } from "./categories";
+import { FIXED_COST_CATEGORIES, VARIABLE_CATEGORIES, getCategory } from "./categories";
 import { addMonths, currentMonth, daysInMonth, monthOf, parseDate, shiftDays, today, WEEKDAYS } from "./date";
+import { fixedCostsFor, sumFixed } from "./fixed";
+import { monthSavings, totalSaved } from "./savings";
 import type { Settings, Transaction, TxType } from "./types";
 
 export type MonthStats = {
   list: Transaction[];
   income: number;
+  /** variable spending (recorded expenses) plus the month's fixed costs */
   expense: number;
+  variable: number;
+  fixed: number;
+  /** all spending per category, fixed costs included */
   byCategory: Record<string, number>;
+  /** recorded expenses per category */
+  variableByCategory: Record<string, number>;
 };
 
-export function monthStats(txs: Transaction[], month: string): MonthStats {
+/** Totals for a month. Pass `settings` to include that month's fixed costs. */
+export function monthStats(txs: Transaction[], month: string, settings?: Settings): MonthStats {
   const list = txs.filter((t) => monthOf(t.date) === month);
-  const byCategory: Record<string, number> = {};
+  const variableByCategory: Record<string, number> = {};
   let income = 0;
-  let expense = 0;
+  let variable = 0;
   for (const t of list) {
     if (t.type === "income") income += t.amount;
     else {
-      expense += t.amount;
-      byCategory[t.category] = (byCategory[t.category] ?? 0) + t.amount;
+      variable += t.amount;
+      variableByCategory[t.category] = (variableByCategory[t.category] ?? 0) + t.amount;
     }
   }
-  return { list, income, expense, byCategory };
+  const fixedItems = settings ? fixedCostsFor(settings.fixedCosts, month).items : [];
+  const byCategory = { ...variableByCategory };
+  for (const item of fixedItems) byCategory[item.category] = (byCategory[item.category] ?? 0) + item.amount;
+  const fixed = sumFixed(fixedItems);
+  return { list, income, expense: variable + fixed, variable, fixed, byCategory, variableByCategory };
 }
 
-export function totalBudget(settings: Settings): number {
-  return CATEGORIES.expense.reduce((s, c) => s + (settings.budgets[c.id] ?? 0), 0);
+/** Monthly budget for variable costs (fixed costs are set per month instead). */
+export function variableBudget(settings: Settings): number {
+  return VARIABLE_CATEGORIES.reduce((s, c) => s + (settings.budgets[c.id] ?? 0), 0);
 }
 
 export type PaceLevel = "good" | "warn" | "bad";
@@ -66,20 +80,6 @@ export function recordStreak(txs: Transaction[], noSpendDays: string[]) {
   return { count, last7, recordedToday: days.has(t) };
 }
 
-/** Average monthly surplus over the last 3 months that have records. */
-export function averageSurplus(txs: Transaction[]): number {
-  let sum = 0;
-  let n = 0;
-  for (let k = 1; k <= 3; k++) {
-    const s = monthStats(txs, addMonths(currentMonth(), -k));
-    if (s.list.length) {
-      sum += s.income - s.expense;
-      n++;
-    }
-  }
-  return n ? sum / n : 0;
-}
-
 export type QuickPick = { category: string; memo: string; amount: number; count: number };
 
 /** Most frequent (category, memo) pairs, with the latest amount used. */
@@ -115,7 +115,7 @@ export function weekdayAverages(txs: Transaction[], days = 90): number[] {
   return sums.map((s, i) => (counts[i] ? s / counts[i] : 0));
 }
 
-/** Cumulative expense per day of the month, up to today (or month end for past months). */
+/** Cumulative recorded (variable) expense per day of the month, up to today (or month end for past months). */
 export function cumulativeDaily(txs: Transaction[], month: string): { day: number; total: number }[] {
   const cur = currentMonth();
   const lastDay = month === cur ? new Date().getDate() : month < cur ? daysInMonth(month) : 0;
@@ -158,22 +158,34 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
     dayOfMonth: new Date().getDate(),
     daysInMonth: daysInMonth(now),
     months: months.map((m) => {
-      const s = monthStats(txs, m);
+      const s = monthStats(txs, m, settings);
       return {
         month: m,
         income: s.income,
         expense: s.expense,
+        variableExpense: s.variable,
+        fixedExpense: s.fixed,
+        savings: monthSavings(settings, m),
+        fixedCosts: fixedCostsFor(settings.fixedCosts, m).items.map((f) => ({
+          name: f.name,
+          category: getCategory(f.category).name,
+          amount: f.amount,
+          paid: f.paid,
+        })),
         entries: s.list.length,
         byCategory: Object.fromEntries(
           Object.entries(s.byCategory).map(([k, v]) => [getCategory(k).name, v]),
         ),
       };
     }),
-    monthlyBudgetByCategory: Object.fromEntries(
-      CATEGORIES.expense.map((c) => [c.name, settings.budgets[c.id] ?? 0]),
+    variableBudgetByCategory: Object.fromEntries(
+      VARIABLE_CATEGORIES.map((c) => [c.name, settings.budgets[c.id] ?? 0]),
     ),
-    totalBudget: totalBudget(settings),
-    savingsGoal: settings.goal,
+    variableBudget: variableBudget(settings),
+    savings: {
+      total: totalSaved(settings),
+      target: settings.goal.target || null,
+    },
     topSpendingItems: [...items.entries()]
       .sort((a, b) => b[1].total - a[1].total)
       .slice(0, 15)

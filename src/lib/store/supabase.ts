@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_SETTINGS } from "../categories";
+import { normalizeGoal } from "../savings";
 import type { NewTransaction, Settings, Transaction } from "../types";
 import type { KakeiboStore } from "./types";
 
@@ -48,11 +49,13 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
     async load() {
       const [txRes, setRes] = await Promise.all([
         supabase.from("transactions").select(TX_COLUMNS).order("date", { ascending: false }).limit(10000),
-        supabase.from("user_settings").select("budgets, goal, no_spend_days, last_ai").maybeSingle(),
+        // "*" so the app still loads before the fixed_costs column (migration 0002) exists
+        supabase.from("user_settings").select("*").maybeSingle(),
       ]);
       const rows = check(txRes) as TxRow[];
       const s = check(setRes) as {
         budgets: Settings["budgets"];
+        fixed_costs?: Settings["fixedCosts"] | null;
         goal: Settings["goal"];
         no_spend_days: string[];
         last_ai: Settings["lastAi"];
@@ -62,7 +65,8 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         settings: s
           ? {
               budgets: { ...DEFAULT_SETTINGS.budgets, ...s.budgets },
-              goal: { ...DEFAULT_SETTINGS.goal, ...s.goal },
+              fixedCosts: s.fixed_costs ?? {},
+              goal: normalizeGoal(s.goal),
               noSpendDays: s.no_spend_days ?? [],
               lastAi: s.last_ai ?? null,
             }
@@ -92,6 +96,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         await supabase.from("user_settings").upsert({
           user_id: auth.user.id,
           budgets: settings.budgets,
+          fixed_costs: settings.fixedCosts,
           goal: settings.goal,
           no_spend_days: settings.noSpendDays,
           last_ai: settings.lastAi,

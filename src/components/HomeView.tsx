@@ -1,19 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { CATEGORIES } from "@/lib/categories";
+import { VARIABLE_CATEGORIES } from "@/lib/categories";
 import { currentMonth, daysInMonth, monthLabel, today } from "@/lib/date";
 import { parseAmount, yen } from "@/lib/format";
-import { makeSampleTransactions } from "@/lib/samples";
-import { PACE_LABEL, averageSurplus, elapsedFraction, monthStats, paceLevel, recordStreak, totalBudget } from "@/lib/stats";
+import { averageMonthlySavings, monthSavings, totalSaved } from "@/lib/savings";
+import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
+import { PACE_LABEL, elapsedFraction, monthStats, paceLevel, recordStreak, variableBudget } from "@/lib/stats";
+import { FixedCostsCard } from "./FixedCostsCard";
 import { useKakeibo } from "./KakeiboProvider";
 import { Button, Card, CardTitle, EmptyState, Meter, Pill, Stamp, TextButton, TxRow, cx } from "./ui";
 
 export function useSeedSamples() {
-  const { addTransactions, toast } = useKakeibo();
+  const { addTransactions, settings, updateSettings, toast } = useKakeibo();
   return async () => {
     toast("サンプルを入れています…");
     try {
+      if (!Object.keys(settings.fixedCosts).length) {
+        void updateSettings((s) => ({ ...s, fixedCosts: makeSampleFixedCosts() }));
+      }
       const created = await addTransactions(makeSampleTransactions());
       toast(`サンプルを${created.length}件入れました`);
     } catch {
@@ -25,15 +30,16 @@ export function useSeedSamples() {
 export function HomeView() {
   const { transactions, settings, month, setView, openEntry } = useKakeibo();
   const seed = useSeedSamples();
-  const stats = monthStats(transactions, month);
-  const budget = totalBudget(settings);
+  const stats = monthStats(transactions, month, settings);
+  const budget = variableBudget(settings);
   const fraction = elapsedFraction(month);
-  const level = paceLevel(stats.expense, budget, fraction);
+  const level = paceLevel(stats.variable, budget, fraction);
   const isCurrent = month === currentMonth();
-  const left = budget - stats.expense;
+  const left = budget - stats.variable;
   const daysLeft = isCurrent ? daysInMonth(month) - new Date().getDate() + 1 : 0;
   const perDay = isCurrent && left > 0 ? left / daysLeft : 0;
-  const balance = stats.income - stats.expense;
+  const saving = monthSavings(settings, month);
+  const balance = stats.income - stats.expense - saving;
   const recent = transactions.slice(0, 5);
 
   return (
@@ -55,15 +61,15 @@ export function HomeView() {
       <div className="grid gap-3.5">
         <section className="rounded-2xl bg-accent p-4 text-accent-ink shadow-[0_6px_20px_rgb(22_32_54/0.08)]">
           <div className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
-            <span className="text-xs tracking-wider opacity-85">{monthLabel(month)}の支出</span>
+            <span className="text-xs tracking-wider opacity-85">{monthLabel(month)}の変動費</span>
             <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold">{budget ? PACE_LABEL[level] : "予算未設定"}</span>
           </div>
           <div className="num mt-1 text-[34px] leading-tight font-bold min-[400px]:text-[40px]">
-            {yen(stats.expense)}
+            {yen(stats.variable)}
             <small className="ml-1 text-base font-medium opacity-80">/ {yen(budget)}</small>
           </div>
           <div className="relative my-3 h-2 rounded-full bg-white/25">
-            <div className="h-full rounded-full bg-accent-ink" style={{ width: `${budget ? Math.min(100, (stats.expense / budget) * 100) : 0}%` }} />
+            <div className="h-full rounded-full bg-accent-ink" style={{ width: `${budget ? Math.min(100, (stats.variable / budget) * 100) : 0}%` }} />
             {isCurrent && <div title="今日の目安" className="absolute -top-1 -bottom-1 w-0.5 bg-accent-ink/60" style={{ left: `${fraction * 100}%` }} />}
           </div>
           <div className="num flex flex-wrap justify-between gap-2 text-[13px]">
@@ -73,11 +79,12 @@ export function HomeView() {
         </section>
 
         <Card>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-x-2 gap-y-3 min-[480px]:grid-cols-4">
             {[
               ["収入", yen(stats.income), ""],
-              ["支出", yen(stats.expense), ""],
-              ["収支", `${balance >= 0 ? "+" : "−"}${yen(Math.abs(balance))}`, balance >= 0 ? "text-good" : "text-bad"],
+              ["支出（固定費込み）", yen(stats.expense), ""],
+              ["貯金", yen(saving), ""],
+              ["収支（貯金後）", `${balance >= 0 ? "+" : "−"}${yen(Math.abs(balance))}`, balance >= 0 ? "text-good" : "text-bad"],
             ].map(([k, v, cls]) => (
               <div key={k} className="min-w-0">
                 <div className="text-[11px] text-muted">{k}</div>
@@ -87,16 +94,17 @@ export function HomeView() {
           </div>
         </Card>
 
-        <SavingsGoalCard canMoveLeftover={isCurrent && left > 0 && balance > 0} leftover={left} />
+        <FixedCostsCard />
+        <SavingsCard canMoveLeftover={isCurrent && left > 0 && balance > 0} leftover={Math.min(left, balance)} />
         <StreakCard />
       </div>
 
       <div className="grid gap-3.5">
         <Card>
-          <CardTitle action={<TextButton onClick={() => setView("settings")}>予算を編集</TextButton>}>カテゴリ別の予算</CardTitle>
-          {CATEGORIES.expense.map((c) => {
+          <CardTitle action={<TextButton onClick={() => setView("settings")}>予算を編集</TextButton>}>変動費の予算</CardTitle>
+          {VARIABLE_CATEGORIES.map((c) => {
             const b = settings.budgets[c.id] ?? 0;
-            const s = stats.byCategory[c.id] ?? 0;
+            const s = stats.variableByCategory[c.id] ?? 0;
             if (!b && !s) return null;
             const ratio = b ? s / b : 1;
             return (
@@ -129,85 +137,97 @@ export function HomeView() {
   );
 }
 
-function SavingsGoalCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; leftover: number }) {
-  const { settings, transactions, updateSettings, setView, toast } = useKakeibo();
-  const [input, setInput] = useState("");
-  const goal = settings.goal;
-  const progress = goal.target ? Math.min(1, goal.saved / goal.target) : 0;
-  const remaining = Math.max(0, goal.target - goal.saved);
-  const surplus = averageSurplus(transactions);
+function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; leftover: number }) {
+  const { settings, month, updateSettings, setView, toast } = useKakeibo();
+  const current = monthSavings(settings, month);
+  const [input, setInput] = useState<{ month: string; value: string } | null>(null);
+  const value = input?.month === month ? input.value : current ? String(current) : "";
+  const total = totalSaved(settings);
+  const target = settings.goal.target;
+  const progress = target ? Math.min(1, total / target) : 0;
+  const remaining = Math.max(0, target - total);
+  const perMonth = averageMonthlySavings(settings, month);
   const eta =
     remaining === 0
       ? "目標達成！"
-      : surplus > 0
-        ? `今の黒字ペースなら あと約${Math.ceil(remaining / surplus)}か月`
-        : "黒字の月が増えると到達時期を予測します";
+      : perMonth > 0
+        ? `毎月 ${yen(perMonth)} のペースなら あと約${Math.ceil(remaining / perMonth)}か月`
+        : "毎月の貯金額を入れると到達時期を予測します";
   const R = 34;
   const C = 2 * Math.PI * R;
 
-  const deposit = async (amount: number) => {
-    if (!amount) {
-      toast("金額を入れてください");
-      return;
-    }
-    const saved = goal.saved + amount;
-    await updateSettings((s) => ({ ...s, goal: { ...s.goal, saved } }));
-    setInput("");
-    toast(saved >= goal.target ? "目標達成です！おめでとうございます" : `${yen(amount)} 貯金しました。あと ${yen(goal.target - saved)}`);
+  const save = async (amount: number) => {
+    await updateSettings((s) => ({ ...s, goal: { ...s.goal, monthly: { ...s.goal.monthly, [month]: amount } } }));
+    setInput(null);
+    const nextTotal = total - current + amount;
+    toast(
+      target && nextTotal >= target
+        ? "目標達成です！おめでとうございます"
+        : `${monthLabel(month)}の貯金を ${yen(amount)} にしました`,
+    );
   };
 
   return (
     <Card>
-      <CardTitle action={<TextButton onClick={() => setView("settings")}>変更</TextButton>}>貯金目標</CardTitle>
-      <div className="grid grid-cols-[auto_1fr] items-center gap-3.5">
-        <svg width="84" height="84" viewBox="0 0 84 84" role="img" aria-label={`達成率 ${Math.round(progress * 100)}%`}>
-          <circle cx="42" cy="42" r={R} fill="none" stroke="var(--surface-2)" strokeWidth="9" />
-          <circle
-            cx="42"
-            cy="42"
-            r={R}
-            fill="none"
-            stroke="var(--good)"
-            strokeWidth="9"
-            strokeLinecap="round"
-            strokeDasharray={`${C * progress} ${C}`}
-            transform="rotate(-90 42 42)"
-          />
-          <text x="42" y="47" textAnchor="middle" fontSize="16" fontWeight="700" fill="var(--ink)" className="num">
-            {Math.round(progress * 100)}%
-          </text>
-        </svg>
+      <CardTitle action={<TextButton onClick={() => setView("settings")}>{target ? "目標を変更" : "目標額を設定"}</TextButton>}>
+        貯金
+      </CardTitle>
+      <div className={cx("grid items-center gap-3.5", target > 0 && "grid-cols-[auto_1fr]")}>
+        {target > 0 && (
+          <svg width="84" height="84" viewBox="0 0 84 84" role="img" aria-label={`達成率 ${Math.round(progress * 100)}%`}>
+            <circle cx="42" cy="42" r={R} fill="none" stroke="var(--surface-2)" strokeWidth="9" />
+            <circle
+              cx="42"
+              cy="42"
+              r={R}
+              fill="none"
+              stroke="var(--good)"
+              strokeWidth="9"
+              strokeLinecap="round"
+              strokeDasharray={`${C * progress} ${C}`}
+              transform="rotate(-90 42 42)"
+            />
+            <text x="42" y="47" textAnchor="middle" fontSize="16" fontWeight="700" fill="var(--ink)" className="num">
+              {Math.round(progress * 100)}%
+            </text>
+          </svg>
+        )}
         <div className="min-w-0">
-          <div className="text-base font-bold">{goal.name}</div>
+          <div className="text-xs text-muted">これまでの貯金</div>
           <div className="num text-xl font-semibold">
-            {yen(goal.saved)} <span className="text-[13px] text-muted">/ {yen(goal.target)}</span>
+            {yen(total)} {target > 0 && <span className="text-[13px] text-muted">/ 目標 {yen(target)}</span>}
           </div>
-          <div className="text-xs text-muted">{eta}</div>
+          {target > 0 && <div className="text-xs text-muted">{eta}</div>}
         </div>
       </div>
       <form
-        className="mt-3 flex flex-wrap gap-2"
+        className="mt-3 grid gap-1.5"
         onSubmit={(e) => {
           e.preventDefault();
-          void deposit(parseAmount(input));
+          void save(parseAmount(value));
         }}
       >
-        <input
-          id="deposit-amount"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          inputMode="numeric"
-          placeholder="貯金した金額"
-          className="num min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 py-2"
-        />
-        <Button type="submit" variant="primary">
-          貯金に追加
-        </Button>
-        {canMoveLeftover && (
-          <Button onClick={() => deposit(leftover)} title="今月の予算の残りを貯金に回す">
-            残り予算を回す
+        <label htmlFor="month-saving" className="text-[11px] tracking-wide text-muted">
+          {monthLabel(month)}の貯金額（収支から差し引きます）
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <input
+            id="month-saving"
+            value={value}
+            onChange={(e) => setInput({ month, value: e.target.value })}
+            inputMode="numeric"
+            placeholder="0"
+            className="num min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 py-2"
+          />
+          <Button type="submit" variant="primary" disabled={parseAmount(value) === current}>
+            {current ? "変更" : "保存"}
           </Button>
-        )}
+          {canMoveLeftover && (
+            <Button onClick={() => save(current + leftover)} title="今月の変動費の予算の残りを貯金に足す">
+              残り予算を回す
+            </Button>
+          )}
+        </div>
       </form>
     </Card>
   );

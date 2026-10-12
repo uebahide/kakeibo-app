@@ -17,6 +17,8 @@ export const CATEGORIES: Record<TxType, Category[]> = {
     { id: "housing", name: "住居", mark: "住", hue: 28 },
     { id: "utilities", name: "水道光熱", mark: "光", hue: 45 },
     { id: "phone", name: "通信", mark: "通", hue: 250 },
+    { id: "subscription", name: "サブスク", mark: "サ", hue: 310 },
+    { id: "insurance", name: "保険", mark: "保", hue: 100 },
     { id: "fun", name: "娯楽", mark: "娯", hue: 290 },
     { id: "social", name: "交際", mark: "際", hue: 330 },
     { id: "clothes", name: "衣服", mark: "衣", hue: 170 },
@@ -40,8 +42,17 @@ export function getCategory(id: string): Category {
   return BY_ID.get(id) ?? BY_ID.get("other")!;
 }
 
-/** Categories whose spending is fixed (excluded from day-of-week habits). */
-export const FIXED_COST_CATEGORIES = new Set(["housing", "utilities", "phone"]);
+/** Categories whose spending is fixed (excluded from day-of-week habits and variable budgets). */
+export const FIXED_COST_CATEGORIES = new Set(["housing", "utilities", "phone", "subscription", "insurance"]);
+
+/** Categories that get a monthly variable-cost budget. */
+export const VARIABLE_CATEGORIES = CATEGORIES.expense.filter((c) => !FIXED_COST_CATEGORIES.has(c.id));
+
+/** Expense categories with the fixed-cost ones first, for choosing a fixed cost's category. */
+export const FIXED_CATEGORY_CHOICES = [
+  ...CATEGORIES.expense.filter((c) => FIXED_COST_CATEGORIES.has(c.id)),
+  ...VARIABLE_CATEGORIES,
+];
 
 export function categoryColor(id: string): string {
   const c = getCategory(id);
@@ -54,9 +65,6 @@ export const DEFAULT_SETTINGS: Settings = {
     food: 40000,
     daily: 8000,
     transport: 10000,
-    housing: 80000,
-    utilities: 15000,
-    phone: 8000,
     fun: 15000,
     social: 10000,
     clothes: 8000,
@@ -64,7 +72,8 @@ export const DEFAULT_SETTINGS: Settings = {
     learning: 5000,
     other: 5000,
   },
-  goal: { name: "旅行資金", target: 300000, saved: 0 },
+  fixedCosts: {},
+  goal: { target: 0, saved: 0, monthly: {} },
   noSpendDays: [],
   lastAi: null,
 };

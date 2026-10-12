@@ -1,7 +1,31 @@
-import { daysInMonth, toDateString } from "./date";
-import type { NewTransaction } from "./types";
+import { addMonths, daysInMonth, monthOf, toDateString } from "./date";
+import type { FixedCost, NewTransaction } from "./types";
 
-/** Three months of realistic example records, marked isSample so they can be removed together. */
+/** Example fixed costs for the last three months; earlier months are fully paid. */
+export function makeSampleFixedCosts(now = new Date()): Record<string, FixedCost[]> {
+  const day = now.getDate();
+  const items: [string, string, number, number][] = [
+    ["家賃", "housing", 78000, 1],
+    ["電気代", "utilities", 9000, 10],
+    ["ガス代", "utilities", 4000, 12],
+    ["スマホ", "phone", 3980, 15],
+    ["動画配信", "subscription", 1490, 5],
+  ];
+  const out: Record<string, FixedCost[]> = {};
+  for (let k = 2; k >= 0; k--) {
+    out[addMonths(monthOf(toDateString(now)), -k)] = items.map(([name, category, amount, payDay]) => ({
+      id: crypto.randomUUID(),
+      name,
+      category,
+      amount,
+      paid: k > 0 || payDay <= day,
+      isSample: true,
+    }));
+  }
+  return out;
+}
+
+/** Three months of realistic example records (fixed costs come from makeSampleFixedCosts), marked isSample so they can be removed together. */
 export function makeSampleTransactions(now = new Date()): NewTransaction[] {
   const out: NewTransaction[] = [];
   const rnd = (min: number, max: number) => Math.round((min + Math.random() * (max - min)) / 10) * 10;
@@ -13,17 +37,9 @@ export function makeSampleTransactions(now = new Date()): NewTransaction[] {
     const ym = toDateString(first).slice(0, 7);
     const last = k ? daysInMonth(ym) : now.getDate();
     const day = (n: number) => new Date(first.getFullYear(), first.getMonth(), n);
-    const fixed = (n: number, category: string, amount: number, memo: string) => {
-      if (n <= last) add(day(n), category, amount, memo);
-    };
 
     if (last >= 25) add(day(25), "salary", 285000, "給与", "income");
-    fixed(1, "housing", 78000, "家賃");
-    fixed(5, "fun", 1490, "動画配信");
-    fixed(10, "utilities", rnd(7000, 11000), "電気代");
-    fixed(12, "utilities", rnd(3500, 4500), "ガス代");
-    fixed(15, "phone", 3980, "スマホ");
-    fixed(20, "clothes", rnd(3000, 9000), "服");
+    if (last >= 20) add(day(20), "clothes", rnd(3000, 9000), "服");
 
     for (let n = 1; n <= last; n++) {
       const d = day(n);
