@@ -69,8 +69,9 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [entry.open, openEntry]);
 
-  // Phone tab bar: ホーム 履歴 [記入] 分析 AI分析 (settings opens from ホーム)
-  const tabs = NAV.filter((n) => n.view !== "settings");
+  // Phone tab bar: ホーム 履歴 [記入] 分析 設定 (AI分析 opens from ホーム and 分析, and lights up 分析)
+  const tabs = NAV.filter((n) => n.view !== "ai");
+  const tabActive = (v: View) => view === v || (v === "analysis" && view === "ai");
 
   return (
     <div className="grid min-h-full grid-cols-1 lg:grid-cols-[220px_1fr]">
@@ -127,14 +128,14 @@ export function AppShell() {
         className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-line bg-surface px-1.5 pt-1.5 pb-[calc(6px+env(safe-area-inset-bottom,0px))] lg:hidden"
       >
         {tabs.slice(0, 2).map((n) => (
-          <TabButton key={n.view} active={view === n.view} onClick={() => setView(n.view)} icon={n.icon} label={n.label} />
+          <TabButton key={n.view} active={tabActive(n.view)} onClick={() => setView(n.view)} icon={n.icon} label={n.label} />
         ))}
         <button type="button" onClick={() => openEntry()} aria-label="記入する" className="flex flex-col items-center gap-px text-[10px] font-bold text-accent">
           <span className="-mt-6 grid size-[52px] place-items-center rounded-full bg-accent text-accent-ink shadow-lg [&_svg]:size-6">{Icons.plus}</span>
           記入
         </button>
         {tabs.slice(2).map((n) => (
-          <TabButton key={n.view} active={view === n.view} onClick={() => setView(n.view)} icon={n.icon} label={n.label} />
+          <TabButton key={n.view} active={tabActive(n.view)} onClick={() => setView(n.view)} icon={n.icon} label={n.label} />
         ))}
       </nav>
 

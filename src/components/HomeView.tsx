@@ -9,6 +9,7 @@ import { averageMonthlySavings, monthSavings, totalSaved } from "@/lib/savings";
 import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
 import { PACE_LABEL, elapsedFraction, monthStats, paceLevel, recordStreak, variableBudget } from "@/lib/stats";
 import type { Transaction } from "@/lib/types";
+import { AiShortcut } from "./AiShortcut";
 import { FixedCostsCard } from "./FixedCostsCard";
 import { useKakeibo } from "./KakeiboProvider";
 import { Button, Card, CardTitle, EmptyState, Meter, Pill, Stamp, TextButton, TxRow, cx } from "./ui";
@@ -151,9 +152,7 @@ export function HomeView() {
           {recent.length ? recent.map((t) => <TxRow key={t.id} tx={t} onClick={() => openEntry(t)} />) : <EmptyState title="記録はまだありません" />}
         </Card>
 
-        <Button className="justify-self-start lg:hidden" onClick={() => setView("settings")}>
-          設定（予算・貯金目標・データ）
-        </Button>
+        <AiShortcut className="lg:hidden" />
       </div>
     </div>
   );
