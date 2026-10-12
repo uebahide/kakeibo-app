@@ -30,7 +30,7 @@ export function useSeedSamples() {
   };
 }
 
-type Panel = "fixed" | "saving" | "extra";
+type Panel = "income" | "fixed" | "saving" | "extra";
 
 export function HomeView() {
   const { transactions, settings, month, setView, openEntry } = useKakeibo();
@@ -51,6 +51,7 @@ export function HomeView() {
   const plannedVariable = Math.max(budget, stats.variable);
   const spare = stats.income - stats.fixed - saving - plannedVariable - stats.extra;
   const fixed = fixedCostsFor(settings.fixedCosts, month).items;
+  const incomeList = stats.list.filter((t) => t.type === "income");
   const unused = VARIABLE_CATEGORIES.filter((c) => settings.budgets[c.id] && !stats.variableByCategory[c.id]);
   const recent = transactions.slice(0, 5);
   const target = settings.goal.target;
@@ -137,6 +138,12 @@ export function HomeView() {
         <Card>
           <CardTitle>{monthLabel(month)}のお金</CardTitle>
           <MoneyRow
+            label="収入"
+            sub={incomeList.length ? `${incomeList.length}件` : "給料などを記録する"}
+            amount={stats.income || null}
+            onClick={() => setPanel("income")}
+          />
+          <MoneyRow
             label="固定費"
             sub={fixed.length ? `支払い済み ${fixed.filter((f) => f.paid).length}/${fixed.length}件` : "家賃や通信費を登録する"}
             amount={stats.fixed}
@@ -197,6 +204,35 @@ export function HomeView() {
         <AiShortcut className="lg:hidden" />
       </div>
 
+      {panel === "income" && (
+        <Sheet title={`${monthLabel(month)}の収入`} onClose={() => setPanel(null)}>
+          {incomeList.map((t) => (
+            <TxRow
+              key={t.id}
+              tx={t}
+              onClick={() => {
+                setPanel(null);
+                openEntry(t);
+              }}
+            />
+          ))}
+          {incomeList.length > 0 ? (
+            <p className="num mt-2 text-xs text-muted">合計 {yen(stats.income)}</p>
+          ) : (
+            <p className="text-sm text-muted">この月の収入はまだありません。「記入」で「収入」を選ぶと記録できます。</p>
+          )}
+          <Button
+            variant="primary"
+            className="mt-3 w-full"
+            onClick={() => {
+              setPanel(null);
+              openEntry();
+            }}
+          >
+            記入する
+          </Button>
+        </Sheet>
+      )}
       {panel === "fixed" && (
         <Sheet title={`${monthLabel(month)}の固定費`} onClose={() => setPanel(null)}>
           <FixedCostsCard bare />
