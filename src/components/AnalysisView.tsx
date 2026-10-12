@@ -20,6 +20,7 @@ import { WEEKDAYS, addMonths, monthLabel } from "@/lib/date";
 import { periodDateLabel, periodDays } from "@/lib/period";
 import { shortYen, yen } from "@/lib/format";
 import { cumulativeDaily, monthStats, variableBudget, weekdayAverages } from "@/lib/stats";
+import { AiShortcut } from "./AiShortcut";
 import { useKakeibo } from "./KakeiboProvider";
 import { Card, CardTitle, EmptyState, cx } from "./ui";
 
@@ -33,6 +34,7 @@ const tooltipStyle = {
 export function AnalysisView() {
   return (
     <div className="grid items-start gap-3.5 lg:grid-cols-2">
+      <AiShortcut className="lg:hidden" />
       <CategoryBreakdown />
       <BudgetPace />
       <MonthlyTrend />
