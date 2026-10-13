@@ -20,8 +20,8 @@ export function EntrySheet() {
 function EntryForm({ onClose }: { onClose: () => void }) {
   const { entry, transactions, settings, month, setMonth, addTransactions, updateTransaction, deleteTransaction, toast } = useKakeibo();
   const editing = entry.editing;
-  const [type, setType] = useState<TxType>(editing?.type ?? "expense");
-  const [category, setCategory] = useState(editing?.category ?? "food");
+  const [type, setType] = useState<TxType>(editing?.type ?? entry.type ?? "expense");
+  const [category, setCategory] = useState(editing?.category ?? CATEGORIES[type][0].id);
   const [amount, setAmount] = useState(editing ? editing.amount.toLocaleString("ja-JP") : "");
   const startDay = settings.monthStartDay;
   const [date, setDate] = useState(editing?.date ?? (month === currentPeriod(startDay) ? today() : periodStart(month, startDay)));

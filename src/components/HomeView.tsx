@@ -90,7 +90,7 @@ export function HomeView() {
           {showToday && (
             <div className="mb-3 border-b border-white/20 pb-3">
               {todayData.left >= 0 ? (
-                <span className="text-xs tracking-wider opacity-85">今日あと使える</span>
+                <span className="text-xs tracking-wider opacity-85">今日使える額</span>
               ) : (
                 <span className={cx("rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm", PACE_BADGE[5])}>今日の枠をオーバー</span>
               )}
@@ -158,7 +158,7 @@ export function HomeView() {
                 <dd className="text-right">{yen(stats.income)}</dd>
                 <dt>固定費</dt>
                 <dd className="text-right">−{yen(stats.fixed)}</dd>
-                <dt>貯金</dt>
+                <dt>今月貯金する額</dt>
                 <dd className="text-right">{savingsHidden ? SAVINGS_MASK : `−${yen(saving)}`}</dd>
                 <dt>{stats.variable > budget ? "変動費（予算超え）" : "変動費の予算"}</dt>
                 <dd className="text-right">−{yen(plannedVariable)}</dd>
@@ -197,7 +197,7 @@ export function HomeView() {
             onClick={() => setPanel("fixed")}
           />
           <MoneyRow
-            label="貯金"
+            label="今月貯金する額"
             sub={
               savingsHidden
                 ? `これまで ${SAVINGS_MASK}`
@@ -304,17 +304,17 @@ export function HomeView() {
           {incomeList.length > 0 ? (
             <p className="num mt-2 text-xs text-muted">合計 {yen(stats.income)}</p>
           ) : (
-            <p className="text-sm text-muted">この月の収入はまだありません。「記入」で「収入」を選ぶと記録できます。</p>
+            <p className="text-sm text-muted">この月の収入はまだありません。</p>
           )}
           <Button
             variant="primary"
             className="mt-3 w-full"
             onClick={() => {
               setPanel(null);
-              openEntry();
+              openEntry(undefined, "income");
             }}
           >
-            記入する
+            収入を記入する
           </Button>
         </Sheet>
       )}
@@ -324,7 +324,7 @@ export function HomeView() {
         </Sheet>
       )}
       {panel === "saving" && (
-        <Sheet title={`${monthLabel(month)}の貯金`} onClose={() => setPanel(null)}>
+        <Sheet title={`${monthLabel(month)}の貯金額`} onClose={() => setPanel(null)}>
           <SavingsCard canMoveLeftover={isCurrent && left > 0 && balance > 0} leftover={Math.min(left, balance)} />
         </Sheet>
       )}
