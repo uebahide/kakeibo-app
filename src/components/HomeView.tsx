@@ -158,7 +158,7 @@ export function HomeView() {
                 <dd className="text-right">{yen(stats.income)}</dd>
                 <dt>固定費</dt>
                 <dd className="text-right">−{yen(stats.fixed)}</dd>
-                <dt>貯金</dt>
+                <dt>今月貯金する額</dt>
                 <dd className="text-right">{savingsHidden ? SAVINGS_MASK : `−${yen(saving)}`}</dd>
                 <dt>{stats.variable > budget ? "変動費（予算超え）" : "変動費の予算"}</dt>
                 <dd className="text-right">−{yen(plannedVariable)}</dd>
@@ -197,7 +197,7 @@ export function HomeView() {
             onClick={() => setPanel("fixed")}
           />
           <MoneyRow
-            label="貯金"
+            label="今月貯金する額"
             sub={
               savingsHidden
                 ? `これまで ${SAVINGS_MASK}`
