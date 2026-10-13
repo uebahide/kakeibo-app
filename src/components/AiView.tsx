@@ -5,7 +5,8 @@ import { yen } from "@/lib/format";
 import { buildAiDigest } from "@/lib/stats";
 import type { AiAnalysis, ChatTurn } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
-import { Button, Card, CardTitle, EmptyState, cx } from "./ui";
+import { RevealSheet } from "./SavingsPrivacy";
+import { Button, Card, CardTitle, EmptyState, Icons, cx } from "./ui";
 
 const MIN_RECORDS = 5;
 
@@ -19,11 +20,28 @@ async function errorText(res: Response): Promise<string> {
 }
 
 export function AiView() {
+  const { savingsHidden } = useKakeibo();
+  // AI gets the savings figures and can repeat them, so the whole view is locked while they are hidden.
+  if (savingsHidden) return <Locked />;
   return (
     <div className="grid items-start gap-3.5 lg:grid-cols-[1.15fr_1fr]">
       <Analysis />
       <Chat />
     </div>
+  );
+}
+
+function Locked() {
+  const [asking, setAsking] = useState(false);
+  return (
+    <Card className="grid justify-items-center gap-3 py-8 text-center">
+      <span className="text-muted [&_svg]:size-7">{Icons.eyeOff}</span>
+      <p className="text-sm text-muted">貯金額を隠している間は、AI分析とAIチャットは使えません。</p>
+      <Button variant="primary" onClick={() => setAsking(true)}>
+        パスワードで表示する
+      </Button>
+      {asking && <RevealSheet onClose={() => setAsking(false)} />}
+    </Card>
   );
 }
 

@@ -145,8 +145,7 @@ export function HomeView() {
               <span className="text-[13px] font-bold">予算どおりなら浮くお金</span>
               {stats.income ? (
                 <span className="num text-2xl font-bold">
-                  {spare >= 0 ? "" : "−"}
-                  {yen(Math.abs(spare))}
+                  {savingsHidden ? SAVINGS_MASK : `${spare >= 0 ? "" : "−"}${yen(Math.abs(spare))}`}
                 </span>
               ) : (
                 <span className="text-xs opacity-85">収入を記録すると出ます</span>
@@ -360,7 +359,7 @@ export function HomeView() {
           ))}
           <p className="mt-2 text-xs text-muted">
             合計 {yen(stats.extra)}。予算ではなく浮くお金から引いています。
-            {stats.income > 0 && `浮くお金の残りは ${spare >= 0 ? yen(spare) : `−${yen(-spare)}`} です。`}
+            {stats.income > 0 && `浮くお金の残りは ${savingsHidden ? SAVINGS_MASK : spare >= 0 ? yen(spare) : `−${yen(-spare)}`} です。`}
           </p>
         </Sheet>
       )}
