@@ -90,7 +90,7 @@ export function HomeView() {
           {showToday && (
             <div className="mb-3 border-b border-white/20 pb-3">
               {todayData.left >= 0 ? (
-                <span className="text-xs tracking-wider opacity-85">今日あと使える</span>
+                <span className="text-xs tracking-wider opacity-85">今日使える額</span>
               ) : (
                 <span className={cx("rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm", PACE_BADGE[5])}>今日の枠をオーバー</span>
               )}
