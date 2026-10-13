@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { VARIABLE_CATEGORIES } from "@/lib/categories";
-import { monthLabel, today } from "@/lib/date";
-import { currentPeriod, periodDayIndex, periodDays } from "@/lib/period";
+import { dayLabel, monthLabel, today } from "@/lib/date";
+import { currentPeriod } from "@/lib/period";
 import { fixedCostsFor } from "@/lib/fixed";
 import { parseAmount, yen } from "@/lib/format";
 import { averageMonthlySavings, monthSavings, totalSaved } from "@/lib/savings";
 import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
-import { PACE_STEPS, elapsedFraction, monthStats, paceLevel, paceStep, recordStreak, variableBudget } from "@/lib/stats";
+import { PACE_STEPS, elapsedFraction, monthStats, paceLevel, paceStep, recordStreak, todayBudget, variableBudget } from "@/lib/stats";
 import { AiShortcut } from "./AiShortcut";
 import { FixedCostsCard } from "./FixedCostsCard";
 import { SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
@@ -41,7 +41,7 @@ const PACE_BADGE = [
   "bg-linear-to-r from-red-600 to-rose-700 text-white",
 ];
 
-type Panel = "income" | "fixed" | "saving" | "extra";
+type Panel = "today" | "income" | "fixed" | "saving" | "extra";
 
 export function HomeView() {
   const { transactions, settings, month, setView, openEntry, savingsHidden } = useKakeibo();
@@ -54,8 +54,9 @@ export function HomeView() {
   const step = budget ? paceStep(stats.variable, budget, fraction) : -1;
   const isCurrent = month === currentPeriod(startDay);
   const left = budget - stats.variable;
-  const daysLeft = isCurrent ? periodDays(month) - periodDayIndex(today(), month, startDay) + 1 : 0;
-  const perDay = isCurrent && left > 0 ? left / daysLeft : 0;
+  const todayData = todayBudget(transactions, month, settings);
+  // Today's share leads the card while there is budget left to split; otherwise the month's figure does.
+  const showToday = isCurrent && budget > 0 && left > 0;
   const saving = monthSavings(settings, month);
   const balance = stats.income - stats.expense - saving;
   // Money left over this month if variable spending ends exactly at the budget (or at what was spent, if over).
@@ -86,6 +87,32 @@ export function HomeView() {
 
       <div className="grid gap-3.5">
         <section className="rounded-2xl bg-accent p-4 text-accent-ink shadow-[0_6px_20px_rgb(22_32_54/0.08)]">
+          {showToday && (
+            <div className="mb-3 border-b border-white/20 pb-3">
+              {todayData.left >= 0 ? (
+                <span className="text-xs tracking-wider opacity-85">今日あと使える</span>
+              ) : (
+                <span className={cx("rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm", PACE_BADGE[5])}>今日の枠をオーバー</span>
+              )}
+              <div className="num mt-1 text-[34px] leading-tight font-bold min-[400px]:text-[40px]">
+                {todayData.left >= 0 ? yen(todayData.left) : `${yen(-todayData.left)} オーバー`}
+              </div>
+              <div className="num flex flex-wrap items-center gap-x-1 text-[13px]">
+                <button type="button" onClick={() => setPanel("today")} className="font-bold underline decoration-white/40 underline-offset-4">
+                  今日の出費 {yen(todayData.spent)} ›
+                </button>
+                <span className="opacity-85">/ 今日の枠 {yen(todayData.limit)}</span>
+              </div>
+              <div className="my-2.5 h-2 rounded-full bg-white/25">
+                <div
+                  className="h-full rounded-full bg-accent-ink"
+                  style={{ width: `${todayData.limit ? Math.min(100, (todayData.spent / todayData.limit) * 100) : 100}%` }}
+                />
+              </div>
+              {todayData.left < 0 && <div className="num text-[13px]">明日からは1日 {yen(todayData.perDayFromTomorrow)}</div>}
+              {todayData.extra > 0 && <div className="num text-xs opacity-85">ほかに予算外 {yen(todayData.extra)}</div>}
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs tracking-wider opacity-85">{monthLabel(month)}の予算の残り</span>
             <span
@@ -94,7 +121,7 @@ export function HomeView() {
               {step < 0 ? "予算未設定" : PACE_STEPS[step]}
             </span>
           </div>
-          <div className="num mt-1 text-[34px] leading-tight font-bold min-[400px]:text-[40px]">
+          <div className={cx("num mt-1 leading-tight font-bold", showToday ? "text-2xl" : "text-[34px] min-[400px]:text-[40px]")}>
             {left >= 0 ? yen(left) : `${yen(-left)} オーバー`}
           </div>
           <div className="num text-[13px] opacity-85">
@@ -104,7 +131,11 @@ export function HomeView() {
             <div className="h-full rounded-full bg-accent-ink" style={{ width: `${budget ? Math.min(100, (stats.variable / budget) * 100) : 0}%` }} />
             {isCurrent && <div title="今日の目安" className="absolute -top-1 -bottom-1 w-0.5 bg-accent-ink/60" style={{ left: `${fraction * 100}%` }} />}
           </div>
-          {isCurrent && left > 0 && <div className="num text-[13px]">1日あたり {yen(perDay)} 使えます</div>}
+          {isCurrent && !showToday && (
+            <button type="button" onClick={() => setPanel("today")} className="num text-[13px] underline decoration-white/40 underline-offset-4">
+              今日の出費 {yen(todayData.spent + todayData.extra)} ›
+            </button>
+          )}
 
           <div className="mt-3 border-t border-white/20 pt-3">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
@@ -225,6 +256,39 @@ export function HomeView() {
         <AiShortcut className="lg:hidden" />
       </div>
 
+      {panel === "today" && (
+        <Sheet title={`今日の出費・${dayLabel(today())}`} onClose={() => setPanel(null)}>
+          {todayData.list.map((t) => (
+            <TxRow
+              key={t.id}
+              tx={t}
+              showDate={false}
+              onClick={() => {
+                setPanel(null);
+                openEntry(t);
+              }}
+            />
+          ))}
+          {todayData.list.length > 0 ? (
+            <p className="num mt-2 text-xs text-muted">
+              合計 {yen(todayData.spent + todayData.extra)}
+              {todayData.extra > 0 && `（うち予算外 ${yen(todayData.extra)}）`}
+            </p>
+          ) : (
+            <p className="text-sm text-muted">今日の出費はまだありません。</p>
+          )}
+          <Button
+            variant="primary"
+            className="mt-3 w-full"
+            onClick={() => {
+              setPanel(null);
+              openEntry();
+            }}
+          >
+            記入する
+          </Button>
+        </Sheet>
+      )}
       {panel === "income" && (
         <Sheet title={`${monthLabel(month)}の収入`} onClose={() => setPanel(null)}>
           {incomeList.map((t) => (

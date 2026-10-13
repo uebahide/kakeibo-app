@@ -55,6 +55,47 @@ export function variableBudget(settings: Settings): number {
   return VARIABLE_CATEGORIES.reduce((s, c) => s + (settings.budgets[c.id] ?? 0), 0);
 }
 
+export type TodayBudget = {
+  /** today's expenses, both budgeted and outside the budget */
+  list: Transaction[];
+  /** budgeted spending recorded today */
+  spent: number;
+  /** spending outside the budget recorded today */
+  extra: number;
+  /** today's share of the budget: what was left at the start of today, split over the days left */
+  limit: number;
+  /** what can still be spent today (negative when over) */
+  left: number;
+  /** per-day share from tomorrow on, after today's spending */
+  perDayFromTomorrow: number;
+};
+
+/**
+ * Today's slice of the variable budget for the current period. The limit only counts spending
+ * before today, so it stays put through the day instead of shrinking with every purchase.
+ */
+export function todayBudget(txs: Transaction[], month: string, settings: Settings): TodayBudget {
+  const startDay = settings.monthStartDay;
+  const t = today();
+  const daysLeft = periodDays(month) - periodDayIndex(t, month, startDay) + 1;
+  const list: Transaction[] = [];
+  let before = 0;
+  let spent = 0;
+  let extra = 0;
+  for (const tx of txs) {
+    if (tx.type === "income" || periodOf(tx.date, startDay) !== month || tx.date > t) continue;
+    if (tx.date === t) {
+      list.push(tx);
+      if (tx.outsideBudget) extra += tx.amount;
+      else spent += tx.amount;
+    } else if (!tx.outsideBudget) before += tx.amount;
+  }
+  const remaining = variableBudget(settings) - before;
+  const limit = Math.max(0, remaining / daysLeft);
+  const perDayFromTomorrow = daysLeft > 1 ? Math.max(0, (remaining - spent) / (daysLeft - 1)) : 0;
+  return { list, spent, extra, limit, left: limit - spent, perDayFromTomorrow };
+}
+
 export type PaceLevel = "good" | "warn" | "bad";
 
 /** Fraction of the month (period) that has elapsed (1 for past months, 0 for future ones). */
