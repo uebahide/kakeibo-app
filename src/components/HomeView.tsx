@@ -12,6 +12,7 @@ import { PACE_STEPS, elapsedFraction, monthStats, paceLevel, paceStep, recordStr
 import { AiShortcut } from "./AiShortcut";
 import { FixedCostsCard } from "./FixedCostsCard";
 import { RevealSheet, SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
+import { GoalRing, goalEta } from "./SavingsSettings";
 import { useKakeibo } from "./KakeiboProvider";
 import { Button, Card, CardTitle, EmptyState, Icons, Meter, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
 
@@ -410,14 +411,7 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
   const progress = target ? Math.min(1, total / target) : 0;
   const remaining = Math.max(0, target - total);
   const perMonth = averageMonthlySavings(settings, month);
-  const eta =
-    remaining === 0
-      ? "目標達成！"
-      : perMonth > 0
-        ? `毎月 ${yen(perMonth)} のペースなら あと約${Math.ceil(remaining / perMonth)}か月`
-        : "毎月の貯金額を入れると到達時期を予測します";
-  const R = 34;
-  const C = 2 * Math.PI * R;
+  const eta = goalEta(remaining, perMonth);
 
   const save = async (amount: number) => {
     await updateSettings((s) => ({ ...s, goal: { ...s.goal, monthly: { ...s.goal.monthly, [month]: amount } } }));
@@ -434,23 +428,7 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
     <div>
       <div className={cx("grid items-center gap-3.5", target > 0 && !hidden && "grid-cols-[auto_1fr]")}>
         {target > 0 && !hidden && (
-          <svg width="84" height="84" viewBox="0 0 84 84" role="img" aria-label={`達成率 ${Math.round(progress * 100)}%`}>
-            <circle cx="42" cy="42" r={R} fill="none" stroke="var(--surface-2)" strokeWidth="9" />
-            <circle
-              cx="42"
-              cy="42"
-              r={R}
-              fill="none"
-              stroke="var(--accent)"
-              strokeWidth="9"
-              strokeLinecap="round"
-              strokeDasharray={`${C * progress} ${C}`}
-              transform="rotate(-90 42 42)"
-            />
-            <text x="42" y="47" textAnchor="middle" fontSize="16" fontWeight="700" fill="var(--ink)" className="num">
-              {Math.round(progress * 100)}%
-            </text>
-          </svg>
+          <GoalRing progress={progress} />
         )}
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-2 text-xs text-muted">

@@ -75,7 +75,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fixedCosts: {},
   monthStartDay: 1,
   currency: "JPY",
-  goal: { target: 0, saved: 0, monthly: {} },
+  goal: { target: 0, saved: 0, monthly: {}, fixedMonthly: { amount: 0, from: "" } },
   noSpendDays: [],
   lastAi: null,
 };
