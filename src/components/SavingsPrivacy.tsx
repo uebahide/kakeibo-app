@@ -35,7 +35,8 @@ export function SavingsEye({ className }: { className?: string }) {
   );
 }
 
-function RevealSheet({ onClose }: { onClose: () => void }) {
+/** Asks for the login password and shows savings again; `onRevealed` runs after a correct one. */
+export function RevealSheet({ onClose, onRevealed }: { onClose: () => void; onRevealed?: () => void }) {
   const { storeKind, revealSavings, toast } = useKakeibo();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +51,7 @@ function RevealSheet({ onClose }: { onClose: () => void }) {
       if (await revealSavings(password)) {
         toast("貯金額を表示しました");
         onClose();
+        onRevealed?.();
       } else {
         setError("パスワードが違います");
       }

@@ -11,9 +11,9 @@ import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
 import { PACE_STEPS, elapsedFraction, monthStats, paceLevel, paceStep, recordStreak, todayBudget, variableBudget } from "@/lib/stats";
 import { AiShortcut } from "./AiShortcut";
 import { FixedCostsCard } from "./FixedCostsCard";
-import { SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
+import { RevealSheet, SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
 import { useKakeibo } from "./KakeiboProvider";
-import { Button, Card, CardTitle, EmptyState, Meter, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
+import { Button, Card, CardTitle, EmptyState, Icons, Meter, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
 
 export function useSeedSamples() {
   const { addTransactions, settings, updateSettings, toast } = useKakeibo();
@@ -47,6 +47,9 @@ export function HomeView() {
   const { transactions, settings, month, setView, openEntry, savingsHidden } = useKakeibo();
   const seed = useSeedSamples();
   const [panel, setPanel] = useState<Panel | null>(null);
+  // The breakdown shows the savings amount, so it stays shut while savings are hidden.
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [askReveal, setAskReveal] = useState(false);
   const stats = monthStats(transactions, month, settings);
   const budget = variableBudget(settings);
   const startDay = settings.monthStartDay;
@@ -149,9 +152,23 @@ export function HomeView() {
                 <span className="text-xs opacity-85">収入を記録すると出ます</span>
               )}
             </div>
-            <details className="group mt-1 text-[13px]">
-              <summary className="cursor-pointer list-none text-xs opacity-85 [&::-webkit-details-marker]:hidden">
-                内訳 <span className="inline-block transition group-open:rotate-180">▾</span>
+            <details open={breakdownOpen && !savingsHidden} className="group mt-1 text-[13px]">
+              <summary
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (savingsHidden) setAskReveal(true);
+                  else setBreakdownOpen((o) => !o);
+                }}
+                className="cursor-pointer list-none text-xs opacity-85 [&::-webkit-details-marker]:hidden"
+              >
+                内訳{" "}
+                {savingsHidden ? (
+                  <span className="inline-block align-[-2px] [&_svg]:size-3.5" aria-label="パスワードで表示">
+                    {Icons.eyeOff}
+                  </span>
+                ) : (
+                  <span className="inline-block transition group-open:rotate-180">▾</span>
+                )}
               </summary>
               <dl className="num mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
                 <dt>収入</dt>
@@ -176,6 +193,7 @@ export function HomeView() {
                 </dd>
               </dl>
             </details>
+            {askReveal && <RevealSheet onClose={() => setAskReveal(false)} onRevealed={() => setBreakdownOpen(true)} />}
           </div>
         </section>
 
