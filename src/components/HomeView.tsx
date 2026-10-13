@@ -468,7 +468,7 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
         </div>
       </div>
       {hidden ? (
-        <p className="mt-3 text-xs text-muted">貯金額を隠しています。目のマークから表示すると、金額を入れたり変えたりできます。</p>
+        <p className="mt-3 text-xs text-muted">シークレットモード中です。解除すると、金額を入れたり変えたりできます。</p>
       ) : (
         <form
           className="mt-3 grid gap-1.5"

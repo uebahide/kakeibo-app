@@ -10,7 +10,7 @@ import { variableBudget } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/client";
 import { useSeedSamples } from "./HomeView";
 import { useKakeibo } from "./KakeiboProvider";
-import { SavingsEye } from "./SavingsPrivacy";
+import { SavingsEye, SecretModeSetting } from "./SavingsPrivacy";
 import { Button, Card, CardTitle, Stamp, cx } from "./ui";
 
 export function SettingsView() {
@@ -110,9 +110,14 @@ export function SettingsView() {
         </Card>
 
         <Card>
+          <CardTitle>シークレットモード</CardTitle>
+          <SecretModeSetting />
+        </Card>
+
+        <Card>
           <CardTitle action={<SavingsEye className="-my-1.5" />}>貯金</CardTitle>
           {savingsHidden ? (
-            <p className="text-sm text-muted">貯金額を隠しています。目のマークから表示すると、目標額などを変えられます。</p>
+            <p className="text-sm text-muted">シークレットモード中です。解除すると、目標額などを変えられます。</p>
           ) : (
             <form
               className="grid gap-1"

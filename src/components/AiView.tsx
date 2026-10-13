@@ -36,9 +36,9 @@ function Locked() {
   return (
     <Card className="grid justify-items-center gap-3 py-8 text-center">
       <span className="text-muted [&_svg]:size-7">{Icons.eyeOff}</span>
-      <p className="text-sm text-muted">貯金額を隠している間は、AI分析とAIチャットは使えません。</p>
+      <p className="text-sm text-muted">シークレットモード中は、AI分析とAIチャットは使えません。</p>
       <Button variant="primary" onClick={() => setAsking(true)}>
-        パスワードで表示する
+        パスワードで解除する
       </Button>
       {asking && <RevealSheet onClose={() => setAsking(false)} />}
     </Card>
