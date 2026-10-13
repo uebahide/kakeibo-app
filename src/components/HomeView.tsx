@@ -324,7 +324,7 @@ export function HomeView() {
         </Sheet>
       )}
       {panel === "saving" && (
-        <Sheet title={`${monthLabel(month)}の貯金`} onClose={() => setPanel(null)}>
+        <Sheet title={`${monthLabel(month)}の貯金額`} onClose={() => setPanel(null)}>
           <SavingsCard canMoveLeftover={isCurrent && left > 0 && balance > 0} leftover={Math.min(left, balance)} />
         </Sheet>
       )}
