@@ -304,17 +304,17 @@ export function HomeView() {
           {incomeList.length > 0 ? (
             <p className="num mt-2 text-xs text-muted">合計 {yen(stats.income)}</p>
           ) : (
-            <p className="text-sm text-muted">この月の収入はまだありません。「記入」で「収入」を選ぶと記録できます。</p>
+            <p className="text-sm text-muted">この月の収入はまだありません。</p>
           )}
           <Button
             variant="primary"
             className="mt-3 w-full"
             onClick={() => {
               setPanel(null);
-              openEntry();
+              openEntry(undefined, "income");
             }}
           >
-            記入する
+            収入を記入する
           </Button>
         </Sheet>
       )}

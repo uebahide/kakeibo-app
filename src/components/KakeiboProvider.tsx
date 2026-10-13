@@ -9,7 +9,7 @@ import { createSupabaseStore } from "@/lib/store/supabase";
 import type { KakeiboStore } from "@/lib/store/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/client";
-import type { NewTransaction, Settings, Transaction } from "@/lib/types";
+import type { NewTransaction, Settings, Transaction, TxType } from "@/lib/types";
 
 function withoutSampleFixedCosts(fixedCosts: Settings["fixedCosts"]): Settings["fixedCosts"] {
   const out: Settings["fixedCosts"] = {};
@@ -33,8 +33,9 @@ type Ctx = {
   setMonth: (m: string) => void;
   view: View;
   setView: (v: View) => void;
-  entry: { open: boolean; editing: Transaction | null };
-  openEntry: (tx?: Transaction) => void;
+  /** `type` presets a new entry's type; ignored when editing. */
+  entry: { open: boolean; editing: Transaction | null; type?: TxType };
+  openEntry: (tx?: Transaction, type?: TxType) => void;
   closeEntry: () => void;
   addTransactions: (items: NewTransaction[]) => Promise<Transaction[]>;
   updateTransaction: (id: string, item: NewTransaction) => Promise<void>;
@@ -210,7 +211,7 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     view,
     setView,
     entry,
-    openEntry: (tx) => setEntry({ open: true, editing: tx ?? null }),
+    openEntry: (tx, type) => setEntry({ open: true, editing: tx ?? null, type }),
     closeEntry: () => setEntry({ open: false, editing: null }),
     addTransactions,
     updateTransaction,
