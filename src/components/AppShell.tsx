@@ -9,6 +9,7 @@ import { EntrySheet } from "./EntrySheet";
 import { HistoryView } from "./HistoryView";
 import { HomeView } from "./HomeView";
 import { useKakeibo, type View } from "./KakeiboProvider";
+import { SecretModeBanner, SecretModeButton } from "./SavingsPrivacy";
 import { SettingsView } from "./SettingsView";
 import { Card, EmptyState, Icons, cx } from "./ui";
 
@@ -107,9 +108,13 @@ export function AppShell() {
 
       <main className="mx-auto w-full min-w-0 max-w-[1120px] px-4 pb-32 lg:px-7 lg:pb-10">
         <header className="sticky top-[env(safe-area-inset-top,0px)] z-10 flex items-center justify-between gap-2 bg-bg py-3">
-          <Brand className="lg:invisible" />
-          <MonthNav />
+          <Brand className="min-w-0 truncate max-sm:text-lg lg:invisible" />
+          <div className="flex items-center gap-1.5">
+            <SecretModeButton />
+            <MonthNav />
+          </div>
         </header>
+        <SecretModeBanner />
         {loadError ? (
           <Card>
             <EmptyState title="記録を読み込めませんでした">{loadError}</EmptyState>

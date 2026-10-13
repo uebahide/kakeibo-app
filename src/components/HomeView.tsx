@@ -11,9 +11,10 @@ import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
 import { PACE_STEPS, elapsedFraction, monthStats, paceLevel, paceStep, recordStreak, todayBudget, variableBudget } from "@/lib/stats";
 import { AiShortcut } from "./AiShortcut";
 import { FixedCostsCard } from "./FixedCostsCard";
-import { SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
+import { RevealSheet, SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
+import { GoalRing, goalEta } from "./SavingsSettings";
 import { useKakeibo } from "./KakeiboProvider";
-import { Button, Card, CardTitle, EmptyState, Meter, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
+import { Button, Card, CardTitle, EmptyState, Icons, Meter, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
 
 export function useSeedSamples() {
   const { addTransactions, settings, updateSettings, toast } = useKakeibo();
@@ -47,6 +48,9 @@ export function HomeView() {
   const { transactions, settings, month, setView, openEntry, savingsHidden } = useKakeibo();
   const seed = useSeedSamples();
   const [panel, setPanel] = useState<Panel | null>(null);
+  // The breakdown shows the savings amount, so it stays shut while savings are hidden.
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [askReveal, setAskReveal] = useState(false);
   const stats = monthStats(transactions, month, settings);
   const budget = variableBudget(settings);
   const startDay = settings.monthStartDay;
@@ -142,16 +146,29 @@ export function HomeView() {
               <span className="text-[13px] font-bold">予算どおりなら浮くお金</span>
               {stats.income ? (
                 <span className="num text-2xl font-bold">
-                  {spare >= 0 ? "" : "−"}
-                  {yen(Math.abs(spare))}
+                  {savingsHidden ? SAVINGS_MASK : `${spare >= 0 ? "" : "−"}${yen(Math.abs(spare))}`}
                 </span>
               ) : (
                 <span className="text-xs opacity-85">収入を記録すると出ます</span>
               )}
             </div>
-            <details className="group mt-1 text-[13px]">
-              <summary className="cursor-pointer list-none text-xs opacity-85 [&::-webkit-details-marker]:hidden">
-                内訳 <span className="inline-block transition group-open:rotate-180">▾</span>
+            <details open={breakdownOpen && !savingsHidden} className="group mt-1 text-[13px]">
+              <summary
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (savingsHidden) setAskReveal(true);
+                  else setBreakdownOpen((o) => !o);
+                }}
+                className="cursor-pointer list-none text-xs opacity-85 [&::-webkit-details-marker]:hidden"
+              >
+                内訳{" "}
+                {savingsHidden ? (
+                  <span className="inline-block align-[-2px] [&_svg]:size-3.5" aria-label="パスワードで表示">
+                    {Icons.eyeOff}
+                  </span>
+                ) : (
+                  <span className="inline-block transition group-open:rotate-180">▾</span>
+                )}
               </summary>
               <dl className="num mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
                 <dt>収入</dt>
@@ -176,6 +193,7 @@ export function HomeView() {
                 </dd>
               </dl>
             </details>
+            {askReveal && <RevealSheet onClose={() => setAskReveal(false)} onRevealed={() => setBreakdownOpen(true)} />}
           </div>
         </section>
 
@@ -342,7 +360,7 @@ export function HomeView() {
           ))}
           <p className="mt-2 text-xs text-muted">
             合計 {yen(stats.extra)}。予算ではなく浮くお金から引いています。
-            {stats.income > 0 && `浮くお金の残りは ${spare >= 0 ? yen(spare) : `−${yen(-spare)}`} です。`}
+            {stats.income > 0 && `浮くお金の残りは ${savingsHidden ? SAVINGS_MASK : spare >= 0 ? yen(spare) : `−${yen(-spare)}`} です。`}
           </p>
         </Sheet>
       )}
@@ -393,14 +411,7 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
   const progress = target ? Math.min(1, total / target) : 0;
   const remaining = Math.max(0, target - total);
   const perMonth = averageMonthlySavings(settings, month);
-  const eta =
-    remaining === 0
-      ? "目標達成！"
-      : perMonth > 0
-        ? `毎月 ${yen(perMonth)} のペースなら あと約${Math.ceil(remaining / perMonth)}か月`
-        : "毎月の貯金額を入れると到達時期を予測します";
-  const R = 34;
-  const C = 2 * Math.PI * R;
+  const eta = goalEta(remaining, perMonth);
 
   const save = async (amount: number) => {
     await updateSettings((s) => ({ ...s, goal: { ...s.goal, monthly: { ...s.goal.monthly, [month]: amount } } }));
@@ -417,23 +428,7 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
     <div>
       <div className={cx("grid items-center gap-3.5", target > 0 && !hidden && "grid-cols-[auto_1fr]")}>
         {target > 0 && !hidden && (
-          <svg width="84" height="84" viewBox="0 0 84 84" role="img" aria-label={`達成率 ${Math.round(progress * 100)}%`}>
-            <circle cx="42" cy="42" r={R} fill="none" stroke="var(--surface-2)" strokeWidth="9" />
-            <circle
-              cx="42"
-              cy="42"
-              r={R}
-              fill="none"
-              stroke="var(--accent)"
-              strokeWidth="9"
-              strokeLinecap="round"
-              strokeDasharray={`${C * progress} ${C}`}
-              transform="rotate(-90 42 42)"
-            />
-            <text x="42" y="47" textAnchor="middle" fontSize="16" fontWeight="700" fill="var(--ink)" className="num">
-              {Math.round(progress * 100)}%
-            </text>
-          </svg>
+          <GoalRing progress={progress} />
         )}
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-2 text-xs text-muted">
@@ -451,7 +446,7 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
         </div>
       </div>
       {hidden ? (
-        <p className="mt-3 text-xs text-muted">貯金額を隠しています。目のマークから表示すると、金額を入れたり変えたりできます。</p>
+        <p className="mt-3 text-xs text-muted">シークレットモード中です。解除すると、金額を入れたり変えたりできます。</p>
       ) : (
         <form
           className="mt-3 grid gap-1.5"
