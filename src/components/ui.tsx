@@ -36,18 +36,15 @@ const VARIANTS: Record<Variant, string> = {
   danger: "border-line bg-surface text-bad hover:bg-bad-soft",
 };
 
-export function Button({ variant = "default", className, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
-  return (
-    <button
-      type="button"
-      {...props}
-      className={cx(
-        "whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-sm font-bold transition disabled:cursor-default disabled:opacity-50",
-        VARIANTS[variant],
-        className,
-      )}
-    />
+/** Button look, also for links that should look like a button. */
+export const buttonClass = (variant: Variant = "default") =>
+  cx(
+    "inline-block whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-sm font-bold transition disabled:cursor-default disabled:opacity-50",
+    VARIANTS[variant],
   );
+
+export function Button({ variant = "default", className, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
+  return <button type="button" {...props} className={cx(buttonClass(variant), className)} />;
 }
 
 /** Round category seal with the category's first character, like a hanko stamp. */

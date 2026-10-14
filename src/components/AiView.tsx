@@ -6,9 +6,17 @@ import { buildAiDigest } from "@/lib/stats";
 import type { AiAnalysis, ChatTurn } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
 import { RevealSheet } from "./SavingsPrivacy";
-import { Button, Card, CardTitle, EmptyState, Icons, cx } from "./ui";
+import { Button, Card, CardTitle, EmptyState, Icons, buttonClass, cx } from "./ui";
 
 const MIN_RECORDS = 5;
+
+/** Opens a new claude.ai chat with this prompt filled in; Claude then uses the 家計簿 connector (MCP). */
+const CLAUDE_ANALYSIS_URL =
+  "https://claude.ai/new?q=" +
+  encodeURIComponent(
+    "家計簿コネクタの get_monthly_digest で直近3か月の集計を取り、家計を分析して要点を教えてください。" +
+      "最後に save_analysis で分析結果を家計簿アプリに保存してください。",
+  );
 
 async function errorText(res: Response): Promise<string> {
   try {
@@ -46,7 +54,7 @@ function Locked() {
 }
 
 function Analysis() {
-  const { transactions, settings, updateSettings } = useKakeibo();
+  const { transactions, settings, updateSettings, storeKind } = useKakeibo();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const last = settings.lastAi;
@@ -88,6 +96,18 @@ function Analysis() {
         )}
         {error && <p className="mt-2 text-xs text-bad">{error}</p>}
       </Card>
+      {storeKind === "supabase" && (
+        <Card>
+          <CardTitle>Claude で分析</CardTitle>
+          <p className="mb-3 text-sm">
+            claude.ai（iPhone では Claude アプリ）が分析の指示入りで開きます。Claude が集計を読んで分析し、結果をここに保存します。
+          </p>
+          <a href={CLAUDE_ANALYSIS_URL} target="_blank" rel="noopener noreferrer" className={buttonClass("default")}>
+            Claude で分析して保存
+          </a>
+          <p className="mt-2 text-xs text-muted">claude.ai に家計簿のコネクタを追加しておく必要があります。戻ってくると結果が表示されます。</p>
+        </Card>
+      )}
       {last ? (
         <AnalysisResult result={last.result} />
       ) : (

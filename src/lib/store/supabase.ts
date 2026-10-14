@@ -137,5 +137,12 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
       );
       loadedLastAi = settings.lastAi;
     },
+    async loadLastAi() {
+      const row = check(await supabase.from("user_settings").select("last_ai").maybeSingle()) as {
+        last_ai: Settings["lastAi"];
+      } | null;
+      loadedLastAi = row?.last_ai ?? null;
+      return loadedLastAi;
+    },
   };
 }

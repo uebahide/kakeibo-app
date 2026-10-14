@@ -121,6 +121,27 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     };
   }, [store]);
 
+  // Claude can save an analysis over MCP while the app sits in the background (e.g. after
+  // "Claude で分析して保存"), so pick up the latest one whenever the app comes back to the front.
+  useEffect(() => {
+    if (!ready || !store.loadLastAi) return;
+    const loadLastAi = store.loadLastAi;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      loadLastAi()
+        .then((lastAi) => {
+          if (!lastAi || lastAi.at === settingsRef.current.lastAi?.at) return;
+          settingsRef.current = { ...settingsRef.current, lastAi };
+          setSettings(settingsRef.current);
+        })
+        .catch(() => {
+          // offline: keep showing what we have
+        });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [ready, store]);
+
   const toast = useCallback((msg: string) => {
     setToastMessage(msg);
     clearTimeout(toastTimer.current);
