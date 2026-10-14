@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { DEFAULT_SETTINGS } from "@/lib/categories";
 import { setTimeZone } from "@/lib/date";
 import { setCurrency } from "@/lib/format";
+import { dict } from "@/lib/i18n/dict";
 import { currentPeriod } from "@/lib/period";
 import { createLocalStore } from "@/lib/store/local";
 import { createSupabaseStore } from "@/lib/store/supabase";
@@ -11,6 +12,7 @@ import type { KakeiboStore } from "@/lib/store/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/client";
 import type { NewTransaction, Settings, Transaction, TxType } from "@/lib/types";
+import { changeLanguage, useLanguage } from "./LanguageProvider";
 
 function withoutSampleFixedCosts(fixedCosts: Settings["fixedCosts"]): Settings["fixedCosts"] {
   const out: Settings["fixedCosts"] = {};
@@ -83,6 +85,8 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  // Re-render every screen (they read useKakeibo) when the display language changes.
+  useLanguage();
   // Money labels read the currency from format.ts; set it before any child renders.
   setCurrency(settings.currency);
   // Same for the time zone "today" is read in.
@@ -120,6 +124,11 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [store]);
+
+  // A saved language wins over the browser's; it also lands in the cookie the server and login page read.
+  useEffect(() => {
+    if (settings.language) changeLanguage(settings.language);
+  }, [settings.language]);
 
   // Claude can save an analysis over MCP while the app sits in the background (e.g. after
   // "Claude で分析して保存"), so pick up the latest one whenever the app comes back to the front.
@@ -186,7 +195,7 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
       setSettings(next);
       const job = settingsQueue.current.then(() => store.saveSettings(next));
       settingsQueue.current = job.catch(() => {});
-      return job.catch(() => toast("設定を保存できませんでした"));
+      return job.catch(() => toast(dict().common.settingsSaveFailed));
     },
     [store, toast],
   );
@@ -210,12 +219,12 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
         const supabase = createClient();
         const { data } = await supabase.auth.getUser();
         const email = data.user?.email;
-        if (!email) throw new Error("ログインが切れました。もう一度ログインしてください");
+        if (!email) throw new Error(dict().common.sessionExpired);
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
           // 400 is a wrong password; anything else (offline, rate limit) is not the user's typo
           if (error.status === 400) return false;
-          throw new Error("確認できませんでした。時間をおいてもう一度お試しください");
+          throw new Error(dict().common.verifyFailed);
         }
       }
       setSavingsHidden(false);

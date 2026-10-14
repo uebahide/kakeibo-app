@@ -1,0 +1,37 @@
+export const ja = {
+  byCategoryTitle: (month: string) => `${month}のカテゴリ別支出（固定費込み）`,
+  noExpenses: "この月の支出はまだありません",
+  totalSpent: "支出合計",
+  paceTitle: "変動費の予算に対するペース",
+  /** day of the month on the chart axis */
+  dayTick: (d: number) => `${d}日`,
+  /** day of the month in the chart tooltip; month is the short month label */
+  dayFull: (_month: string, d: number) => `${d}日`,
+  cumulative: "変動費の累計",
+  onBudget: "予算どおり",
+  onBudgetPace: "予算どおりのペース",
+  trendTitle: "収入と支出の推移（6か月）",
+  income: "収入",
+  expense: "支出",
+  weekdayTitle: "曜日ごとの使い方",
+  weekdayEmpty: "データが増えると曜日ごとの傾向が見えてきます",
+  weekdayNote: "直近90日・1日あたり平均（家賃や光熱費などの固定費を除く）",
+};
+
+export const en: typeof ja = {
+  byCategoryTitle: (month: string) => `Spending by category, ${month} (incl. fixed costs)`,
+  noExpenses: "No expenses this month yet",
+  totalSpent: "Total spent",
+  paceTitle: "Variable costs vs. budget pace",
+  dayTick: (d: number) => String(d),
+  dayFull: (month: string, d: number) => `${month} ${d}`,
+  cumulative: "Variable costs so far",
+  onBudget: "On budget",
+  onBudgetPace: "On-budget pace",
+  trendTitle: "Income and expenses (6 months)",
+  income: "Income",
+  expense: "Expenses",
+  weekdayTitle: "Spending by weekday",
+  weekdayEmpty: "Trends by weekday will show up as you add more records",
+  weekdayNote: "Daily average over the last 90 days (excluding fixed costs like rent and utilities)",
+};

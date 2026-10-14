@@ -1,5 +1,6 @@
 import { FIXED_COST_CATEGORIES, VARIABLE_CATEGORIES, getCategory } from "./categories";
-import { addMonths, parseDate, shiftDays, today, WEEKDAYS } from "./date";
+import { addMonths, parseDate, shiftDays, today, weekdays } from "./date";
+import { getLanguage, pick } from "./i18n";
 import { currentPeriod, periodDayIndex, periodDays, periodOf, periodStart } from "./period";
 import { fixedCostsFor, sumFixed } from "./fixed";
 import { monthSavings, totalSaved } from "./savings";
@@ -116,14 +117,12 @@ export function paceLevel(spent: number, budget: number, fraction: number): Pace
   return "good";
 }
 
-export const PACE_LABEL: Record<PaceLevel, string> = {
-  good: "順調なペース",
-  warn: "使うペースが早め",
-  bad: "予算オーバー",
-};
-
 /** Finer pace scale for the home badge, from plenty of room (0) to over budget (5). */
-export const PACE_STEPS = ["ゆとりあり", "順調なペース", "少し早め", "使うペースが早め", "かなり早め", "予算オーバー"] as const;
+export const paceSteps = () =>
+  pick({
+    ja: ["ゆとりあり", "順調なペース", "少し早め", "使うペースが早め", "かなり早め", "予算オーバー"],
+    en: ["Plenty of room", "On track", "A bit fast", "Spending fast", "Much too fast", "Over budget"],
+  });
 
 export function paceStep(spent: number, budget: number, fraction: number): number {
   const ratio = spent / budget;
@@ -213,7 +212,7 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
 
   const items = new Map<string, { count: number; total: number }>();
   for (const t of recent) {
-    const key = `${t.memo || "(メモなし)"}／${getCategory(t.category).name}`;
+    const key = `${t.memo || pick({ ja: "(メモなし)", en: "(no memo)" })}／${getCategory(t.category).name}`;
     const cur = items.get(key) ?? { count: 0, total: 0 };
     cur.count++;
     cur.total += t.amount;
@@ -226,6 +225,8 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
 
   return {
     today: today(),
+    /** language the user reads the app in; answers should be written in it */
+    language: getLanguage(),
     monthStartDay: startDay,
     currency: settings.currency,
     dayOfMonth: periodDayIndex(today(), now, startDay),
@@ -264,7 +265,7 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
       .sort((a, b) => b[1].total - a[1].total)
       .slice(0, 15)
       .map(([item, v]) => ({ item, ...v })),
-    variableSpendingByWeekday: Object.fromEntries(WEEKDAYS.map((w, i) => [w, wd[i]])),
+    variableSpendingByWeekday: Object.fromEntries(weekdays().map((w, i) => [w, wd[i]])),
   };
 }
 

@@ -16,12 +16,13 @@ import {
   YAxis,
 } from "recharts";
 import { CATEGORIES, categoryColor } from "@/lib/categories";
-import { WEEKDAYS, addMonths, monthLabel } from "@/lib/date";
+import { addMonths, monthLabel, shortMonthLabel, weekdays } from "@/lib/date";
 import { periodDateLabel, periodDays } from "@/lib/period";
 import { shortYen, yen } from "@/lib/format";
 import { cumulativeDaily, monthStats, variableBudget, weekdayAverages } from "@/lib/stats";
 import { AiShortcut } from "./AiShortcut";
 import { useKakeibo } from "./KakeiboProvider";
+import { useLanguage, useT } from "./LanguageProvider";
 import { Card, CardTitle, EmptyState, cx } from "./ui";
 
 const axisTick = { fill: "var(--muted)", fontSize: 11, fontFamily: "var(--font-num)" };
@@ -45,6 +46,7 @@ export function AnalysisView() {
 
 function CategoryBreakdown() {
   const { transactions, settings, month } = useKakeibo();
+  const t = useT();
   const stats = monthStats(transactions, month, settings);
   const items = CATEGORIES.expense
     .map((c) => ({ id: c.id, name: c.name, value: stats.byCategory[c.id] ?? 0 }))
@@ -54,9 +56,9 @@ function CategoryBreakdown() {
 
   return (
     <Card>
-      <CardTitle>{monthLabel(month)}のカテゴリ別支出（固定費込み）</CardTitle>
+      <CardTitle>{t.analysis.byCategoryTitle(monthLabel(month))}</CardTitle>
       {!items.length ? (
-        <EmptyState title="この月の支出はまだありません" />
+        <EmptyState title={t.analysis.noExpenses} />
       ) : (
         <div className="grid items-center gap-4 sm:grid-cols-[180px_1fr]">
           <div className="relative mx-auto aspect-square w-full max-w-[200px]">
@@ -71,7 +73,7 @@ function CategoryBreakdown() {
               </PieChart>
             </ResponsiveContainer>
             <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
-              <span className="text-[11px] text-muted">支出合計</span>
+              <span className="text-[11px] text-muted">{t.analysis.totalSpent}</span>
               <span className="num text-base font-bold">{yen(total)}</span>
             </div>
           </div>
@@ -93,11 +95,13 @@ function CategoryBreakdown() {
 
 function BudgetPace() {
   const { transactions, settings, month } = useKakeibo();
+  const t = useT();
   const budget = variableBudget(settings);
   const startDay = settings.monthStartDay;
   const n = periodDays(month);
   const cumulative = cumulativeDaily(transactions, month, startDay);
-  const dayName = (d: number) => (startDay === 1 ? `${d}日` : periodDateLabel(month, startDay, d));
+  const dayName = (d: number) => (startDay === 1 ? t.analysis.dayTick(d) : periodDateLabel(month, startDay, d));
+  const dayFull = (d: number) => (startDay === 1 ? t.analysis.dayFull(shortMonthLabel(month), d) : periodDateLabel(month, startDay, d));
   const data = Array.from({ length: n }, (_, i) => ({
     day: i + 1,
     actual: cumulative[i]?.total,
@@ -106,66 +110,69 @@ function BudgetPace() {
 
   return (
     <Card>
-      <CardTitle>変動費の予算に対するペース</CardTitle>
+      <CardTitle>{t.analysis.paceTitle}</CardTitle>
       <div className="h-56">
         <ResponsiveContainer>
           <ComposedChart data={data} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--line)" />
             <XAxis dataKey="day" ticks={[1, 10, 20, n]} tickFormatter={dayName} tick={axisTick} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={shortYen} tick={axisTick} axisLine={false} tickLine={false} width={44} />
-            <Tooltip formatter={(v, name) => [yen(Number(v)), name === "actual" ? "変動費の累計" : "予算どおり"]} labelFormatter={(d) => dayName(Number(d))} {...tooltipStyle} />
+            <Tooltip formatter={(v, name) => [yen(Number(v)), name === "actual" ? t.analysis.cumulative : t.analysis.onBudget]} labelFormatter={(d) => dayFull(Number(d))} {...tooltipStyle} />
             <Area dataKey="actual" stroke="var(--accent)" strokeWidth={2.5} fill="var(--accent)" fillOpacity={0.12} isAnimationActive={false} dot={false} />
             {budget > 0 && <Line dataKey="pace" stroke="var(--muted)" strokeWidth={1.5} strokeDasharray="5 5" dot={false} isAnimationActive={false} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <Legend items={[["var(--accent)", "変動費の累計"], ...(budget ? ([["var(--muted)", "予算どおりのペース"]] as const) : [])]} />
+      <Legend items={[["var(--accent)", t.analysis.cumulative], ...(budget ? ([["var(--muted)", t.analysis.onBudgetPace]] as const) : [])]} />
     </Card>
   );
 }
 
 function MonthlyTrend() {
   const { transactions, settings, month } = useKakeibo();
+  const t = useT();
   const data = Array.from({ length: 6 }, (_, i) => {
     const m = addMonths(month, i - 5);
     const s = monthStats(transactions, m, settings);
-    return { label: `${Number(m.slice(5))}月`, income: s.income, expense: s.expense };
+    return { label: shortMonthLabel(m), income: s.income, expense: s.expense };
   });
   return (
     <Card>
-      <CardTitle>収入と支出の推移（6か月）</CardTitle>
+      <CardTitle>{t.analysis.trendTitle}</CardTitle>
       <div className="h-52">
         <ResponsiveContainer>
           <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={2}>
             <CartesianGrid vertical={false} stroke="var(--line)" />
             <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={shortYen} tick={axisTick} axisLine={false} tickLine={false} width={44} />
-            <Tooltip formatter={(v, name) => [yen(Number(v)), name === "income" ? "収入" : "支出"]} cursor={{ fill: "var(--surface-2)" }} {...tooltipStyle} />
+            <Tooltip formatter={(v, name) => [yen(Number(v)), name === "income" ? t.analysis.income : t.analysis.expense]} cursor={{ fill: "var(--surface-2)" }} {...tooltipStyle} />
             <Bar dataKey="income" fill="var(--good)" radius={[3, 3, 0, 0]} maxBarSize={18} isAnimationActive={false} />
             <Bar dataKey="expense" fill="var(--accent)" radius={[3, 3, 0, 0]} maxBarSize={18} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <Legend items={[["var(--good)", "収入"], ["var(--accent)", "支出"]]} />
+      <Legend items={[["var(--good)", t.analysis.income], ["var(--accent)", t.analysis.expense]]} />
     </Card>
   );
 }
 
 function WeekdayHabits() {
   const { transactions } = useKakeibo();
+  const t = useT();
+  const english = useLanguage() === "en";
   const avg = weekdayAverages(transactions);
   const max = Math.max(...avg);
   return (
     <Card>
-      <CardTitle>曜日ごとの使い方</CardTitle>
+      <CardTitle>{t.analysis.weekdayTitle}</CardTitle>
       {!max ? (
-        <EmptyState title="データが増えると曜日ごとの傾向が見えてきます" />
+        <EmptyState title={t.analysis.weekdayEmpty} />
       ) : (
         <>
           <div className="grid gap-1.5">
             {[1, 2, 3, 4, 5, 6, 0].map((i) => (
-              <div key={i} className="grid grid-cols-[20px_1fr_72px] items-center gap-2 text-[13px]">
-                <span>{WEEKDAYS[i]}</span>
+              <div key={i} className={cx("grid items-center gap-2 text-[13px]", english ? "grid-cols-[32px_1fr_72px]" : "grid-cols-[20px_1fr_72px]")}>
+                <span>{weekdays()[i]}</span>
                 <div className="h-2.5 overflow-hidden rounded-full bg-surface-2">
                   <div className={cx("h-full rounded-full", avg[i] === max ? "bg-warn" : "bg-accent")} style={{ width: `${(avg[i] / max) * 100}%` }} />
                 </div>
@@ -173,7 +180,7 @@ function WeekdayHabits() {
               </div>
             ))}
           </div>
-          <p className="mt-2 text-xs text-muted">直近90日・1日あたり平均（家賃や光熱費などの固定費を除く）</p>
+          <p className="mt-2 text-xs text-muted">{t.analysis.weekdayNote}</p>
         </>
       )}
     </Card>

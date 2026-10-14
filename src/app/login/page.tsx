@@ -2,15 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useT } from "@/components/LanguageProvider";
 import { Button } from "@/components/ui";
+import type { Dict } from "@/lib/i18n/dict";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-function errorMessage(code: string | undefined, message: string): string {
-  if (code === "invalid_credentials") return "メールアドレスかパスワードが違います";
-  if (code === "email_not_confirmed") return "このアカウントはまだ確認されていません。Supabase でユーザーを確認済みにしてください";
-  if (code === "over_request_rate_limit") return "試行回数が多すぎます。少し時間をおいてからお試しください";
-  return `ログインできませんでした：${message}`;
+function errorMessage(t: Dict["auth"], code: string | undefined, message: string): string {
+  if (code === "invalid_credentials") return t.invalidCredentials;
+  if (code === "email_not_confirmed") return t.emailNotConfirmed;
+  if (code === "over_request_rate_limit") return t.rateLimited;
+  return t.loginFailed(message);
 }
 
 /** Where to go after login: the ?next= path, only if it stays on this site. */
@@ -21,6 +23,7 @@ function nextPath(): string {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { auth: t, common } = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,7 +35,7 @@ export default function LoginPage() {
     setError("");
     const { error } = await createClient().auth.signInWithPassword({ email, password });
     if (error) {
-      setError(errorMessage(error.code, error.message));
+      setError(errorMessage(t, error.code, error.message));
       setBusy(false);
       return;
     }
@@ -43,15 +46,15 @@ export default function LoginPage() {
   return (
     <main className="mx-auto grid min-h-dvh max-w-sm content-center gap-6 px-4">
       <div>
-        <h1 className="font-display text-3xl tracking-[0.06em]">家計簿ノート</h1>
-        <p className="mt-1 text-sm text-muted">メールアドレスとパスワードでログインします。</p>
+        <h1 className="font-display text-3xl tracking-[0.06em]">{common.appName}</h1>
+        <p className="mt-1 text-sm text-muted">{t.loginLead}</p>
       </div>
       {!isSupabaseConfigured ? (
-        <p className="rounded-xl bg-warn-soft p-3 text-sm">Supabase が設定されていないため、ログインなしのデモモードで動いています。</p>
+        <p className="rounded-xl bg-warn-soft p-3 text-sm">{t.demoMode}</p>
       ) : (
         <form onSubmit={signIn} className="grid gap-3">
           <label className="grid gap-1">
-            <span className="text-xs text-muted">メールアドレス</span>
+            <span className="text-xs text-muted">{t.email}</span>
             <input
               id="login-email"
               type="email"
@@ -63,7 +66,7 @@ export default function LoginPage() {
             />
           </label>
           <label className="grid gap-1">
-            <span className="text-xs text-muted">パスワード</span>
+            <span className="text-xs text-muted">{t.password}</span>
             <input
               id="login-password"
               type="password"
@@ -75,7 +78,7 @@ export default function LoginPage() {
             />
           </label>
           <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? "ログインしています…" : "ログイン"}
+            {busy ? t.signingIn : t.signIn}
           </Button>
           {error && <p className="text-sm text-bad">{error}</p>}
         </form>

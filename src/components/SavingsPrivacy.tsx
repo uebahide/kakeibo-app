@@ -3,14 +3,12 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useKakeibo } from "./KakeiboProvider";
+import { useT } from "./LanguageProvider";
 import { Button, Icons, Sheet, cx } from "./ui";
 
 export const SAVINGS_MASK = "*****";
 
 const INTRO_KEY = "kakeibo-app.secretIntroSeen";
-
-export const SECRET_MODE_TEXT =
-  "シークレットモードにすると、貯金額と、そこから貯金額を割り出せる表示（浮くお金・内訳・AI分析）を隠します。戻すにはログインのパスワードが要ります。";
 
 function introSeen() {
   try {
@@ -26,13 +24,14 @@ function introSeen() {
  */
 function useSecretMode() {
   const { savingsHidden, hideSavings, toast } = useKakeibo();
+  const t = useT();
   const [sheet, setSheet] = useState<"intro" | "reveal" | null>(null);
   const turnOn = () => {
     try {
       localStorage.setItem(INTRO_KEY, "1");
     } catch {}
     hideSavings();
-    toast("シークレットモードにしました");
+    toast(t.savings.secretOnToast);
   };
   const toggle = () => {
     if (savingsHidden) setSheet("reveal");
@@ -44,8 +43,8 @@ function useSecretMode() {
     sheet === "reveal" ? (
       <RevealSheet onClose={close} />
     ) : sheet === "intro" ? (
-      <Sheet title="シークレットモード" onClose={close}>
-        <p className="text-sm">{SECRET_MODE_TEXT}</p>
+      <Sheet title={t.savings.secretMode} onClose={close}>
+        <p className="text-sm">{t.savings.secretModeText}</p>
         <Button
           variant="primary"
           className="mt-3 w-full"
@@ -54,7 +53,7 @@ function useSecretMode() {
             turnOn();
           }}
         >
-          オンにする
+          {t.savings.turnOn}
         </Button>
       </Sheet>
     ) : null;
@@ -65,7 +64,8 @@ function useSecretMode() {
 /** Eye button next to savings amounts that switches secret mode. */
 export function SavingsEye({ className }: { className?: string }) {
   const { on, toggle, sheets } = useSecretMode();
-  const label = on ? "シークレットモードを解除する" : "シークレットモードにする（貯金額を隠す）";
+  const t = useT();
+  const label = on ? t.savings.eyeOff : t.savings.eyeOn;
   return (
     <>
       <button
@@ -88,12 +88,13 @@ export function SavingsEye({ className }: { className?: string }) {
 /** Header button for secret mode; icon-only on phones, where SecretModeBanner says it is on. */
 export function SecretModeButton({ className }: { className?: string }) {
   const { on, toggle, sheets } = useSecretMode();
+  const t = useT();
   return (
     <>
       <button
         type="button"
         aria-pressed={on}
-        aria-label={on ? "シークレットモード中（タップで解除）" : "貯金を隠す（シークレットモード）"}
+        aria-label={on ? t.savings.buttonOnLabel : t.savings.buttonOffLabel}
         onClick={toggle}
         className={cx(
           "flex h-9 flex-none items-center gap-1 rounded-full border px-2 text-xs sm:px-2.5 font-bold whitespace-nowrap [&_svg]:size-4",
@@ -102,7 +103,7 @@ export function SecretModeButton({ className }: { className?: string }) {
         )}
       >
         {on ? Icons.eyeOff : Icons.eye}
-        <span className="max-sm:hidden">{on ? "シークレット中" : "貯金を隠す"}</span>
+        <span className="max-sm:hidden">{on ? t.savings.buttonOn : t.savings.buttonOff}</span>
       </button>
       {sheets}
     </>
@@ -112,6 +113,7 @@ export function SecretModeButton({ className }: { className?: string }) {
 /** Phone-only strip under the header while secret mode is on; tapping it unlocks. */
 export function SecretModeBanner() {
   const { on, toggle, sheets } = useSecretMode();
+  const t = useT();
   if (!on) return null;
   return (
     <>
@@ -121,8 +123,8 @@ export function SecretModeBanner() {
         className="mb-3 flex w-full items-center gap-2 rounded-xl bg-accent px-3 py-2 text-left text-xs font-bold text-accent-ink sm:hidden [&_svg]:size-4"
       >
         {Icons.eyeOff}
-        <span className="flex-1">シークレットモード中・貯金額は非表示</span>
-        <span className="font-medium opacity-85">解除</span>
+        <span className="flex-1">{t.savings.banner}</span>
+        <span className="font-medium opacity-85">{t.savings.unlock}</span>
       </button>
       {sheets}
     </>
@@ -132,15 +134,16 @@ export function SecretModeBanner() {
 /** Settings row: what secret mode does, with an on/off switch. */
 export function SecretModeSetting() {
   const { on, toggle, sheets } = useSecretMode();
+  const t = useT();
   return (
     <>
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm text-muted">{SECRET_MODE_TEXT}</p>
+        <p className="text-sm text-muted">{t.savings.secretModeText}</p>
         <button
           type="button"
           role="switch"
           aria-checked={on}
-          aria-label="シークレットモード"
+          aria-label={t.savings.secretMode}
           onClick={toggle}
           className={cx("relative h-7 w-12 flex-none rounded-full transition", on ? "bg-accent" : "bg-line")}
         >
@@ -155,6 +158,7 @@ export function SecretModeSetting() {
 /** Asks for the login password and shows savings again; `onRevealed` runs after a correct one. */
 export function RevealSheet({ onClose, onRevealed }: { onClose: () => void; onRevealed?: () => void }) {
   const { storeKind, revealSavings, toast } = useKakeibo();
+  const t = useT();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -166,11 +170,11 @@ export function RevealSheet({ onClose, onRevealed }: { onClose: () => void; onRe
     setError(null);
     try {
       if (await revealSavings(password)) {
-        toast("シークレットモードを解除しました");
+        toast(t.savings.revealedToast);
         onClose();
         onRevealed?.();
       } else {
-        setError("パスワードが違います");
+        setError(t.savings.wrongPassword);
       }
     } catch (err) {
       setError((err as Error).message);
@@ -180,12 +184,12 @@ export function RevealSheet({ onClose, onRevealed }: { onClose: () => void; onRe
   }
 
   return (
-    <Sheet title="シークレットモードを解除する" onClose={onClose}>
+    <Sheet title={t.savings.revealTitle} onClose={onClose}>
       <form onSubmit={submit} className="grid gap-2">
         {needsPassword ? (
           <>
             <label htmlFor="reveal-password" className="text-sm text-muted">
-              ログインのパスワードを入れてください。
+              {t.savings.passwordPrompt}
             </label>
             <input
               id="reveal-password"
@@ -199,7 +203,7 @@ export function RevealSheet({ onClose, onRevealed }: { onClose: () => void; onRe
           </>
         ) : (
           <p className="text-sm text-muted">
-            デモモードにはパスワードがないので、そのまま解除します。
+            {t.savings.demoNoPassword}
           </p>
         )}
         {error && (
@@ -213,7 +217,7 @@ export function RevealSheet({ onClose, onRevealed }: { onClose: () => void; onRe
           className="mt-1"
           disabled={busy || (needsPassword && !password)}
         >
-          {busy ? "確認しています…" : "解除する"}
+          {busy ? t.savings.checking : t.savings.reveal}
         </Button>
       </form>
     </Sheet>

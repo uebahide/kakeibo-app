@@ -7,11 +7,13 @@ import { changeFixedCosts, fixedCostsFor, sumFixed } from "@/lib/fixed";
 import { parseAmount, yen } from "@/lib/format";
 import type { FixedCost } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
+import { useT } from "./LanguageProvider";
 import { Button, Card, CardTitle, EmptyState, Meter, Stamp, TextButton, cx } from "./ui";
 
 /** The month's fixed costs: counted as spending automatically, with a paid check per item. `bare` drops the card frame for use inside a sheet. */
 export function FixedCostsCard({ bare = false }: { bare?: boolean }) {
   const { settings, month, updateSettings } = useKakeibo();
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const { items, inheritedFrom } = fixedCostsFor(settings.fixedCosts, month);
   const total = sumFixed(items);
@@ -34,19 +36,19 @@ export function FixedCostsCard({ bare = false }: { bare?: boolean }) {
       <CardTitle
         action={
           items.length > 0 && (
-            <TextButton onClick={() => setEditing(!editing)}>{editing ? "完了" : "編集"}</TextButton>
+            <TextButton onClick={() => setEditing(!editing)}>{editing ? t.fixed.done : t.fixed.edit}</TextButton>
           )
         }
       >
-        {!bare && `${monthLabel(month)}の固定費`}
+        {!bare && t.fixed.title(monthLabel(month))}
       </CardTitle>
 
       {!items.length ? (
-        <EmptyState title="固定費はまだありません">
-          家賃や通信費などを登録すると、毎月自動で支出に入ります。翌月からは前の月の内容が初期値になります。
+        <EmptyState title={t.fixed.emptyTitle}>
+          {t.fixed.emptyBody}
           <div className="mt-3 flex justify-center">
             <Button variant="primary" onClick={add}>
-              固定費を追加
+              {t.fixed.add}
             </Button>
           </div>
         </EmptyState>
@@ -55,13 +57,13 @@ export function FixedCostsCard({ bare = false }: { bare?: boolean }) {
           <div className="num flex flex-wrap items-baseline justify-between gap-2">
             <span className="text-xl font-semibold">{yen(total)}</span>
             <span className="text-[13px] text-muted">
-              支払い済み {yen(paid)}（{paidCount}/{items.length}件）
+              {t.fixed.paidSummary(yen(paid), paidCount, items.length)}
             </span>
           </div>
           <Meter ratio={total ? paid / total : 0} level="good" className="mt-1.5 mb-1" />
           {inheritedFrom && (
             <p className="mt-2 rounded-xl bg-surface-2 px-3 py-2 text-xs text-muted">
-              {monthLabel(inheritedFrom)}の固定費を引き継いでいます。金額が違う項目は「編集」で直してください。
+              {t.fixed.inherited(monthLabel(inheritedFrom))}
             </p>
           )}
 
@@ -94,8 +96,8 @@ export function FixedCostsCard({ bare = false }: { bare?: boolean }) {
                     </span>
                     <Stamp category={f.category} size="sm" />
                     <span className={cx("min-w-0 truncate text-sm font-medium", f.paid && "text-muted")}>
-                      {f.name || "（名前なし）"}
-                      <span className="block text-[11px] font-normal text-muted">{f.paid ? "支払い済み" : "未払い"}</span>
+                      {f.name || t.fixed.noName}
+                      <span className="block text-[11px] font-normal text-muted">{f.paid ? t.fixed.paid : t.fixed.unpaid}</span>
                     </span>
                     <span className={cx("num text-[15px] font-semibold", f.paid && "text-muted")}>{yen(f.amount)}</span>
                   </button>
@@ -105,7 +107,7 @@ export function FixedCostsCard({ bare = false }: { bare?: boolean }) {
           </ul>
           {editing && (
             <Button variant="ghost" className="mt-1 px-0" onClick={add}>
-              ＋ 項目を追加
+              {t.fixed.addItem}
             </Button>
           )}
         </>
@@ -123,12 +125,13 @@ function EditRow({
   onChange: (values: Partial<FixedCost>) => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   const field = "min-w-0 rounded-xl border border-line bg-bg px-2.5 py-2";
   return (
     <li className="grid grid-cols-[1fr_auto] gap-2 border-t border-line py-2.5 first:border-t-0">
       <input
-        aria-label="名前"
-        placeholder="名前（例：家賃）"
+        aria-label={t.fixed.name}
+        placeholder={t.fixed.namePlaceholder}
         defaultValue={item.name}
         autoFocus={!item.name}
         onBlur={(e) => {
@@ -137,11 +140,11 @@ function EditRow({
         }}
         className={field}
       />
-      <Button variant="danger" className="px-3" onClick={onDelete} aria-label={`${item.name || "この項目"}を削除`}>
-        削除
+      <Button variant="danger" className="px-3" onClick={onDelete} aria-label={t.fixed.deleteLabel(item.name)}>
+        {t.fixed.delete}
       </Button>
       <select
-        aria-label="カテゴリ"
+        aria-label={t.fixed.category}
         value={item.category}
         onChange={(e) => onChange({ category: e.target.value })}
         className={field}
@@ -153,10 +156,10 @@ function EditRow({
         ))}
       </select>
       <input
-        aria-label="金額"
+        aria-label={t.fixed.amount}
         inputMode="numeric"
         defaultValue={item.amount || ""}
-        placeholder="金額"
+        placeholder={t.fixed.amount}
         onBlur={(e) => {
           const amount = parseAmount(e.target.value);
           e.target.value = amount ? String(amount) : "";

@@ -8,6 +8,7 @@ import { currencySymbol, formatAmountInput, parseAmount, yen } from "@/lib/forma
 import { quickPicks } from "@/lib/stats";
 import type { NewTransaction, TxType } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
+import { useT } from "./LanguageProvider";
 import { Button, Stamp, cx } from "./ui";
 
 export function EntrySheet() {
@@ -20,6 +21,7 @@ export function EntrySheet() {
 function EntryForm({ onClose }: { onClose: () => void }) {
   const { entry, transactions, settings, month, setMonth, addTransactions, updateTransaction, deleteTransaction, toast } = useKakeibo();
   const editing = entry.editing;
+  const t = useT();
   const [type, setType] = useState<TxType>(editing?.type ?? entry.type ?? "expense");
   const [category, setCategory] = useState(editing?.category ?? CATEGORIES[type][0].id);
   const [amount, setAmount] = useState(editing ? editing.amount.toLocaleString("ja-JP") : "");
@@ -32,30 +34,30 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   const amountRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => amountRef.current?.focus(), 30);
+    const timer = setTimeout(() => amountRef.current?.focus(), 30);
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => {
-      clearTimeout(t);
+      clearTimeout(timer);
       window.removeEventListener("keydown", onKey);
     };
   }, [onClose]);
 
   const picks = useMemo(() => quickPicks(transactions, type), [transactions, type]);
   const memoOptions = useMemo(
-    () => [...new Set(transactions.filter((t) => t.memo && t.category === category).map((t) => t.memo))].slice(0, 20),
+    () => [...new Set(transactions.filter((tx) => tx.memo && tx.category === category).map((tx) => tx.memo))].slice(0, 20),
     [transactions, category],
   );
 
-  const switchType = (t: TxType) => {
-    setType(t);
-    setCategory(CATEGORIES[t][0].id);
+  const switchType = (next: TxType) => {
+    setType(next);
+    setCategory(CATEGORIES[next][0].id);
   };
 
   async function save(keepOpen: boolean) {
     const value = parseAmount(amount);
     if (!value) {
-      toast("金額を入れてください");
+      toast(t.entry.enterAmount);
       amountRef.current?.focus();
       return;
     }
@@ -72,11 +74,11 @@ function EntryForm({ onClose }: { onClose: () => void }) {
     try {
       if (editing) {
         await updateTransaction(editing.id, item);
-        toast("更新しました");
+        toast(t.entry.updated);
         onClose();
       } else {
         await addTransactions([item]);
-        toast(`${getCategory(category).name} ${yen(value)} を記録しました`);
+        toast(t.entry.recorded(getCategory(category).name, yen(value)));
         if (keepOpen) {
           setAmount("");
           setMemo("");
@@ -85,7 +87,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
       }
       if (!keepOpen && periodOf(item.date, startDay) !== month) setMonth(periodOf(item.date, startDay));
     } catch {
-      toast("保存できませんでした。もう一度お試しください");
+      toast(t.entry.saveFailed);
     } finally {
       setBusy(false);
     }
@@ -100,10 +102,10 @@ function EntryForm({ onClose }: { onClose: () => void }) {
     setBusy(true);
     try {
       await deleteTransaction(editing.id);
-      toast("削除しました");
+      toast(t.entry.deleted);
       onClose();
     } catch {
-      toast("削除できませんでした");
+      toast(t.entry.deleteFailed);
       setBusy(false);
     }
   }
@@ -125,21 +127,21 @@ function EntryForm({ onClose }: { onClose: () => void }) {
       >
         <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-line lg:hidden" />
         <div className="mb-2.5 flex items-center justify-between">
-          <b id="entry-title">{editing ? "記録を編集" : "記入する"}</b>
+          <b id="entry-title">{editing ? t.entry.editTitle : t.common.write}</b>
           <Button variant="ghost" onClick={onClose}>
-            閉じる
+            {t.common.close}
           </Button>
         </div>
 
         <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
-          {(["expense", "income"] as const).map((t) => (
+          {(["expense", "income"] as const).map((k) => (
             <button
-              key={t}
+              key={k}
               type="button"
-              onClick={() => switchType(t)}
-              className={cx("rounded-lg py-2 text-sm font-bold", type === t ? "bg-surface text-ink shadow-sm" : "text-muted")}
+              onClick={() => switchType(k)}
+              className={cx("rounded-lg py-2 text-sm font-bold", type === k ? "bg-surface text-ink shadow-sm" : "text-muted")}
             >
-              {t === "expense" ? "支出" : "収入"}
+              {t.entry[k]}
             </button>
           ))}
         </div>
@@ -155,7 +157,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
             inputMode="numeric"
             autoComplete="off"
             placeholder="0"
-            aria-label="金額"
+            aria-label={t.entry.amount}
             className="num w-full min-w-0 bg-transparent text-[40px] font-bold outline-none"
           />
           {currencySymbol() === "Ft" && <span className="num text-2xl text-muted">Ft</span>}
@@ -182,15 +184,15 @@ function EntryForm({ onClose }: { onClose: () => void }) {
         </div>
 
         {type === "expense" && (
-          <div className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label="予算に入れるか">
+          <div className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={t.entry.budgetGroup}>
             {(
               [
-                [false, "予算内", "ふだんの支出"],
-                [true, "予算外", "旅行・イベントなど"],
+                [false, t.entry.inBudget, t.entry.inBudgetHint],
+                [true, t.common.outsideBudget, t.entry.outsideBudgetHint],
               ] as const
             ).map(([value, label, hint]) => (
               <button
-                key={label}
+                key={String(value)}
                 type="button"
                 role="radio"
                 aria-checked={outsideBudget === value}
@@ -205,7 +207,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
         )}
 
         {picks.length > 0 && (
-          <div className="no-scrollbar mt-2.5 flex gap-1.5 overflow-x-auto pb-1" aria-label="よく使う記録">
+          <div className="no-scrollbar mt-2.5 flex gap-1.5 overflow-x-auto pb-1" aria-label={t.entry.quickPicks}>
             {picks.map((p) => (
               <button
                 key={`${p.category}|${p.memo}`}
@@ -226,11 +228,11 @@ function EntryForm({ onClose }: { onClose: () => void }) {
 
         <div className="mt-1 grid grid-cols-[1fr_1.4fr] gap-2">
           <label className="block">
-            <span className="mt-2.5 mb-1 block text-[11px] tracking-wide text-muted">日付</span>
+            <span className="mt-2.5 mb-1 block text-[11px] tracking-wide text-muted">{t.entry.date}</span>
             <input id="entry-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-xl border border-line bg-bg px-3 py-2" />
           </label>
           <label className="block">
-            <span className="mt-2.5 mb-1 block text-[11px] tracking-wide text-muted">メモ</span>
+            <span className="mt-2.5 mb-1 block text-[11px] tracking-wide text-muted">{t.entry.memo}</span>
             <input
               id="entry-memo"
               value={memo}
@@ -238,7 +240,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
               onKeyDown={onEnter}
               list="memo-options"
               autoComplete="off"
-              placeholder="例：スーパー"
+              placeholder={t.entry.memoPlaceholder}
               className="w-full rounded-xl border border-line bg-bg px-3 py-2"
             />
             <datalist id="memo-options">
@@ -253,19 +255,19 @@ function EntryForm({ onClose }: { onClose: () => void }) {
           {editing ? (
             <>
               <Button variant="danger" onClick={remove} disabled={busy}>
-                {confirmDelete ? "本当に削除" : "削除"}
+                {confirmDelete ? t.entry.confirmDelete : t.entry.delete}
               </Button>
               <Button variant="primary" onClick={() => save(false)} disabled={busy}>
-                更新する
+                {t.entry.update}
               </Button>
             </>
           ) : (
             <>
               <Button onClick={() => save(true)} disabled={busy}>
-                保存して続ける
+                {t.entry.saveAndContinue}
               </Button>
               <Button variant="primary" onClick={() => save(false)} disabled={busy}>
-                保存
+                {t.entry.save}
               </Button>
             </>
           )}

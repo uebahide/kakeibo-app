@@ -76,6 +76,11 @@
   }
 }
 
+/* Hidden until the page is shown in the visitor's language (see LANGUAGE_SCRIPT). */
+html[data-lang-pending] body {
+  visibility: hidden;
+}
+
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;

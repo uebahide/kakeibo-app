@@ -3,27 +3,25 @@
 import { useRef, useState } from "react";
 import { yen } from "@/lib/format";
 import { buildAiDigest } from "@/lib/stats";
+import { DICTS } from "@/lib/i18n/dict";
+import type { Language } from "@/lib/i18n";
 import type { AiAnalysis, ChatTurn } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
+import { useLanguage, useT } from "./LanguageProvider";
 import { RevealSheet } from "./SavingsPrivacy";
 import { Button, Card, CardTitle, EmptyState, Icons, buttonClass, cx } from "./ui";
 
 const MIN_RECORDS = 5;
 
-/** Opens a new claude.ai chat with this prompt filled in; Claude then uses the 家計簿 connector (MCP). */
-const CLAUDE_ANALYSIS_URL =
-  "https://claude.ai/new?q=" +
-  encodeURIComponent(
-    "家計簿コネクタの get_monthly_digest で直近3か月の集計を取り、家計を分析して要点を教えてください。" +
-      "最後に save_analysis で分析結果を家計簿アプリに保存してください。",
-  );
+/** Opens a new claude.ai chat with the analysis prompt filled in; Claude then uses the kakeibo connector (MCP). */
+const claudeAnalysisUrl = (lang: Language) => "https://claude.ai/new?q=" + encodeURIComponent(DICTS[lang].ai.claudePrompt);
 
-async function errorText(res: Response): Promise<string> {
+async function errorText(res: Response, fallback: string): Promise<string> {
   try {
     const body = (await res.json()) as { error?: string };
-    return body.error ?? "うまくいきませんでした。もう一度お試しください";
+    return body.error ?? fallback;
   } catch {
-    return "うまくいきませんでした。もう一度お試しください";
+    return fallback;
   }
 }
 
@@ -40,13 +38,14 @@ export function AiView() {
 }
 
 function Locked() {
+  const t = useT().ai;
   const [asking, setAsking] = useState(false);
   return (
     <Card className="grid justify-items-center gap-3 py-8 text-center">
       <span className="text-muted [&_svg]:size-7">{Icons.eyeOff}</span>
-      <p className="text-sm text-muted">シークレットモード中は、AI分析とAIチャットは使えません。</p>
+      <p className="text-sm text-muted">{t.lockedNote}</p>
       <Button variant="primary" onClick={() => setAsking(true)}>
-        パスワードで解除する
+        {t.unlock}
       </Button>
       {asking && <RevealSheet onClose={() => setAsking(false)} />}
     </Card>
@@ -55,6 +54,8 @@ function Locked() {
 
 function Analysis() {
   const { transactions, settings, updateSettings, storeKind } = useKakeibo();
+  const t = useT().ai;
+  const language = useLanguage();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const last = settings.lastAi;
@@ -67,13 +68,13 @@ function Analysis() {
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ digest: buildAiDigest(transactions, settings) }),
+        body: JSON.stringify({ digest: buildAiDigest(transactions, settings), language }),
       });
-      if (!res.ok) throw new Error(await errorText(res));
+      if (!res.ok) throw new Error(await errorText(res, t.genericError));
       const { result } = (await res.json()) as { result: AiAnalysis };
       await updateSettings((s) => ({ ...s, lastAi: { at: new Date().toISOString(), result, source: "app" } }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "分析できませんでした");
+      setError(e instanceof Error ? e.message : t.analyzeFailed);
     } finally {
       setBusy(false);
     }
@@ -82,37 +83,35 @@ function Analysis() {
   return (
     <div className="grid gap-3.5">
       <Card>
-        <CardTitle>AIによる傾向分析</CardTitle>
-        <p className="mb-3 text-sm">直近3か月の集計・予算・貯金目標をAIに渡して、お金の使い方のクセと節約のヒントを出します。送るのはカテゴリやメモごとの合計で、1件ずつの記録は送りません。</p>
+        <CardTitle>{t.analysisTitle}</CardTitle>
+        <p className="mb-3 text-sm">{t.analysisLead}</p>
         <Button variant="primary" onClick={run} disabled={busy || !enough}>
-          {busy ? "分析しています…" : last ? "もう一度分析する" : "AIで分析する"}
+          {busy ? t.analyzing : last ? t.analyzeAgain : t.analyze}
         </Button>
-        {!enough && <p className="mt-2 text-xs text-muted">{MIN_RECORDS}件以上記録すると分析できます</p>}
+        {!enough && <p className="mt-2 text-xs text-muted">{t.needRecords(MIN_RECORDS)}</p>}
         {last && (
           <p className="mt-2 text-xs text-muted">
-            前回の分析：{new Date(last.at).toLocaleString("ja-JP")}
-            {last.source === "claude" && "（Claude で分析）"}
+            {t.lastAnalysis(new Date(last.at).toLocaleString(language === "en" ? "en-US" : "ja-JP"))}
+            {last.source === "claude" && t.byClaude}
           </p>
         )}
         {error && <p className="mt-2 text-xs text-bad">{error}</p>}
       </Card>
       {storeKind === "supabase" && (
         <Card>
-          <CardTitle>Claude で分析</CardTitle>
-          <p className="mb-3 text-sm">
-            claude.ai（iPhone では Claude アプリ）が分析の指示入りで開きます。Claude が集計を読んで分析し、結果をここに保存します。
-          </p>
-          <a href={CLAUDE_ANALYSIS_URL} target="_blank" rel="noopener noreferrer" className={buttonClass("default")}>
-            Claude で分析して保存
+          <CardTitle>{t.claudeTitle}</CardTitle>
+          <p className="mb-3 text-sm">{t.claudeLead}</p>
+          <a href={claudeAnalysisUrl(language)} target="_blank" rel="noopener noreferrer" className={buttonClass("default")}>
+            {t.claudeButton}
           </a>
-          <p className="mt-2 text-xs text-muted">claude.ai に家計簿のコネクタを追加しておく必要があります。戻ってくると結果が表示されます。</p>
+          <p className="mt-2 text-xs text-muted">{t.claudeNote}</p>
         </Card>
       )}
       {last ? (
         <AnalysisResult result={last.result} />
       ) : (
         <Card>
-          <EmptyState title="分析結果はここに表示されます">スコア、見えてきた傾向、次の一手の3つにまとめます</EmptyState>
+          <EmptyState title={t.emptyTitle}>{t.emptyBody}</EmptyState>
         </Card>
       )}
     </div>
@@ -122,17 +121,18 @@ function Analysis() {
 const INSIGHT_BG = { good: "bg-good-soft", warn: "bg-warn-soft", info: "bg-surface-2" } as const;
 
 function AnalysisResult({ result }: { result: AiAnalysis }) {
+  const t = useT().ai;
   return (
     <>
       <Card className="flex items-center gap-4">
         <div className="num text-[52px] leading-none font-bold text-accent">{result.score}</div>
         <div>
-          <div className="text-xs text-muted">家計スコア（100点満点）</div>
+          <div className="text-xs text-muted">{t.scoreLabel}</div>
           <div className="text-base font-bold">{result.headline}</div>
         </div>
       </Card>
       <Card>
-        <CardTitle>見えてきた傾向</CardTitle>
+        <CardTitle>{t.insightsTitle}</CardTitle>
         <div className="grid gap-2">
           {result.insights.map((i, n) => (
             <div key={n} className={cx("rounded-xl px-3.5 py-3", INSIGHT_BG[i.kind] ?? INSIGHT_BG.info)}>
@@ -143,14 +143,14 @@ function AnalysisResult({ result }: { result: AiAnalysis }) {
         </div>
       </Card>
       <Card>
-        <CardTitle>次の一手</CardTitle>
+        <CardTitle>{t.actionsTitle}</CardTitle>
         {result.actions.map((a, n) => (
           <div key={n} className="grid grid-cols-[1fr_auto] gap-2.5 border-t border-line py-2.5 first:border-t-0">
             <div>
               <b>{a.title}</b>
               <div className="text-sm">{a.detail}</div>
             </div>
-            {a.monthlySaving > 0 && <span className="num h-fit rounded-full bg-good-soft px-2.5 py-0.5 text-xs font-bold whitespace-nowrap text-good">月 {yen(a.monthlySaving)}</span>}
+            {a.monthlySaving > 0 && <span className="num h-fit rounded-full bg-good-soft px-2.5 py-0.5 text-xs font-bold whitespace-nowrap text-good">{t.perMonth(yen(a.monthlySaving))}</span>}
           </div>
         ))}
         {result.cheer && <p className="mt-3 text-sm text-muted">{result.cheer}</p>}
@@ -161,6 +161,8 @@ function AnalysisResult({ result }: { result: AiAnalysis }) {
 
 function Chat() {
   const { transactions, settings } = useKakeibo();
+  const t = useT().ai;
+  const language = useLanguage();
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -168,7 +170,7 @@ function Chat() {
 
   async function ask(question: string) {
     const history: ChatTurn[] = [...turns, { role: "user", content: question }];
-    setTurns([...history, { role: "assistant", content: "考えています…" }]);
+    setTurns([...history, { role: "assistant", content: t.thinking }]);
     setInput("");
     setBusy(true);
     const ctl = new AbortController();
@@ -178,10 +180,10 @@ function Chat() {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ digest: buildAiDigest(transactions, settings), turns: history }),
+        body: JSON.stringify({ digest: buildAiDigest(transactions, settings), turns: history, language }),
         signal: ctl.signal,
       });
-      if (!res.ok || !res.body) throw new Error(await errorText(res));
+      if (!res.ok || !res.body) throw new Error(await errorText(res, t.genericError));
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let text = "";
@@ -191,9 +193,9 @@ function Chat() {
         text += decoder.decode(value, { stream: true });
         setAnswer(text);
       }
-      if (!text) setAnswer("答えを取得できませんでした。");
+      if (!text) setAnswer(t.noAnswer);
     } catch (e) {
-      if ((e as Error).name !== "AbortError") setAnswer(e instanceof Error ? e.message : "答えを取得できませんでした。");
+      if ((e as Error).name !== "AbortError") setAnswer(e instanceof Error ? e.message : t.noAnswer);
     } finally {
       setBusy(false);
       abortRef.current = null;
@@ -202,12 +204,12 @@ function Chat() {
 
   return (
     <Card>
-      <CardTitle>AIに相談する</CardTitle>
-      <p className="text-xs text-muted">例：「外食を減らすコツは？」「来月の食費予算はいくらが妥当？」</p>
+      <CardTitle>{t.chatTitle}</CardTitle>
+      <p className="text-xs text-muted">{t.chatExamples}</p>
       <div className="mt-2.5 grid gap-2">
-        {turns.map((t, i) => (
-          <div key={i} className={cx("rounded-xl px-3 py-2.5 text-sm whitespace-pre-wrap", t.role === "user" ? "max-w-[85%] justify-self-end bg-accent-soft" : "bg-surface-2")}>
-            {t.content}
+        {turns.map((turn, i) => (
+          <div key={i} className={cx("rounded-xl px-3 py-2.5 text-sm whitespace-pre-wrap", turn.role === "user" ? "max-w-[85%] justify-self-end bg-accent-soft" : "bg-surface-2")}>
+            {turn.content}
           </div>
         ))}
       </div>
@@ -223,15 +225,15 @@ function Chat() {
           id="chat-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="家計について質問する"
+          placeholder={t.chatPlaceholder}
           autoComplete="off"
           className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 py-2"
         />
         {busy ? (
-          <Button onClick={() => abortRef.current?.abort()}>止める</Button>
+          <Button onClick={() => abortRef.current?.abort()}>{t.stop}</Button>
         ) : (
           <Button type="submit" variant="primary">
-            送る
+            {t.send}
           </Button>
         )}
       </form>

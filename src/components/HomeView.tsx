@@ -8,26 +8,28 @@ import { fixedCostsFor } from "@/lib/fixed";
 import { parseAmount, yen } from "@/lib/format";
 import { averageMonthlySavings, monthSavings, totalSaved } from "@/lib/savings";
 import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
-import { PACE_STEPS, elapsedFraction, monthStats, paceLevel, paceStep, recordStreak, todayBudget, variableBudget } from "@/lib/stats";
+import { elapsedFraction, monthStats, paceLevel, paceStep, paceSteps, recordStreak, todayBudget, variableBudget } from "@/lib/stats";
 import { AiShortcut } from "./AiShortcut";
 import { FixedCostsCard } from "./FixedCostsCard";
 import { RevealSheet, SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
 import { GoalRing, goalEta } from "./SavingsSettings";
 import { useKakeibo } from "./KakeiboProvider";
+import { useT } from "./LanguageProvider";
 import { Button, Card, CardTitle, EmptyState, Icons, Meter, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
 
 export function useSeedSamples() {
   const { addTransactions, settings, updateSettings, toast } = useKakeibo();
+  const t = useT();
   return async () => {
-    toast("サンプルを入れています…");
+    toast(t.home.seeding);
     try {
       if (!Object.keys(settings.fixedCosts).length) {
         void updateSettings((s) => ({ ...s, fixedCosts: makeSampleFixedCosts() }));
       }
       const created = await addTransactions(makeSampleTransactions());
-      toast(`サンプルを${created.length}件入れました`);
+      toast(t.home.samplesAdded(created.length));
     } catch {
-      toast("サンプルを保存できませんでした");
+      toast(t.home.samplesFailed);
     }
   };
 }
@@ -47,6 +49,8 @@ type Panel = "today" | "income" | "fixed" | "saving" | "extra";
 export function HomeView() {
   const { transactions, settings, month, setView, openEntry, savingsHidden } = useKakeibo();
   const seed = useSeedSamples();
+  const t = useT();
+  const h = t.home.hero;
   const [panel, setPanel] = useState<Panel | null>(null);
   // The breakdown shows the savings amount, so it stays shut while savings are hidden.
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -83,13 +87,13 @@ export function HomeView() {
     <div className="grid items-start gap-3.5 lg:grid-cols-[1.15fr_1fr]">
       {transactions.length === 0 && (
         <Card className="lg:col-span-2">
-          <EmptyState title="まだ記録がありません">
-            「記入」から最初の支出をつけてみましょう。雰囲気を見たいときはサンプルデータも入れられます。
+          <EmptyState title={t.home.emptyTitle}>
+            {t.home.emptyBody}
             <div className="mt-3 flex justify-center gap-2">
               <Button variant="primary" onClick={() => openEntry()}>
-                記入する
+                {t.common.write}
               </Button>
-              <Button onClick={seed}>サンプルを入れる</Button>
+              <Button onClick={seed}>{t.home.addSamples}</Button>
             </div>
           </EmptyState>
         </Card>
@@ -101,28 +105,28 @@ export function HomeView() {
             <div className="mb-3 border-b border-white/20 pb-3">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 {todayData.left >= 0 ? (
-                  <span className="text-xs tracking-wider opacity-85">今日使える額</span>
+                  <span className="text-xs tracking-wider opacity-85">{h.todayLeft}</span>
                 ) : (
-                  <span className={cx("rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm", PACE_BADGE[5])}>今日の枠をオーバー</span>
+                  <span className={cx("rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm", PACE_BADGE[5])}>{h.todayOver}</span>
                 )}
                 <span className="num text-xs opacity-85">{shortDayLabel(today())}</span>
                 <button
                   type="button"
                   onClick={openTimeZone}
-                  aria-label="タイムゾーンの設定を開く"
+                  aria-label={h.openTimeZone}
                   className="rounded-full bg-white/15 px-2 py-px text-[10px] font-bold tracking-wide hover:bg-white/25"
                 >
                   {TIME_ZONE_TAG[settings.timeZone]}
                 </button>
               </div>
               <div className="num mt-1 text-[34px] leading-tight font-bold min-[400px]:text-[40px]">
-                {todayData.left >= 0 ? yen(todayData.left) : `${yen(-todayData.left)} オーバー`}
+                {todayData.left >= 0 ? yen(todayData.left) : h.over(yen(-todayData.left))}
               </div>
               <div className="num flex flex-wrap items-center gap-x-1 text-[13px]">
                 <button type="button" onClick={() => setPanel("today")} className="font-bold underline decoration-white/40 underline-offset-4">
-                  今日の出費 {yen(todayData.spent)} ›
+                  {h.spentToday(yen(todayData.spent))} ›
                 </button>
-                <span className="opacity-85">/ 今日の枠 {yen(todayData.limit)}</span>
+                <span className="opacity-85">{h.todayLimit(yen(todayData.limit))}</span>
               </div>
               <div className="my-2.5 h-2 rounded-full bg-white/25">
                 <div
@@ -130,43 +134,43 @@ export function HomeView() {
                   style={{ width: `${todayData.limit ? Math.min(100, (todayData.spent / todayData.limit) * 100) : 100}%` }}
                 />
               </div>
-              {todayData.left < 0 && <div className="num text-[13px]">明日からは1日 {yen(todayData.perDayFromTomorrow)}</div>}
-              {todayData.extra > 0 && <div className="num text-xs opacity-85">ほかに予算外 {yen(todayData.extra)}</div>}
+              {todayData.left < 0 && <div className="num text-[13px]">{h.perDayFromTomorrow(yen(todayData.perDayFromTomorrow))}</div>}
+              {todayData.extra > 0 && <div className="num text-xs opacity-85">{h.extraToday(yen(todayData.extra))}</div>}
             </div>
           )}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs tracking-wider opacity-85">{monthLabel(month)}の予算の残り</span>
+            <span className="text-xs tracking-wider opacity-85">{h.monthLeft(monthLabel(month))}</span>
             <span
               className={cx("rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm", step < 0 ? "bg-white/20" : PACE_BADGE[step])}
             >
-              {step < 0 ? "予算未設定" : PACE_STEPS[step]}
+              {step < 0 ? h.noBudget : paceSteps()[step]}
             </span>
           </div>
           <div className={cx("num mt-1 leading-tight font-bold", showToday ? "text-2xl" : "text-[34px] min-[400px]:text-[40px]")}>
-            {left >= 0 ? yen(left) : `${yen(-left)} オーバー`}
+            {left >= 0 ? yen(left) : h.over(yen(-left))}
           </div>
           <div className="num text-[13px] opacity-85">
-            使った {yen(stats.variable)} / 予算 {yen(budget)}
+            {h.spentOfBudget(yen(stats.variable), yen(budget))}
           </div>
           <div className="relative my-3 h-2 rounded-full bg-white/25">
             <div className="h-full rounded-full bg-accent-ink" style={{ width: `${budget ? Math.min(100, (stats.variable / budget) * 100) : 0}%` }} />
-            {isCurrent && <div title="今日の目安" className="absolute -top-1 -bottom-1 w-0.5 bg-accent-ink/60" style={{ left: `${fraction * 100}%` }} />}
+            {isCurrent && <div title={h.paceMark} className="absolute -top-1 -bottom-1 w-0.5 bg-accent-ink/60" style={{ left: `${fraction * 100}%` }} />}
           </div>
           {isCurrent && !showToday && (
             <button type="button" onClick={() => setPanel("today")} className="num text-[13px] underline decoration-white/40 underline-offset-4">
-              今日の出費 {yen(todayData.spent + todayData.extra)} ›
+              {h.spentToday(yen(todayData.spent + todayData.extra))} ›
             </button>
           )}
 
           <div className="mt-3 border-t border-white/20 pt-3">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span className="text-[13px] font-bold">予算どおりなら浮くお金</span>
+              <span className="text-[13px] font-bold">{h.spare}</span>
               {stats.income ? (
                 <span className="num text-2xl font-bold">
                   {savingsHidden ? SAVINGS_MASK : `${spare >= 0 ? "" : "−"}${yen(Math.abs(spare))}`}
                 </span>
               ) : (
-                <span className="text-xs opacity-85">収入を記録すると出ます</span>
+                <span className="text-xs opacity-85">{h.spareNeedsIncome}</span>
               )}
             </div>
             <details open={breakdownOpen && !savingsHidden} className="group mt-1 text-[13px]">
@@ -178,9 +182,9 @@ export function HomeView() {
                 }}
                 className="cursor-pointer list-none text-xs opacity-85 [&::-webkit-details-marker]:hidden"
               >
-                内訳{" "}
+                {h.breakdown}{" "}
                 {savingsHidden ? (
-                  <span className="inline-block align-[-2px] [&_svg]:size-3.5" aria-label="パスワードで表示">
+                  <span className="inline-block align-[-2px] [&_svg]:size-3.5" aria-label={h.revealWithPassword}>
                     {Icons.eyeOff}
                   </span>
                 ) : (
@@ -188,22 +192,22 @@ export function HomeView() {
                 )}
               </summary>
               <dl className="num mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
-                <dt>収入</dt>
+                <dt>{h.income}</dt>
                 <dd className="text-right">{yen(stats.income)}</dd>
-                <dt>固定費</dt>
+                <dt>{h.fixed}</dt>
                 <dd className="text-right">−{yen(stats.fixed)}</dd>
-                <dt>今月貯金する額</dt>
+                <dt>{h.savingThisMonth}</dt>
                 <dd className="text-right">{savingsHidden ? SAVINGS_MASK : `−${yen(saving)}`}</dd>
-                <dt>{stats.variable > budget ? "変動費（予算超え）" : "変動費の予算"}</dt>
+                <dt>{stats.variable > budget ? h.variableOver : h.variableBudget}</dt>
                 <dd className="text-right">−{yen(plannedVariable)}</dd>
                 {stats.extra > 0 && (
                   <>
-                    <dt>予算外の支出</dt>
+                    <dt>{h.extra}</dt>
                     <dd className="text-right">−{yen(stats.extra)}</dd>
                   </>
                 )}
                 <div className="col-span-2 my-1 border-t border-white/20" />
-                <dt className="opacity-85">今日までの収支（貯金後）</dt>
+                <dt className="opacity-85">{h.balanceSoFar}</dt>
                 <dd className="text-right opacity-85">
                   {balance >= 0 ? "+" : "−"}
                   {yen(Math.abs(balance))}
@@ -217,26 +221,26 @@ export function HomeView() {
         <StreakLine />
 
         <Card>
-          <CardTitle action={<SavingsEye className="-my-1.5" />}>{monthLabel(month)}のお金</CardTitle>
+          <CardTitle action={<SavingsEye className="-my-1.5" />}>{t.home.money.title(monthLabel(month))}</CardTitle>
           <MoneyRow
-            label="収入"
-            sub={incomeList.length ? `${incomeList.length}件` : "給料などを記録する"}
+            label={t.home.money.income}
+            sub={incomeList.length ? t.home.money.incomeCount(incomeList.length) : t.home.money.incomeEmpty}
             amount={stats.income || null}
             tone="income"
             onClick={() => setPanel("income")}
           />
           <MoneyRow
-            label="固定費"
-            sub={fixed.length ? `支払い済み ${fixed.filter((f) => f.paid).length}/${fixed.length}件` : "家賃や通信費を登録する"}
+            label={t.home.money.fixed}
+            sub={fixed.length ? t.home.money.fixedPaid(fixed.filter((f) => f.paid).length, fixed.length) : t.home.money.fixedEmpty}
             amount={stats.fixed}
             onClick={() => setPanel("fixed")}
           />
           <MoneyRow
-            label="今月貯金する額"
+            label={t.home.money.saving}
             sub={
               savingsHidden
-                ? `これまで ${SAVINGS_MASK}`
-                : `これまで ${yen(saved)}${target ? `・目標の${Math.min(100, Math.round((saved / target) * 100))}%` : ""}`
+                ? t.home.money.savedSoFar(SAVINGS_MASK)
+                : `${t.home.money.savedSoFar(yen(saved))}${target ? `${t.common.sep}${t.home.money.ofGoal(Math.min(100, Math.round((saved / target) * 100)))}` : ""}`
             }
             amount={savingsHidden ? SAVINGS_MASK : saving || null}
             tone="saving"
@@ -244,8 +248,8 @@ export function HomeView() {
           />
           {stats.extra > 0 && (
             <MoneyRow
-              label="予算外の支出"
-              sub={`${stats.extraList.length}件・浮くお金から引いています`}
+              label={t.home.money.extra}
+              sub={`${t.home.money.extraSub(stats.extraList.length)}${t.common.sep}${t.home.money.extraNote}`}
               amount={stats.extra}
               onClick={() => setPanel("extra")}
             />
@@ -255,7 +259,7 @@ export function HomeView() {
 
       <div className="grid gap-3.5">
         <Card>
-          <CardTitle action={<TextButton onClick={() => setView("settings")}>予算を編集</TextButton>}>変動費の予算</CardTitle>
+          <CardTitle action={<TextButton onClick={() => setView("settings")}>{t.home.budgets.edit}</TextButton>}>{t.home.budgets.title}</CardTitle>
           {VARIABLE_CATEGORIES.map((c) => {
             const b = settings.budgets[c.id] ?? 0;
             const s = stats.variableByCategory[c.id] ?? 0;
@@ -278,21 +282,22 @@ export function HomeView() {
           })}
           {unused.length > 0 && (
             <p className="num border-t border-line px-1 pt-2.5 text-xs text-muted first:border-t-0">
-              まだ使っていない：{unused.map((c) => `${c.name} ${yen(settings.budgets[c.id] ?? 0)}`).join("・")}
+              {t.home.budgets.unused}
+              {unused.map((c) => `${c.name} ${yen(settings.budgets[c.id] ?? 0)}`).join(t.common.sep)}
             </p>
           )}
         </Card>
 
         <Card>
-          <CardTitle action={<TextButton onClick={() => setView("history")}>すべて見る</TextButton>}>最近の記録</CardTitle>
-          {recent.length ? recent.map((t) => <TxRow key={t.id} tx={t} onClick={() => openEntry(t)} />) : <EmptyState title="記録はまだありません" />}
+          <CardTitle action={<TextButton onClick={() => setView("history")}>{t.home.recent.seeAll}</TextButton>}>{t.home.recent.title}</CardTitle>
+          {recent.length ? recent.map((t) => <TxRow key={t.id} tx={t} onClick={() => openEntry(t)} />) : <EmptyState title={t.home.recent.empty} />}
         </Card>
 
         <AiShortcut className="lg:hidden" />
       </div>
 
       {panel === "today" && (
-        <Sheet title={`今日の出費・${dayLabel(today())}`} onClose={() => setPanel(null)}>
+        <Sheet title={`${t.home.sheets.today}${t.common.sep}${dayLabel(today())}`} onClose={() => setPanel(null)}>
           {todayData.list.map((t) => (
             <TxRow
               key={t.id}
@@ -306,11 +311,11 @@ export function HomeView() {
           ))}
           {todayData.list.length > 0 ? (
             <p className="num mt-2 text-xs text-muted">
-              合計 {yen(todayData.spent + todayData.extra)}
-              {todayData.extra > 0 && `（うち予算外 ${yen(todayData.extra)}）`}
+              {t.home.sheets.total(yen(todayData.spent + todayData.extra))}
+              {todayData.extra > 0 && t.home.sheets.totalExtra(yen(todayData.extra))}
             </p>
           ) : (
-            <p className="text-sm text-muted">今日の出費はまだありません。</p>
+            <p className="text-sm text-muted">{t.home.sheets.todayEmpty}</p>
           )}
           <Button
             variant="primary"
@@ -320,12 +325,12 @@ export function HomeView() {
               openEntry();
             }}
           >
-            記入する
+            {t.common.write}
           </Button>
         </Sheet>
       )}
       {panel === "income" && (
-        <Sheet title={`${monthLabel(month)}の収入`} onClose={() => setPanel(null)}>
+        <Sheet title={t.home.sheets.income(monthLabel(month))} onClose={() => setPanel(null)}>
           {incomeList.map((t) => (
             <TxRow
               key={t.id}
@@ -337,9 +342,9 @@ export function HomeView() {
             />
           ))}
           {incomeList.length > 0 ? (
-            <p className="num mt-2 text-xs text-muted">合計 {yen(stats.income)}</p>
+            <p className="num mt-2 text-xs text-muted">{t.home.sheets.total(yen(stats.income))}</p>
           ) : (
-            <p className="text-sm text-muted">この月の収入はまだありません。</p>
+            <p className="text-sm text-muted">{t.home.sheets.incomeEmpty}</p>
           )}
           <Button
             variant="primary"
@@ -349,22 +354,22 @@ export function HomeView() {
               openEntry(undefined, "income");
             }}
           >
-            収入を記入する
+            {t.home.sheets.addIncome}
           </Button>
         </Sheet>
       )}
       {panel === "fixed" && (
-        <Sheet title={`${monthLabel(month)}の固定費`} onClose={() => setPanel(null)}>
+        <Sheet title={t.home.sheets.fixed(monthLabel(month))} onClose={() => setPanel(null)}>
           <FixedCostsCard bare />
         </Sheet>
       )}
       {panel === "saving" && (
-        <Sheet title={`${monthLabel(month)}の貯金額`} onClose={() => setPanel(null)}>
+        <Sheet title={t.home.sheets.saving(monthLabel(month))} onClose={() => setPanel(null)}>
           <SavingsCard canMoveLeftover={isCurrent && left > 0 && balance > 0} leftover={Math.min(left, balance)} />
         </Sheet>
       )}
       {panel === "extra" && (
-        <Sheet title={`${monthLabel(month)}の予算外の支出`} onClose={() => setPanel(null)}>
+        <Sheet title={t.home.sheets.extra(monthLabel(month))} onClose={() => setPanel(null)}>
           {stats.extraList.map((t) => (
             <TxRow
               key={t.id}
@@ -376,8 +381,8 @@ export function HomeView() {
             />
           ))}
           <p className="mt-2 text-xs text-muted">
-            合計 {yen(stats.extra)}。予算ではなく浮くお金から引いています。
-            {stats.income > 0 && `浮くお金の残りは ${savingsHidden ? SAVINGS_MASK : spare >= 0 ? yen(spare) : `−${yen(-spare)}`} です。`}
+            {t.home.sheets.extraNote(yen(stats.extra))}
+            {stats.income > 0 && t.home.sheets.spareLeft(savingsHidden ? SAVINGS_MASK : spare >= 0 ? yen(spare) : `−${yen(-spare)}`)}
           </p>
         </Sheet>
       )}
@@ -400,6 +405,7 @@ function MoneyRow({
   tone?: keyof typeof MONEY_TONE;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -410,7 +416,7 @@ function MoneyRow({
         <span className="block text-sm font-medium">{label}</span>
         <span className="block truncate text-[11px] text-muted">{sub}</span>
       </span>
-      {amount === null ? <span className="text-sm text-muted">未入力</span> : <span className={cx("num text-base font-semibold", tone && MONEY_TONE[tone])}>{typeof amount === "string" ? amount : `${tone === "income" ? "+" : ""}${yen(amount)}`}</span>}
+      {amount === null ? <span className="text-sm text-muted">{t.home.money.notEntered}</span> : <span className={cx("num text-base font-semibold", tone && MONEY_TONE[tone])}>{typeof amount === "string" ? amount : `${tone === "income" ? "+" : ""}${yen(amount)}`}</span>}
       <span aria-hidden className="text-lg text-muted">
         ›
       </span>
@@ -420,6 +426,8 @@ function MoneyRow({
 
 function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; leftover: number }) {
   const { settings, month, updateSettings, setView, toast, savingsHidden: hidden } = useKakeibo();
+  const t = useT();
+  const m = t.home.savings;
   const current = monthSavings(settings, month);
   const [input, setInput] = useState<{ month: string; value: string } | null>(null);
   const value = input?.month === month ? input.value : current ? String(current) : "";
@@ -436,8 +444,8 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
     const nextTotal = total - current + amount;
     toast(
       target && nextTotal >= target
-        ? "目標達成です！おめでとうございます"
-        : `${monthLabel(month)}の貯金を ${yen(amount)} にしました`,
+        ? m.goalReached
+        : m.saved(monthLabel(month), yen(amount)),
     );
   };
 
@@ -450,20 +458,20 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-2 text-xs text-muted">
             <span className="flex items-center gap-1">
-              これまでの貯金
+              {m.total}
               <SavingsEye className="size-7 [&_svg]:size-4" />
             </span>
-            {!hidden && <TextButton onClick={() => setView("settings")}>{target ? "目標を変更" : "目標額を設定"}</TextButton>}
+            {!hidden && <TextButton onClick={() => setView("settings")}>{target ? m.changeGoal : m.setGoal}</TextButton>}
           </div>
           <div className="num text-xl font-semibold text-accent">
             {hidden ? SAVINGS_MASK : yen(total)}{" "}
-            {target > 0 && !hidden && <span className="text-[13px] text-muted">/ 目標 {yen(target)}</span>}
+            {target > 0 && !hidden && <span className="text-[13px] text-muted">{m.goal(yen(target))}</span>}
           </div>
           {target > 0 && !hidden && <div className="text-xs text-muted">{eta}</div>}
         </div>
       </div>
       {hidden ? (
-        <p className="mt-3 text-xs text-muted">シークレットモード中です。解除すると、金額を入れたり変えたりできます。</p>
+        <p className="mt-3 text-xs text-muted">{m.secret}</p>
       ) : (
         <form
           className="mt-3 grid gap-1.5"
@@ -473,7 +481,7 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
           }}
         >
           <label htmlFor="month-saving" className="text-[11px] tracking-wide text-muted">
-            {monthLabel(month)}の貯金額（収支から差し引きます）
+            {m.label(monthLabel(month))}
           </label>
           <div className="flex flex-wrap gap-2">
             <input
@@ -485,11 +493,11 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
               className="num min-w-0 flex-1 rounded-xl border border-line bg-bg px-3 py-2"
             />
             <Button type="submit" variant="primary" disabled={parseAmount(value) === current}>
-              {current ? "変更" : "保存"}
+              {current ? m.change : m.save}
             </Button>
             {canMoveLeftover && (
-              <Button onClick={() => save(current + leftover)} title="今月の変動費の予算の残りを貯金に足す">
-                残り予算を回す
+              <Button onClick={() => save(current + leftover)} title={m.moveLeftoverTitle}>
+                {m.moveLeftover}
               </Button>
             )}
           </div>
@@ -502,29 +510,33 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
 function StreakLine() {
   const { transactions, settings, updateSettings, toast } = useKakeibo();
   const streak = recordStreak(transactions, settings.noSpendDays);
+  const t = useT();
+  const [before, after] = t.home.streak.days(streak.count);
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 px-1">
       <div className="flex items-center gap-2.5 text-sm">
         <span className="font-bold">
-          記録 <span className="num">{streak.count}</span> 日連続
+          {before}
+          <span className="num">{streak.count}</span>
+          {after}
         </span>
-        <span className="flex gap-1" aria-label="直近7日の記録">
+        <span className="flex gap-1" aria-label={t.home.streak.last7}>
           {streak.last7.map((on, i) => (
             <i key={i} className={cx("size-2.5 rounded-[3px]", on ? "bg-accent" : "bg-line")} />
           ))}
         </span>
       </div>
       {streak.recordedToday ? (
-        <Pill level="good">今日は記録済み</Pill>
+        <Pill level="good">{t.home.streak.recordedToday}</Pill>
       ) : (
         <Button
           className="px-3 py-1.5 text-xs"
           onClick={async () => {
             await updateSettings((s) => ({ ...s, noSpendDays: [...new Set([...s.noSpendDays, today()])].slice(-400) }));
-            toast("支出なしの日として記録しました");
+            toast(t.home.streak.noSpendSaved);
           }}
         >
-          今日は支出なし
+          {t.home.streak.noSpend}
         </Button>
       )}
     </div>

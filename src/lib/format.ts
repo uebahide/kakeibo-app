@@ -1,8 +1,10 @@
+import { getLanguage, pick } from "./i18n";
+
 export type Currency = "JPY" | "HUF";
 
-export const CURRENCIES: { id: Currency; name: string; symbol: string }[] = [
-  { id: "JPY", name: "日本円", symbol: "¥" },
-  { id: "HUF", name: "フォリント", symbol: "Ft" },
+export const currencies = (): { id: Currency; name: string; symbol: string }[] => [
+  { id: "JPY", name: pick({ ja: "日本円", en: "Japanese yen" }), symbol: "¥" },
+  { id: "HUF", name: pick({ ja: "フォリント", en: "Forint" }), symbol: "Ft" },
 ];
 
 export function normalizeCurrency(value: unknown): Currency {
@@ -23,9 +25,9 @@ export const currencySymbol = () => (currency === "HUF" ? "Ft" : "¥");
 export const yen = (n: number) =>
   currency === "HUF" ? Math.round(n).toLocaleString("hu-HU", { useGrouping: "always" }) + " Ft" : "¥" + Math.round(n).toLocaleString("ja-JP");
 
-/** Short axis label: 125000 -> "12.5万" (yen) or "125k" (forint) */
+/** Short axis label: 125000 -> "12.5万" (yen in Japanese) or "125k" (forint, or English) */
 export function shortYen(n: number): string {
-  if (currency === "HUF") {
+  if (currency === "HUF" || getLanguage() === "en") {
     if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toLocaleString("ja-JP", { maximumFractionDigits: 1 }) + "M";
     if (Math.abs(n) >= 1000) return (n / 1000).toLocaleString("ja-JP", { maximumFractionDigits: 0 }) + "k";
     return Math.round(n).toLocaleString("ja-JP");

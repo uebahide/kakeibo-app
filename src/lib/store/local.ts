@@ -1,6 +1,8 @@
 import { DEFAULT_SETTINGS } from "../categories";
 import { normalizeTimeZone } from "../date";
 import { normalizeCurrency } from "../format";
+import { normalizeLanguage } from "../i18n";
+import { dict } from "../i18n/dict";
 import { clampStartDay } from "../period";
 import { normalizeGoal } from "../savings";
 import type { NewTransaction, Settings, Transaction } from "../types";
@@ -24,6 +26,7 @@ function read(): Saved {
           monthStartDay: clampStartDay(saved.settings?.monthStartDay),
           currency: normalizeCurrency(saved.settings?.currency),
           timeZone: normalizeTimeZone(saved.settings?.timeZone, saved.settings?.currency),
+          language: normalizeLanguage(saved.settings?.language),
         },
       };
     }
@@ -65,7 +68,7 @@ export function createLocalStore(): KakeiboStore {
     async updateTransaction(id, item) {
       const list = get().transactions;
       const i = list.findIndex((t) => t.id === id);
-      if (i < 0) throw new Error("記録が見つかりません");
+      if (i < 0) throw new Error(dict().common.recordNotFound);
       list[i] = { ...list[i], ...item };
       commit();
       return list[i];

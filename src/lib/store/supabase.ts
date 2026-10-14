@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_SETTINGS } from "../categories";
 import { normalizeTimeZone } from "../date";
 import { normalizeCurrency } from "../format";
+import { normalizeLanguage } from "../i18n";
+import { dict } from "../i18n/dict";
 import { clampStartDay } from "../period";
 import { normalizeGoal } from "../savings";
 import type { NewTransaction, Settings, Transaction } from "../types";
@@ -58,6 +60,9 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
   let hasCurrencyColumn = false;
   // And the time_zone column (migration 0006).
   let hasTimeZoneColumn = false;
+  // And the language column (migration 0007). Until it exists the language is never sent, and the
+  // choice lives only in this browser's cookie, so picking a language can't break saving.
+  let hasLanguageColumn = false;
   // Claude saves analyses straight to last_ai over MCP. Only send last_ai when the app itself
   // changed it, so saving some other setting never overwrites a newer analysis with a stale copy.
   let loadedLastAi: Settings["lastAi"] = null;
@@ -73,12 +78,14 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
       hasStartDayColumn = Boolean(setRes.data && "month_start_day" in setRes.data);
       hasCurrencyColumn = Boolean(setRes.data && "currency" in setRes.data);
       hasTimeZoneColumn = Boolean(setRes.data && "time_zone" in setRes.data);
+      hasLanguageColumn = Boolean(setRes.data && "language" in setRes.data);
       const s = check(setRes) as {
         budgets: Settings["budgets"];
         fixed_costs?: Settings["fixedCosts"] | null;
         month_start_day?: number | null;
         currency?: string | null;
         time_zone?: string | null;
+        language?: string | null;
         goal: Settings["goal"];
         no_spend_days: string[];
         last_ai: Settings["lastAi"];
@@ -93,6 +100,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
               monthStartDay: clampStartDay(s.month_start_day),
               currency: normalizeCurrency(s.currency),
               timeZone: normalizeTimeZone(s.time_zone, s.currency),
+              language: normalizeLanguage(s.language),
               goal: normalizeGoal(s.goal),
               noSpendDays: s.no_spend_days ?? [],
               lastAi: s.last_ai ?? null,
@@ -118,7 +126,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
     },
     async saveSettings(settings) {
       const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) throw new Error("ログインが切れました。もう一度ログインしてください");
+      if (!auth.user) throw new Error(dict().common.sessionExpired);
       check(
         await supabase.from("user_settings").upsert({
           user_id: auth.user.id,
@@ -129,6 +137,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
           ...(hasTimeZoneColumn || settings.timeZone !== normalizeTimeZone(null, settings.currency)
             ? { time_zone: settings.timeZone }
             : {}),
+          ...(hasLanguageColumn ? { language: settings.language } : {}),
           goal: settings.goal,
           no_spend_days: settings.noSpendDays,
           ...(settings.lastAi !== loadedLastAi ? { last_ai: settings.lastAi } : {}),
