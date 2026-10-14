@@ -14,6 +14,9 @@ export const TIME_ZONES: { id: TimeZone; name: string }[] = [
   { id: "Europe/Budapest", name: "ハンガリー時間" },
 ];
 
+/** Short tag shown next to today's date. */
+export const TIME_ZONE_TAG: Record<TimeZone, string> = { "Asia/Tokyo": "JP time", "Europe/Budapest": "HU time" };
+
 /** A saved time zone, or for users who never picked one, the one that goes with their currency. */
 export function normalizeTimeZone(value: unknown, currency?: string | null): TimeZone {
   if (value === "Asia/Tokyo" || value === "Europe/Budapest") return value;
@@ -78,6 +81,12 @@ export function monthLabel(month: string): string {
 export function dayLabel(date: string): string {
   const d = parseDate(date);
   return `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
+}
+
+/** 10/14（火） */
+export function shortDayLabel(date: string): string {
+  const d = parseDate(date);
+  return `${d.getMonth() + 1}/${d.getDate()}（${WEEKDAYS[d.getDay()]}）`;
 }
 
 export function shiftDays(date: string, delta: number): string {

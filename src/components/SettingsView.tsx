@@ -107,7 +107,7 @@ export function SettingsView() {
 
         <Card>
           <CardTitle>タイムゾーン</CardTitle>
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label="タイムゾーン">
+          <div id="time-zone" className="grid scroll-mt-24 grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label="タイムゾーン">
             {TIME_ZONES.map((z) => (
               <button
                 key={z.id}
