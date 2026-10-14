@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { VARIABLE_CATEGORIES } from "@/lib/categories";
-import { dayLabel, monthLabel, today } from "@/lib/date";
+import { TIME_ZONE_TAG, dayLabel, monthLabel, shortDayLabel, today } from "@/lib/date";
 import { currentPeriod } from "@/lib/period";
 import { fixedCostsFor } from "@/lib/fixed";
 import { parseAmount, yen } from "@/lib/format";
@@ -73,6 +73,12 @@ export function HomeView() {
   const target = settings.goal.target;
   const saved = totalSaved(settings);
 
+  function openTimeZone() {
+    setView("settings");
+    // Wait for the settings view to render, then bring the time zone switch into view.
+    requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById("time-zone")?.scrollIntoView({ block: "start" })));
+  }
+
   return (
     <div className="grid items-start gap-3.5 lg:grid-cols-[1.15fr_1fr]">
       {transactions.length === 0 && (
@@ -93,11 +99,22 @@ export function HomeView() {
         <section className="rounded-2xl bg-accent p-4 text-accent-ink shadow-[0_6px_20px_rgb(22_32_54/0.08)]">
           {showToday && (
             <div className="mb-3 border-b border-white/20 pb-3">
-              {todayData.left >= 0 ? (
-                <span className="text-xs tracking-wider opacity-85">今日使える額</span>
-              ) : (
-                <span className={cx("rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm", PACE_BADGE[5])}>今日の枠をオーバー</span>
-              )}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                {todayData.left >= 0 ? (
+                  <span className="text-xs tracking-wider opacity-85">今日使える額</span>
+                ) : (
+                  <span className={cx("rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm", PACE_BADGE[5])}>今日の枠をオーバー</span>
+                )}
+                <span className="num text-xs opacity-85">{shortDayLabel(today())}</span>
+                <button
+                  type="button"
+                  onClick={openTimeZone}
+                  aria-label="タイムゾーンの設定を開く"
+                  className="rounded-full bg-white/15 px-2 py-px text-[10px] font-bold tracking-wide hover:bg-white/25"
+                >
+                  {TIME_ZONE_TAG[settings.timeZone]}
+                </button>
+              </div>
               <div className="num mt-1 text-[34px] leading-tight font-bold min-[400px]:text-[40px]">
                 {todayData.left >= 0 ? yen(todayData.left) : `${yen(-todayData.left)} オーバー`}
               </div>

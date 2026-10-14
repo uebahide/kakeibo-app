@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured, supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/.well-known"];
 
 /** Refresh the Supabase session on every request and send signed-out visitors to /login. */
 export async function proxy(request: NextRequest) {
@@ -29,6 +29,9 @@ export async function proxy(request: NextRequest) {
   if (!signedIn && !path.startsWith("/api") && !PUBLIC_PATHS.some((p) => path.startsWith(p))) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
+    // Come back here after login, e.g. to the OAuth consent page.
+    if (path !== "/") url.searchParams.set("next", path + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
   return response;

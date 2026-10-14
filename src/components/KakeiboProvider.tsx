@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_SETTINGS } from "@/lib/categories";
+import { setTimeZone } from "@/lib/date";
 import { setCurrency } from "@/lib/format";
 import { currentPeriod } from "@/lib/period";
 import { createLocalStore } from "@/lib/store/local";
@@ -84,6 +85,8 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   // Money labels read the currency from format.ts; set it before any child renders.
   setCurrency(settings.currency);
+  // Same for the time zone "today" is read in.
+  setTimeZone(settings.timeZone);
   // Set after mount: the current date must not be read while prerendering.
   const [month, setMonth] = useState("");
   const [view, setViewState] = useState<View>("home");
@@ -103,6 +106,7 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
         setTransactions(data.transactions.sort(byNewest));
         setSettings(data.settings);
         settingsRef.current = data.settings;
+        setTimeZone(data.settings.timeZone);
         setMonth(currentPeriod(data.settings.monthStartDay));
         try {
           setSavingsHidden(localStorage.getItem(HIDE_KEY) === "1");
@@ -116,6 +120,27 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [store]);
+
+  // Claude can save an analysis over MCP while the app sits in the background (e.g. after
+  // "Claude で分析して保存"), so pick up the latest one whenever the app comes back to the front.
+  useEffect(() => {
+    if (!ready || !store.loadLastAi) return;
+    const loadLastAi = store.loadLastAi;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      loadLastAi()
+        .then((lastAi) => {
+          if (!lastAi || lastAi.at === settingsRef.current.lastAi?.at) return;
+          settingsRef.current = { ...settingsRef.current, lastAi };
+          setSettings(settingsRef.current);
+        })
+        .catch(() => {
+          // offline: keep showing what we have
+        });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [ready, store]);
 
   const toast = useCallback((msg: string) => {
     setToastMessage(msg);

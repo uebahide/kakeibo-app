@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { VARIABLE_CATEGORIES } from "@/lib/categories";
 import { CURRENCIES, normalizeCurrency, parseAmount, yen } from "@/lib/format";
-import { monthLabel } from "@/lib/date";
+import { TIME_ZONES, monthLabel } from "@/lib/date";
 import { clampStartDay, currentPeriod, periodRangeLabel } from "@/lib/period";
 import { variableBudget } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/client";
@@ -103,6 +103,32 @@ export function SettingsView() {
             ))}
           </div>
           <p className="mt-2 text-xs text-muted">表示の単位だけを切り替えます。入力済みの金額は為替で換算しません。</p>
+        </Card>
+
+        <Card>
+          <CardTitle>タイムゾーン</CardTitle>
+          <div id="time-zone" className="grid scroll-mt-24 grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label="タイムゾーン">
+            {TIME_ZONES.map((z) => (
+              <button
+                key={z.id}
+                type="button"
+                role="radio"
+                aria-checked={settings.timeZone === z.id}
+                onClick={async () => {
+                  if (settings.timeZone === z.id) return;
+                  await updateSettings((s) => ({ ...s, timeZone: z.id }));
+                  toast(`${z.name}で日付を数えます`);
+                }}
+                className={cx(
+                  "rounded-lg py-2 text-sm font-bold",
+                  settings.timeZone === z.id ? "bg-surface text-ink shadow-sm" : "text-muted",
+                )}
+              >
+                {z.name}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted">「今日」がいつかをこの時間で決めます。Claude からの分析も同じ日付で集計します。</p>
         </Card>
 
         <Card>

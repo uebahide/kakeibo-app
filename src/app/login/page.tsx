@@ -13,6 +13,12 @@ function errorMessage(code: string | undefined, message: string): string {
   return `ログインできませんでした：${message}`;
 }
 
+/** Where to go after login: the ?next= path, only if it stays on this site. */
+function nextPath(): string {
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next?.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : "/";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -30,7 +36,7 @@ export default function LoginPage() {
       setBusy(false);
       return;
     }
-    router.replace("/");
+    router.replace(nextPath());
     router.refresh();
   }
 

@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from "../categories";
+import { normalizeTimeZone } from "../date";
 import { normalizeCurrency } from "../format";
 import { clampStartDay } from "../period";
 import { normalizeGoal } from "../savings";
@@ -22,6 +23,7 @@ function read(): Saved {
           goal: normalizeGoal(saved.settings?.goal),
           monthStartDay: clampStartDay(saved.settings?.monthStartDay),
           currency: normalizeCurrency(saved.settings?.currency),
+          timeZone: normalizeTimeZone(saved.settings?.timeZone, saved.settings?.currency),
         },
       };
     }

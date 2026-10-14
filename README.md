@@ -33,7 +33,7 @@ AI分析を試すときは `.env.local` に `ANTHROPIC_API_KEY` を入れてく�
 
 ## 本番の設定
 
-1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`）に実行します。
+1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`）に実行します。
 2. ログイン用のアカウントを Supabase で作ります。アプリには新規登録画面がないので、知らない人は登録できません。
    - Authentication → Users →「Add user」→「Create new user」で、メールアドレスとパスワードを入れ、「Auto Confirm User」にチェックを入れて作成
    - Authentication の設定で「Allow new users to sign up」をオフにしておくと、より安全です
@@ -46,11 +46,16 @@ AI分析を試すときは `.env.local` に `ANTHROPIC_API_KEY` を入れてく�
 | `ANTHROPIC_API_KEY` | Claude API のキー |
 | `ANTHROPIC_MODEL` | 任意。使うモデル（既定は `claude-opus-5-5`） |
 
+4. Claude（claude.ai）のコネクタから家計簿を使う場合は、Supabase の OAuth サーバーを設定します。
+   - Authentication → OAuth Server で OAuth サーバーを有効にし、Authorization Path を `/oauth/consent`、Dynamic client registration をオンにする
+   - Authentication → URL Configuration の Site URL をアプリの本番 URL にする
+   - claude.ai の 設定 → コネクタ →「カスタムコネクタを追加」で `https://<本番のドメイン>/api/mcp` を登録し、表示される同意画面で「許可する」
+
 ## フォルダ構成
 
 ```
 src/
-  app/            画面（/、/login）、APIルート（/api/ai/*）
+  app/            画面（/、/login、/oauth/consent）、APIルート（/api/ai/*、/api/mcp）
   components/     画面の部品（ホーム、履歴、分析、AI分析、設定、入力シート）
   lib/            集計ロジック、カテゴリ、日付、保存先（ブラウザ / Supabase）、Supabase と Claude のクライアント
   proxy.ts        ログイン状態の更新と、未ログイン時の /login への誘導

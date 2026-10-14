@@ -9,4 +9,6 @@ export interface KakeiboStore {
   deleteTransaction(id: string): Promise<void>;
   deleteSamples(): Promise<void>;
   saveSettings(settings: Settings): Promise<void>;
+  /** Latest saved analysis, which Claude may have written over MCP while the app was open. */
+  loadLastAi?(): Promise<Settings["lastAi"]>;
 }
