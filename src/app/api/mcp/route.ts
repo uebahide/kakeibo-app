@@ -1,4 +1,6 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
+import { DICTS } from "@/lib/i18n/dict";
+import { requestLanguage } from "@/lib/i18n/server";
 import { verifyToken } from "@/lib/mcp/auth";
 import { registerTools } from "@/lib/mcp/tools";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -13,7 +15,7 @@ const authed = withMcpAuth(mcp, verifyToken, { required: true, resourceMetadataP
 
 async function handler(request: Request) {
   // In demo mode the records live in the browser, so there is nothing to serve.
-  if (!isSupabaseConfigured) return Response.json({ error: "Supabase が設定されていません" }, { status: 503 });
+  if (!isSupabaseConfigured) return Response.json({ error: DICTS[requestLanguage(request)].server.supabaseMissing }, { status: 503 });
   return authed(request);
 }
 

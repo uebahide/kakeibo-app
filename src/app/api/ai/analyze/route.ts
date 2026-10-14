@@ -1,4 +1,17 @@
-import { AI_MODEL, DIGEST_NOTE, FALLBACK_BETA, MAX_DIGEST_BYTES, aiErrorResponse, anthropic, authorizeAiRequest } from "@/lib/ai/server";
+import {
+  AI_MODEL,
+  DIGEST_NOTE,
+  DIGEST_NOTE_EN,
+  FALLBACK_BETA,
+  MAX_DIGEST_BYTES,
+  aiErrorResponse,
+  anthropic,
+  answerLanguage,
+  authorizeAiRequest,
+} from "@/lib/ai/server";
+import type { Language } from "@/lib/i18n";
+import { DICTS } from "@/lib/i18n/dict";
+import { requestLanguage } from "@/lib/i18n/server";
 import type { AiAnalysis } from "@/lib/types";
 
 const SCHEMA = {
@@ -50,18 +63,46 @@ ${DIGEST_NOTE}
 - actions: 2〜3件。具体的な行動（detail は60字以内）と、見込める月の節約額 monthlySaving（currency の単位・整数、見積もれなければ 0）
 - cheer: 貯金を続ける励ましの一言（50字以内）`;
 
+const SCHEMA_EN = {
+  ...SCHEMA,
+  properties: { ...SCHEMA.properties, score: { type: "integer", description: "Household budget score, 0-100" } },
+} as const;
+
+const PROMPT_EN = `You are a financial planner who knows household budgets well.
+Read the following personal household budget data and explain the spending trends and improvements the person can keep up without strain.
+${DIGEST_NOTE_EN}
+Always quote numbers from the data, and never make up amounts that aren't in it.
+Write every text field (headline, titles, details, cheer) in natural, concise English, even where the data contains Japanese.
+
+Return:
+- score: an integer 0-100 based on how well budgets are kept, whether income exceeds spending, and monthly savings (and progress toward the goal, if there is one)
+- headline: the overall picture in one line (60 characters or fewer)
+- insights: 3-5 items. title in 40 characters or fewer; detail in 120-200 characters, quoting numbers from the data. kind is good for strengths, warn for concerns, otherwise info
+- actions: 2-3 items. A concrete action (detail in 120 characters or fewer) and the expected monthly saving monthlySaving (integer in currency units; 0 if it can't be estimated)
+- cheer: one encouraging line about keeping up the savings (100 characters or fewer)`;
+
+const PROMPTS: Record<Language, { prompt: string; schema: typeof SCHEMA | typeof SCHEMA_EN }> = {
+  ja: { prompt: PROMPT, schema: SCHEMA },
+  en: { prompt: PROMPT_EN, schema: SCHEMA_EN },
+};
+
 export async function POST(request: Request) {
-  const denied = await authorizeAiRequest();
+  const denied = await authorizeAiRequest(request);
   if (denied) return denied;
 
-  const body = await request.text();
-  if (body.length > MAX_DIGEST_BYTES) return Response.json({ error: "データが大きすぎます" }, { status: 413 });
+  const raw = await request.text();
+  if (raw.length > MAX_DIGEST_BYTES) return Response.json({ error: DICTS[requestLanguage(request)].server.tooLarge }, { status: 413 });
   let digest: unknown;
+  let language: Language;
   try {
-    digest = JSON.parse(body).digest;
+    const body = JSON.parse(raw) as { digest?: unknown; language?: unknown };
+    digest = body.digest;
+    language = answerLanguage(request, body);
   } catch {
-    return Response.json({ error: "リクエストの形式が正しくありません" }, { status: 400 });
+    return Response.json({ error: DICTS[requestLanguage(request)].server.badRequest }, { status: 400 });
   }
+  const t = DICTS[language].server;
+  const { prompt, schema } = PROMPTS[language];
 
   try {
     const message = await anthropic().beta.messages.create({
@@ -69,12 +110,12 @@ export async function POST(request: Request) {
       max_tokens: 16000,
       betas: [FALLBACK_BETA],
       fallbacks: "default",
-      output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
-      messages: [{ role: "user", content: `${PROMPT}\n\n<data>\n${JSON.stringify(digest)}\n</data>` }],
+      output_config: { effort: "medium", format: { type: "json_schema", schema } },
+      messages: [{ role: "user", content: `${prompt}\n\n<data>\n${JSON.stringify(digest)}\n</data>` }],
     });
 
     if (message.stop_reason === "refusal") {
-      return Response.json({ error: "この内容は分析できませんでした" }, { status: 422 });
+      return Response.json({ error: t.refusedAnalysis }, { status: 422 });
     }
     const text = message.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
     const result = JSON.parse(text) as AiAnalysis;
@@ -82,8 +123,8 @@ export async function POST(request: Request) {
     return Response.json({ result });
   } catch (err) {
     if (err instanceof SyntaxError) {
-      return Response.json({ error: "結果を読み取れませんでした。もう一度お試しください" }, { status: 502 });
+      return Response.json({ error: t.unreadableResult }, { status: 502 });
     }
-    return aiErrorResponse(err);
+    return aiErrorResponse(err, language);
   }
 }

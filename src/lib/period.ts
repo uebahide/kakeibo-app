@@ -1,4 +1,5 @@
 import { addMonths, daysInMonth, monthOf, parseDate, today } from "./date";
+import { pick } from "./i18n";
 
 /**
  * A "month" in the app can start on any day from 1 to 28 (e.g. payday). A period is named
@@ -41,9 +42,9 @@ export function periodDateLabel(month: string, startDay: number, n: number): str
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-/** "10/5〜11/4", or "" when the period is the calendar month. */
+/** "10/5〜11/4" (English: "10/5–11/4"), or "" when the period is the calendar month. */
 export function periodRangeLabel(month: string, startDay: number): string {
   if (startDay === 1) return "";
   const [s, e] = [periodStart(month, startDay), periodEnd(month, startDay)];
-  return `${Number(s.slice(5, 7))}/${Number(s.slice(8))}〜${Number(e.slice(5, 7))}/${Number(e.slice(8))}`;
+  return `${Number(s.slice(5, 7))}/${Number(s.slice(8))}${pick({ ja: "〜", en: "–" })}${Number(e.slice(5, 7))}/${Number(e.slice(8))}`;
 }

@@ -1,6 +1,13 @@
+import { getLanguage, pick } from "./i18n";
+
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+/** Short weekday names, Sunday first, in the display language. */
+export const weekdays = () =>
+  pick({ ja: ["日", "月", "火", "水", "木", "金", "土"], en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] });
+
+const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_EN_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 /** Local date as YYYY-MM-DD. */
 export function toDateString(d: Date): string {
@@ -9,9 +16,9 @@ export function toDateString(d: Date): string {
 
 export type TimeZone = "Asia/Tokyo" | "Europe/Budapest";
 
-export const TIME_ZONES: { id: TimeZone; name: string }[] = [
-  { id: "Asia/Tokyo", name: "日本時間" },
-  { id: "Europe/Budapest", name: "ハンガリー時間" },
+export const timeZones = (): { id: TimeZone; name: string }[] => [
+  { id: "Asia/Tokyo", name: pick({ ja: "日本時間", en: "Japan time" }) },
+  { id: "Europe/Budapest", name: pick({ ja: "ハンガリー時間", en: "Hungary time" }) },
 ];
 
 /** Short tag shown next to today's date. */
@@ -73,20 +80,30 @@ export function parseDate(date: string): Date {
   return new Date(y, m - 1, d);
 }
 
+/** 2026年10月 / October 2026 */
 export function monthLabel(month: string): string {
   const [y, m] = month.split("-");
-  return `${y}年${Number(m)}月`;
+  return getLanguage() === "en" ? `${MONTHS_EN_LONG[Number(m) - 1]} ${y}` : `${y}年${Number(m)}月`;
 }
 
+/** 10月 / Oct */
+export function shortMonthLabel(month: string): string {
+  const m = Number(month.slice(5, 7));
+  return getLanguage() === "en" ? MONTHS_EN[m - 1] : `${m}月`;
+}
+
+/** 10月14日（火） / Tue, Oct 14 */
 export function dayLabel(date: string): string {
   const d = parseDate(date);
-  return `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`;
+  const wd = weekdays()[d.getDay()];
+  return getLanguage() === "en" ? `${wd}, ${MONTHS_EN[d.getMonth()]} ${d.getDate()}` : `${d.getMonth() + 1}月${d.getDate()}日（${wd}）`;
 }
 
-/** 10/14（火） */
+/** 10/14（火） / Tue 10/14 */
 export function shortDayLabel(date: string): string {
   const d = parseDate(date);
-  return `${d.getMonth() + 1}/${d.getDate()}（${WEEKDAYS[d.getDay()]}）`;
+  const wd = weekdays()[d.getDay()];
+  return getLanguage() === "en" ? `${wd} ${d.getMonth() + 1}/${d.getDate()}` : `${d.getMonth() + 1}/${d.getDate()}（${wd}）`;
 }
 
 export function shiftDays(date: string, delta: number): string {

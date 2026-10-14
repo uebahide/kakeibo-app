@@ -6,6 +6,7 @@ import { dayLabel } from "@/lib/date";
 import { yen } from "@/lib/format";
 import type { PaceLevel } from "@/lib/stats";
 import type { Transaction } from "@/lib/types";
+import { useT } from "./LanguageProvider";
 
 export function cx(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");
@@ -84,6 +85,7 @@ export function Meter({ ratio, level, className }: { ratio: number; level: PaceL
 }
 
 export function TxRow({ tx, onClick, showDate = true }: { tx: Transaction; onClick: () => void; showDate?: boolean }) {
+  const t = useT();
   const cat = getCategory(tx.category);
   const income = tx.type === "income";
   return (
@@ -96,12 +98,12 @@ export function TxRow({ tx, onClick, showDate = true }: { tx: Transaction; onCli
       <span className="min-w-0">
         <span className="block truncate text-sm">
           {tx.memo || cat.name}
-          {tx.outsideBudget && <span className="ml-1.5 rounded bg-warn-soft px-1 align-[1px] text-[10px] font-bold text-warn">予算外</span>}
+          {tx.outsideBudget && <span className="ml-1.5 rounded bg-warn-soft px-1 align-[1px] text-[10px] font-bold text-warn">{t.common.outsideBudget}</span>}
         </span>
         <span className="block text-[11px] text-muted">
           {cat.name}
-          {showDate && `・${dayLabel(tx.date)}`}
-          {tx.isSample && "・サンプル"}
+          {showDate && `${t.common.sep}${dayLabel(tx.date)}`}
+          {tx.isSample && `${t.common.sep}${t.common.sample}`}
         </span>
       </span>
       <span className={cx("num whitespace-nowrap text-base font-semibold", income && "text-good")}>
@@ -114,6 +116,7 @@ export function TxRow({ tx, onClick, showDate = true }: { tx: Transaction; onCli
 
 /** Bottom sheet on phones, centered dialog on wide screens. */
 export function Sheet({ title, onClose, children }: { title: ReactNode; onClose: () => void; children: ReactNode }) {
+  const t = useT();
   const titleId = useId();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -132,7 +135,7 @@ export function Sheet({ title, onClose, children }: { title: ReactNode; onClose:
         <div className="mb-1 flex items-center justify-between">
           <b id={titleId}>{title}</b>
           <Button variant="ghost" onClick={onClose}>
-            閉じる
+            {t.common.close}
           </Button>
         </div>
         {children}

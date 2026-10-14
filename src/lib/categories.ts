@@ -1,36 +1,52 @@
+import { getLanguage } from "./i18n";
 import type { Settings, TxType } from "./types";
 
 export type Category = {
   id: string;
-  name: string;
+  /** name in the display language */
+  readonly name: string;
   /** one-character label shown in the round "stamp" */
-  mark: string;
+  readonly mark: string;
   /** hue for the category color */
   hue: number;
 };
 
+/** A category whose name and stamp follow the display language. */
+function category(id: string, ja: string, mark: string, en: string, hue: number): Category {
+  return {
+    id,
+    hue,
+    get name() {
+      return getLanguage() === "en" ? en : ja;
+    },
+    get mark() {
+      return getLanguage() === "en" ? en[0] : mark;
+    },
+  };
+}
+
 export const CATEGORIES: Record<TxType, Category[]> = {
   expense: [
-    { id: "food", name: "食費", mark: "食", hue: 12 },
-    { id: "daily", name: "日用品", mark: "日", hue: 190 },
-    { id: "transport", name: "交通", mark: "交", hue: 210 },
-    { id: "housing", name: "住居", mark: "住", hue: 28 },
-    { id: "utilities", name: "水道光熱", mark: "光", hue: 45 },
-    { id: "phone", name: "通信", mark: "通", hue: 250 },
-    { id: "subscription", name: "サブスク", mark: "サ", hue: 310 },
-    { id: "insurance", name: "保険", mark: "保", hue: 100 },
-    { id: "fun", name: "娯楽", mark: "娯", hue: 290 },
-    { id: "social", name: "交際", mark: "際", hue: 330 },
-    { id: "clothes", name: "衣服", mark: "衣", hue: 170 },
-    { id: "medical", name: "医療", mark: "医", hue: 150 },
-    { id: "learning", name: "学び", mark: "学", hue: 265 },
-    { id: "other", name: "その他", mark: "他", hue: 220 },
+    category("food", "食費", "食", "Food", 12),
+    category("daily", "日用品", "日", "Household", 190),
+    category("transport", "交通", "交", "Transport", 210),
+    category("housing", "住居", "住", "Housing", 28),
+    category("utilities", "水道光熱", "光", "Utilities", 45),
+    category("phone", "通信", "通", "Phone", 250),
+    category("subscription", "サブスク", "サ", "Subscriptions", 310),
+    category("insurance", "保険", "保", "Insurance", 100),
+    category("fun", "娯楽", "娯", "Fun", 290),
+    category("social", "交際", "際", "Social", 330),
+    category("clothes", "衣服", "衣", "Clothes", 170),
+    category("medical", "医療", "医", "Medical", 150),
+    category("learning", "学び", "学", "Learning", 265),
+    category("other", "その他", "他", "Other", 220),
   ],
   income: [
-    { id: "salary", name: "給与", mark: "給", hue: 145 },
-    { id: "bonus", name: "賞与", mark: "賞", hue: 40 },
-    { id: "side", name: "副収入", mark: "副", hue: 180 },
-    { id: "income_other", name: "その他", mark: "他", hue: 220 },
+    category("salary", "給与", "給", "Salary", 145),
+    category("bonus", "賞与", "賞", "Bonus", 40),
+    category("side", "副収入", "副", "Side income", 180),
+    category("income_other", "その他", "他", "Other", 220),
   ],
 };
 
@@ -76,6 +92,7 @@ export const DEFAULT_SETTINGS: Settings = {
   monthStartDay: 1,
   currency: "JPY",
   timeZone: "Asia/Tokyo",
+  language: null,
   goal: { target: 0, saved: 0, monthly: {}, fixedMonthly: { amount: 0, from: "" } },
   noSpendDays: [],
   lastAi: null,

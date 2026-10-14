@@ -1,0 +1,33 @@
+export const ja = {
+  noApiKey: "ANTHROPIC_API_KEY が設定されていません",
+  signInRequired: "ログインしてください",
+  demoNoAi: "デモ環境ではAIを使えません",
+  rateLimited: "混み合っています。少し時間をおいてお試しください",
+  badApiKey: "APIキーが正しくありません",
+  aiFailed: "AIの呼び出しに失敗しました",
+  analyzeFailed: "分析できませんでした",
+  tooLarge: "データが大きすぎます",
+  badRequest: "リクエストの形式が正しくありません",
+  refusedAnalysis: "この内容は分析できませんでした",
+  unreadableResult: "結果を読み取れませんでした。もう一度お試しください",
+  refusedChat: "\n（この質問にはお答えできませんでした）",
+  chatInterrupted: "\n（回答の途中で問題が起きました。もう一度お試しください）",
+  supabaseMissing: "Supabase が設定されていません",
+};
+
+export const en: typeof ja = {
+  noApiKey: "ANTHROPIC_API_KEY isn't set",
+  signInRequired: "Please sign in",
+  demoNoAi: "AI isn't available in the demo",
+  rateLimited: "The service is busy. Please try again in a little while",
+  badApiKey: "The API key is invalid",
+  aiFailed: "The AI request failed",
+  analyzeFailed: "Couldn't run the analysis",
+  tooLarge: "The data is too large",
+  badRequest: "The request is malformed",
+  refusedAnalysis: "This content couldn't be analyzed",
+  unreadableResult: "Couldn't read the result. Please try again",
+  refusedChat: "\n(I can't answer this question.)",
+  chatInterrupted: "\n(Something went wrong mid-answer. Please try again.)",
+  supabaseMissing: "Supabase isn't set up",
+};
