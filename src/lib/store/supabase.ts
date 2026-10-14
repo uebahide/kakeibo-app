@@ -60,9 +60,10 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
   let hasCurrencyColumn = false;
   // And the time_zone column (migration 0006).
   let hasTimeZoneColumn = false;
-  // And the language column (migration 0007). Until it exists the language is never sent, and the
-  // choice lives only in this browser's cookie, so picking a language can't break saving.
-  let hasLanguageColumn = false;
+  // And the language column (migration 0007): null until known (no settings row was loaded yet).
+  // Without the column the language is never sent and the choice lives only in this browser's
+  // cookie, so picking a language can't break saving.
+  let hasLanguageColumn: boolean | null = null;
   // Claude saves analyses straight to last_ai over MCP. Only send last_ai when the app itself
   // changed it, so saving some other setting never overwrites a newer analysis with a stale copy.
   let loadedLastAi: Settings["lastAi"] = null;
@@ -78,7 +79,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
       hasStartDayColumn = Boolean(setRes.data && "month_start_day" in setRes.data);
       hasCurrencyColumn = Boolean(setRes.data && "currency" in setRes.data);
       hasTimeZoneColumn = Boolean(setRes.data && "time_zone" in setRes.data);
-      hasLanguageColumn = Boolean(setRes.data && "language" in setRes.data);
+      hasLanguageColumn = setRes.data ? "language" in setRes.data : null;
       const s = check(setRes) as {
         budgets: Settings["budgets"];
         fixed_costs?: Settings["fixedCosts"] | null;
@@ -127,23 +128,30 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
     async saveSettings(settings) {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error(dict().common.sessionExpired);
-      check(
-        await supabase.from("user_settings").upsert({
-          user_id: auth.user.id,
-          budgets: settings.budgets,
-          fixed_costs: settings.fixedCosts,
-          ...(hasStartDayColumn || settings.monthStartDay !== 1 ? { month_start_day: settings.monthStartDay } : {}),
-          ...(hasCurrencyColumn || settings.currency !== "JPY" ? { currency: settings.currency } : {}),
-          ...(hasTimeZoneColumn || settings.timeZone !== normalizeTimeZone(null, settings.currency)
-            ? { time_zone: settings.timeZone }
-            : {}),
-          ...(hasLanguageColumn ? { language: settings.language } : {}),
-          goal: settings.goal,
-          no_spend_days: settings.noSpendDays,
-          ...(settings.lastAi !== loadedLastAi ? { last_ai: settings.lastAi } : {}),
-          updated_at: new Date().toISOString(),
-        }),
-      );
+      const row: Record<string, unknown> = {
+        user_id: auth.user.id,
+        budgets: settings.budgets,
+        fixed_costs: settings.fixedCosts,
+        ...(hasStartDayColumn || settings.monthStartDay !== 1 ? { month_start_day: settings.monthStartDay } : {}),
+        ...(hasCurrencyColumn || settings.currency !== "JPY" ? { currency: settings.currency } : {}),
+        ...(hasTimeZoneColumn || settings.timeZone !== normalizeTimeZone(null, settings.currency)
+          ? { time_zone: settings.timeZone }
+          : {}),
+        goal: settings.goal,
+        no_spend_days: settings.noSpendDays,
+        ...(settings.lastAi !== loadedLastAi ? { last_ai: settings.lastAi } : {}),
+        updated_at: new Date().toISOString(),
+      };
+      const withLanguage = hasLanguageColumn === true || (hasLanguageColumn === null && settings.language !== null);
+      let res = await supabase.from("user_settings").upsert(withLanguage ? { ...row, language: settings.language } : row);
+      if (res.error && withLanguage && hasLanguageColumn === null && res.error.message.includes("language")) {
+        // A new user's first save before migration 0007: save the rest, and keep the language in the cookie.
+        hasLanguageColumn = false;
+        res = await supabase.from("user_settings").upsert(row);
+      } else if (!res.error && withLanguage) {
+        hasLanguageColumn = true;
+      }
+      check(res);
       loadedLastAi = settings.lastAi;
     },
     async loadLastAi() {
