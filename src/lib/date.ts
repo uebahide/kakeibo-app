@@ -7,7 +7,16 @@ export function toDateString(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export const today = () => toDateString(new Date());
+/**
+ * Today as YYYY-MM-DD. In the browser, the device's own date. On the server (the MCP route),
+ * the date in APP_TIME_ZONE (e.g. "Asia/Tokyo"), since Vercel runs in UTC.
+ */
+export function today(): string {
+  const timeZone = typeof window === "undefined" ? process.env.APP_TIME_ZONE : undefined;
+  // sv-SE formats dates as YYYY-MM-DD
+  if (timeZone) return new Date().toLocaleDateString("sv-SE", { timeZone });
+  return toDateString(new Date());
+}
 
 /** YYYY-MM of a YYYY-MM-DD string. */
 export const monthOf = (date: string) => date.slice(0, 7);
