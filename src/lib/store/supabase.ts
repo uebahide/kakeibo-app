@@ -58,6 +58,9 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
   let hasCurrencyColumn = false;
   // And the time_zone column (migration 0006).
   let hasTimeZoneColumn = false;
+  // Claude saves analyses straight to last_ai over MCP. Only send last_ai when the app itself
+  // changed it, so saving some other setting never overwrites a newer analysis with a stale copy.
+  let loadedLastAi: Settings["lastAi"] = null;
   return {
     kind: "supabase",
     async load() {
@@ -80,6 +83,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         no_spend_days: string[];
         last_ai: Settings["lastAi"];
       } | null;
+      loadedLastAi = s?.last_ai ?? null;
       return {
         transactions: rows.map(fromRow),
         settings: s
@@ -127,10 +131,11 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
             : {}),
           goal: settings.goal,
           no_spend_days: settings.noSpendDays,
-          last_ai: settings.lastAi,
+          ...(settings.lastAi !== loadedLastAi ? { last_ai: settings.lastAi } : {}),
           updated_at: new Date().toISOString(),
         }),
       );
+      loadedLastAi = settings.lastAi;
     },
   };
 }

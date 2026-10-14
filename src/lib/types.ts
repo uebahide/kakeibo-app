@@ -64,7 +64,8 @@ export type Settings = {
   goal: SavingsGoal;
   /** days marked as "no spending" (YYYY-MM-DD) */
   noSpendDays: string[];
-  lastAi: { at: string; result: AiAnalysis } | null;
+  /** latest analysis; source "claude" when Claude saved it over MCP (older entries have none) */
+  lastAi: { at: string; result: AiAnalysis; source?: "app" | "claude" } | null;
 };
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };

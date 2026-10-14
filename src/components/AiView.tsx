@@ -63,7 +63,7 @@ function Analysis() {
       });
       if (!res.ok) throw new Error(await errorText(res));
       const { result } = (await res.json()) as { result: AiAnalysis };
-      await updateSettings((s) => ({ ...s, lastAi: { at: new Date().toISOString(), result } }));
+      await updateSettings((s) => ({ ...s, lastAi: { at: new Date().toISOString(), result, source: "app" } }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "分析できませんでした");
     } finally {
@@ -80,7 +80,12 @@ function Analysis() {
           {busy ? "分析しています…" : last ? "もう一度分析する" : "AIで分析する"}
         </Button>
         {!enough && <p className="mt-2 text-xs text-muted">{MIN_RECORDS}件以上記録すると分析できます</p>}
-        {last && <p className="mt-2 text-xs text-muted">前回の分析：{new Date(last.at).toLocaleString("ja-JP")}</p>}
+        {last && (
+          <p className="mt-2 text-xs text-muted">
+            前回の分析：{new Date(last.at).toLocaleString("ja-JP")}
+            {last.source === "claude" && "（Claude で分析）"}
+          </p>
+        )}
         {error && <p className="mt-2 text-xs text-bad">{error}</p>}
       </Card>
       {last ? (
