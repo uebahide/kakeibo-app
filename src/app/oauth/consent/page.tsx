@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button, Card } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 
-type Request = { id: string; client: string; email: string };
+type Request = { id: string; client: string; email: string; scopes: string[] };
 
 /** Supabase Auth's OAuth server sends claude.ai's sign-in here so the user can allow the connector. */
 export default function ConsentPage() {
@@ -20,7 +20,12 @@ export default function ConsentPage() {
       if (error || !data) return setError(`認可リクエストを読み込めませんでした：${error?.message ?? "不明なエラー"}`);
       // Already allowed before: go straight back to the client.
       if (!("authorization_id" in data)) return window.location.assign(data.redirect_url);
-      setRequest({ id: data.authorization_id, client: data.client.name || "不明なアプリ", email: data.user.email });
+      setRequest({
+        id: data.authorization_id,
+        client: data.client.name || "不明なアプリ",
+        email: data.user.email,
+        scopes: (data.scope ?? "").split(" ").filter(Boolean),
+      });
     });
   }, []);
 
@@ -28,12 +33,15 @@ export default function ConsentPage() {
     if (!request) return;
     setBusy(true);
     const oauth = createClient().auth.oauth;
-    // Both calls send the browser back to the client with the result.
-    const { error } = allow ? await oauth.approveAuthorization(request.id) : await oauth.denyAuthorization(request.id);
-    if (error) {
-      setError(`うまくいきませんでした：${error.message}`);
+    const options = { skipBrowserRedirect: true };
+    const { data, error } = allow ? await oauth.approveAuthorization(request.id, options) : await oauth.denyAuthorization(request.id, options);
+    if (error || !data) {
+      setError(`うまくいきませんでした：${error?.message ?? "不明なエラー"}`);
       setBusy(false);
+      return;
     }
+    // Back to the client with the result.
+    window.location.assign(data.redirect_url);
   }
 
   return (
@@ -47,6 +55,7 @@ export default function ConsentPage() {
         <Card className="grid gap-3">
           <p className="text-base font-bold">{request.client} が家計簿へのアクセスを求めています</p>
           <p className="text-sm">許可すると、{request.client} はあなたの家計簿の集計を読み、AI分析を保存できるようになります。</p>
+          {request.scopes.length > 0 && <p className="text-xs text-muted">要求されている権限：{request.scopes.join("、")}</p>}
           <p className="text-xs text-muted">ログイン中：{request.email}</p>
           <div className="flex gap-2">
             <Button variant="primary" onClick={() => answer(true)} disabled={busy}>
