@@ -8,7 +8,8 @@ const mcp = createMcpHandler(registerTools, {
 });
 
 // Every request needs a valid Supabase access token; without one the answer is 401.
-const authed = withMcpAuth(mcp, verifyToken, { required: true });
+// Point clients at metadata whose resource is this exact URL (RFC 9728 path form).
+const authed = withMcpAuth(mcp, verifyToken, { required: true, resourceMetadataPath: "/.well-known/oauth-protected-resource/api/mcp" });
 
 async function handler(request: Request) {
   // In demo mode the records live in the browser, so there is nothing to serve.
