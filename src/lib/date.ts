@@ -7,12 +7,43 @@ export function toDateString(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+export type TimeZone = "Asia/Tokyo" | "Europe/Budapest";
+
+export const TIME_ZONES: { id: TimeZone; name: string }[] = [
+  { id: "Asia/Tokyo", name: "日本時間" },
+  { id: "Europe/Budapest", name: "ハンガリー時間" },
+];
+
+/** A saved time zone, or for users who never picked one, the one that goes with their currency. */
+export function normalizeTimeZone(value: unknown, currency?: string | null): TimeZone {
+  if (value === "Asia/Tokyo" || value === "Europe/Budapest") return value;
+  return currency === "HUF" ? "Europe/Budapest" : "Asia/Tokyo";
+}
+
+// The time zone "today" is read in is a user setting; KakeiboProvider sets it as settings load or change.
+// Unset (e.g. on the server outside inTimeZone), the machine's own clock is used.
+let timeZone: TimeZone | undefined;
+
+export function setTimeZone(tz: TimeZone) {
+  timeZone = tz;
+}
+
 /**
- * Today as YYYY-MM-DD. In the browser, the device's own date. On the server (the MCP route),
- * the date in APP_TIME_ZONE (e.g. "Asia/Tokyo"), since Vercel runs in UTC.
+ * Runs fn with "today" read in the given time zone. For the server, where requests from
+ * different users share this module: fn must be synchronous, so no other request runs in between.
  */
+export function inTimeZone<T>(tz: TimeZone, fn: () => T): T {
+  const previous = timeZone;
+  timeZone = tz;
+  try {
+    return fn();
+  } finally {
+    timeZone = previous;
+  }
+}
+
+/** Today as YYYY-MM-DD in the user's time zone. */
 export function today(): string {
-  const timeZone = typeof window === "undefined" ? process.env.APP_TIME_ZONE : undefined;
   // sv-SE formats dates as YYYY-MM-DD
   if (timeZone) return new Date().toLocaleDateString("sv-SE", { timeZone });
   return toDateString(new Date());

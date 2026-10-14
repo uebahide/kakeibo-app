@@ -33,7 +33,7 @@ AI分析を試すときは `.env.local` に `ANTHROPIC_API_KEY` を入れてく�
 
 ## 本番の設定
 
-1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`）に実行します。
+1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`）に実行します。
 2. ログイン用のアカウントを Supabase で作ります。アプリには新規登録画面がないので、知らない人は登録できません。
    - Authentication → Users →「Add user」→「Create new user」で、メールアドレスとパスワードを入れ、「Auto Confirm User」にチェックを入れて作成
    - Authentication の設定で「Allow new users to sign up」をオフにしておくと、より安全です

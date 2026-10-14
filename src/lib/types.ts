@@ -1,3 +1,4 @@
+import type { TimeZone } from "./date";
 import type { Currency } from "./format";
 
 export type TxType = "expense" | "income";
@@ -58,6 +59,8 @@ export type Settings = {
   monthStartDay: number;
   /** currency amounts are shown in; numbers are never converted */
   currency: Currency;
+  /** time zone "today" is counted in, so the app and Claude agree on the date */
+  timeZone: TimeZone;
   goal: SavingsGoal;
   /** days marked as "no spending" (YYYY-MM-DD) */
   noSpendDays: string[];

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_SETTINGS } from "../categories";
+import { normalizeTimeZone } from "../date";
 import { normalizeCurrency } from "../format";
 import { clampStartDay } from "../period";
 import { normalizeGoal } from "../savings";
@@ -55,6 +56,8 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
   let hasStartDayColumn = false;
   // Same for the currency column (migration 0005).
   let hasCurrencyColumn = false;
+  // And the time_zone column (migration 0006).
+  let hasTimeZoneColumn = false;
   return {
     kind: "supabase",
     async load() {
@@ -66,11 +69,13 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
       const rows = check(txRes) as TxRow[];
       hasStartDayColumn = Boolean(setRes.data && "month_start_day" in setRes.data);
       hasCurrencyColumn = Boolean(setRes.data && "currency" in setRes.data);
+      hasTimeZoneColumn = Boolean(setRes.data && "time_zone" in setRes.data);
       const s = check(setRes) as {
         budgets: Settings["budgets"];
         fixed_costs?: Settings["fixedCosts"] | null;
         month_start_day?: number | null;
         currency?: string | null;
+        time_zone?: string | null;
         goal: Settings["goal"];
         no_spend_days: string[];
         last_ai: Settings["lastAi"];
@@ -83,6 +88,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
               fixedCosts: s.fixed_costs ?? {},
               monthStartDay: clampStartDay(s.month_start_day),
               currency: normalizeCurrency(s.currency),
+              timeZone: normalizeTimeZone(s.time_zone, s.currency),
               goal: normalizeGoal(s.goal),
               noSpendDays: s.no_spend_days ?? [],
               lastAi: s.last_ai ?? null,
@@ -116,6 +122,9 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
           fixed_costs: settings.fixedCosts,
           ...(hasStartDayColumn || settings.monthStartDay !== 1 ? { month_start_day: settings.monthStartDay } : {}),
           ...(hasCurrencyColumn || settings.currency !== "JPY" ? { currency: settings.currency } : {}),
+          ...(hasTimeZoneColumn || settings.timeZone !== normalizeTimeZone(null, settings.currency)
+            ? { time_zone: settings.timeZone }
+            : {}),
           goal: settings.goal,
           no_spend_days: settings.noSpendDays,
           last_ai: settings.lastAi,

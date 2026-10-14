@@ -1,6 +1,7 @@
 import "server-only";
 import type { McpServer, ServerContext } from "@modelcontextprotocol/server";
 import { DIGEST_NOTE } from "@/lib/ai/server";
+import { inTimeZone } from "@/lib/date";
 import { buildAiDigest } from "@/lib/stats";
 import { createSupabaseStore } from "@/lib/store/supabase";
 import { userClient } from "./auth";
@@ -25,7 +26,8 @@ export function registerTools(server: McpServer) {
     },
     async (ctx) => {
       const { transactions, settings } = await createSupabaseStore(supabaseFor(ctx)).load();
-      const digest = buildAiDigest(transactions, settings);
+      // The server runs in UTC; count "today" in the user's own time zone.
+      const digest = inTimeZone(settings.timeZone, () => buildAiDigest(transactions, settings));
       return { content: [{ type: "text", text: JSON.stringify(digest) }] };
     },
   );
