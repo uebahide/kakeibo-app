@@ -35,6 +35,8 @@ AI分析を試すときは `.env.local` に `ANTHROPIC_API_KEY` を入れてく�
 
 ## テスト
 
+何を確かめているかの一覧は [docs/testing.md](docs/testing.md) にあります。
+
 集計（期間、予算、ペース、固定費、貯金）と金額の読み取りのテストがあります。GitHub では PR ごとに lint と一緒に実行されます。
 
 ```bash
