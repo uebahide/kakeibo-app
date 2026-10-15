@@ -115,11 +115,12 @@ begin
   end;
   v_tx_date := (now() at time zone v_user_tz)::date;
 
-  -- The same payment sent twice (the automation ran again) is recorded once.
+  -- The same payment sent twice (the automation fired again right away) is recorded once. The window is
+  -- kept short so a real second purchase of the same amount at the same shop is still recorded.
   select t.id into v_existing
   from public.transactions t
   where t.user_id = v_uid and t.source = 'wallet' and t.amount = v_amount and t.memo = v_memo
-    and t.created_at > now() - interval '2 minutes'
+    and t.created_at > now() - interval '15 seconds'
   limit 1;
   if v_existing is not null then
     select t.category, t.needs_review into v_category, v_review from public.transactions t where t.id = v_existing;
