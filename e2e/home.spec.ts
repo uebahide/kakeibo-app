@@ -5,7 +5,20 @@ test("an empty app explains how to start and splits the budget over the days lef
   await expect(page.getByText("まだ記録がありません")).toBeVisible();
   // ¥106,000 budget over the 17 days left in October
   await expect(page.getByText("¥6,235", { exact: true })).toBeVisible();
-  await expect(page.getByText("ゆとりあり")).toBeVisible();
+  await expect(page.getByText("ゆとりあり").first()).toBeVisible();
+});
+
+test("the week card splits the budget over this week", async ({ page }) => {
+  await openApp(page);
+  // Oct 12–18; ¥106,000 over the 20 days left on the 12th, times 7
+  await expect(page.getByText("10/12〜10/18")).toBeVisible();
+  await expect(page.getByText("¥37,100", { exact: true })).toBeVisible();
+  await expect(page.getByText("残り4日、1日あたり ¥9,275")).toBeVisible();
+
+  await addExpense(page, "1200");
+  await expect(page.getByText("¥35,900", { exact: true })).toBeVisible();
+  await expect(page.getByText("使った ¥1,200 / 今週の枠 ¥37,100")).toBeVisible();
+  await expect(page.getByRole("listitem", { name: "木 使った ¥1,200 / 枠 ¥5,300" })).toBeVisible();
 });
 
 test("recording an expense lowers today's amount and shows in recent records", async ({ page }) => {

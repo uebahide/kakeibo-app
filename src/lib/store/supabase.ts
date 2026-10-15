@@ -6,6 +6,7 @@ import { normalizeLanguage } from "../i18n";
 import { dict } from "../i18n/dict";
 import { clampStartDay } from "../period";
 import { normalizeGoal } from "../savings";
+import { normalizeWeekStart } from "../week";
 import type { NewTransaction, Settings, Transaction } from "../types";
 import type { KakeiboStore } from "./types";
 
@@ -66,6 +67,8 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
   let hasCurrencyColumn = false;
   // And the time_zone column (migration 0006).
   let hasTimeZoneColumn = false;
+  // And the week_start_day column (migration 0009).
+  let hasWeekStartColumn = false;
   // And the language column (migration 0007): null until known (no settings row was loaded yet).
   // Without the column the language is never sent and the choice lives only in this browser's
   // cookie, so picking a language can't break saving.
@@ -85,6 +88,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
       hasStartDayColumn = Boolean(setRes.data && "month_start_day" in setRes.data);
       hasCurrencyColumn = Boolean(setRes.data && "currency" in setRes.data);
       hasTimeZoneColumn = Boolean(setRes.data && "time_zone" in setRes.data);
+      hasWeekStartColumn = Boolean(setRes.data && "week_start_day" in setRes.data);
       hasLanguageColumn = setRes.data ? "language" in setRes.data : null;
       const s = check(setRes) as {
         budgets: Settings["budgets"];
@@ -92,6 +96,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         month_start_day?: number | null;
         currency?: string | null;
         time_zone?: string | null;
+        week_start_day?: number | null;
         language?: string | null;
         goal: Settings["goal"];
         no_spend_days: string[];
@@ -107,6 +112,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
               monthStartDay: clampStartDay(s.month_start_day),
               currency: normalizeCurrency(s.currency),
               timeZone: normalizeTimeZone(s.time_zone, s.currency),
+              weekStartDay: normalizeWeekStart(s.week_start_day),
               language: normalizeLanguage(s.language),
               goal: normalizeGoal(s.goal),
               noSpendDays: s.no_spend_days ?? [],
@@ -147,6 +153,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         ...(hasTimeZoneColumn || settings.timeZone !== normalizeTimeZone(null, settings.currency)
           ? { time_zone: settings.timeZone }
           : {}),
+        ...(hasWeekStartColumn || settings.weekStartDay !== 1 ? { week_start_day: settings.weekStartDay } : {}),
         goal: settings.goal,
         no_spend_days: settings.noSpendDays,
         ...(settings.lastAi !== loadedLastAi ? { last_ai: settings.lastAi } : {}),

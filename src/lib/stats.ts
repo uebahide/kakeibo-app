@@ -2,6 +2,7 @@ import { FIXED_COST_CATEGORIES, VARIABLE_CATEGORIES, getCategory } from "./categ
 import { addMonths, parseDate, shiftDays, today, weekdays } from "./date";
 import { getLanguage, pick } from "./i18n";
 import { currentPeriod, periodDayIndex, periodDays, periodOf, periodStart } from "./period";
+import { weekDates, weekStartOf } from "./week";
 import { fixedCostsFor, sumFixed } from "./fixed";
 import { monthSavings, totalSaved } from "./savings";
 import type { Settings, Transaction, TxType } from "./types";
@@ -96,6 +97,71 @@ export function todayBudget(txs: Transaction[], month: string, settings: Setting
   const limit = Math.max(0, remaining / daysLeft);
   const perDayFromTomorrow = daysLeft > 1 ? Math.max(0, (remaining - spent) / (daysLeft - 1)) : 0;
   return { list, spent, extra, limit, left: limit - spent, perDayFromTomorrow };
+}
+
+export type WeekDay = {
+  date: string;
+  /** this day's share of the budget */
+  allowance: number;
+  /** budgeted spending on this day */
+  spent: number;
+};
+
+export type WeekBudget = {
+  /** first and last day (YYYY-MM-DD) */
+  start: string;
+  end: string;
+  days: WeekDay[];
+  /** the week's share of the variable budget */
+  allowance: number;
+  /** budgeted spending in the week */
+  spent: number;
+  /** spending outside the budget in the week */
+  extra: number;
+  /** what can still be spent this week (negative when over) */
+  left: number;
+  /** days of the week up to and including today: 0 for a week ahead, 7 for one that is over */
+  elapsed: number;
+  /** per-day share of what is left, over the days left including today (0 when none are left) */
+  perDayLeft: number;
+};
+
+/**
+ * The variable budget's share for the week starting on `start` (by default the current week).
+ * Each day gets the daily share of its period as it stood when the week began: what was left of
+ * the budget before the week, split over the period's days left. A day in a period that starts
+ * during the week gets that period's full budget split over its days. So a week that crosses
+ * payday takes its days from both periods, and the allowance stays put through the week.
+ */
+export function weekBudget(txs: Transaction[], settings: Settings, start = weekStartOf(today(), settings.weekStartDay)): WeekBudget {
+  const startDay = settings.monthStartDay;
+  const budget = variableBudget(settings);
+  const dates = weekDates(start);
+  const end = dates[6];
+  const startPeriod = periodOf(start, startDay);
+  let spentBefore = 0;
+  const spentOn = new Map<string, number>();
+  let extra = 0;
+  for (const t of txs) {
+    if (t.type === "income") continue;
+    if (t.date >= start && t.date <= end) {
+      if (t.outsideBudget) extra += t.amount;
+      else spentOn.set(t.date, (spentOn.get(t.date) ?? 0) + t.amount);
+    } else if (!t.outsideBudget && t.date < start && periodOf(t.date, startDay) === startPeriod) spentBefore += t.amount;
+  }
+  const daysLeftAtStart = periodDays(startPeriod) - periodDayIndex(start, startPeriod, startDay) + 1;
+  const firstRate = Math.max(0, budget - spentBefore) / daysLeftAtStart;
+  const days = dates.map((date) => {
+    const period = periodOf(date, startDay);
+    return { date, allowance: period === startPeriod ? firstRate : budget / periodDays(period), spent: spentOn.get(date) ?? 0 };
+  });
+  const allowance = days.reduce((s, d) => s + d.allowance, 0);
+  const spent = days.reduce((s, d) => s + d.spent, 0);
+  const t = today();
+  const elapsed = dates.filter((d) => d <= t).length;
+  const daysLeft = dates.filter((d) => d >= t).length;
+  const left = allowance - spent;
+  return { start, end, days, allowance, spent, extra, left, elapsed, perDayLeft: daysLeft ? Math.max(0, left) / daysLeft : 0 };
 }
 
 export type PaceLevel = "good" | "warn" | "bad";
@@ -257,6 +323,10 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
       VARIABLE_CATEGORIES.map((c) => [c.name, settings.budgets[c.id] ?? 0]),
     ),
     variableBudget: variableBudget(settings),
+    thisWeek: (() => {
+      const w = weekBudget(txs, settings);
+      return { start: w.start, end: w.end, allowance: Math.round(w.allowance), spent: w.spent, outsideBudget: w.extra, left: Math.round(w.left) };
+    })(),
     savings: {
       total: totalSaved(settings),
       target: settings.goal.target || null,

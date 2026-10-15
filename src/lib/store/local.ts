@@ -5,6 +5,7 @@ import { normalizeLanguage } from "../i18n";
 import { dict } from "../i18n/dict";
 import { clampStartDay } from "../period";
 import { normalizeGoal } from "../savings";
+import { normalizeWeekStart } from "../week";
 import type { NewTransaction, Settings, Transaction } from "../types";
 import type { KakeiboStore } from "./types";
 
@@ -26,6 +27,7 @@ function read(): Saved {
           monthStartDay: clampStartDay(saved.settings?.monthStartDay),
           currency: normalizeCurrency(saved.settings?.currency),
           timeZone: normalizeTimeZone(saved.settings?.timeZone, saved.settings?.currency),
+          weekStartDay: normalizeWeekStart(saved.settings?.weekStartDay),
           language: normalizeLanguage(saved.settings?.language),
         },
       };

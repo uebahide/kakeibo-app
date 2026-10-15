@@ -94,6 +94,32 @@ export function SettingsView() {
         </Card>
 
         <Card>
+          <CardTitle>{t.settings.weekStartTitle}</CardTitle>
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={t.settings.weekStartTitle}>
+            {([
+              [1, t.settings.weekStartMonday],
+              [0, t.settings.weekStartSunday],
+            ] as const).map(([day, name]) => (
+              <button
+                key={day}
+                type="button"
+                role="radio"
+                aria-checked={settings.weekStartDay === day}
+                onClick={async () => {
+                  if (settings.weekStartDay === day) return;
+                  await updateSettings((s) => ({ ...s, weekStartDay: day }));
+                  toast(t.settings.weekStartToast(name));
+                }}
+                className={cx("rounded-lg py-2 text-sm font-bold", settings.weekStartDay === day ? "bg-surface text-ink shadow-sm" : "text-muted")}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted">{t.settings.weekStartHint}</p>
+        </Card>
+
+        <Card>
           <CardTitle>{t.settings.currencyTitle}</CardTitle>
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={t.settings.currencyTitle}>
             {currencies().map((c) => (

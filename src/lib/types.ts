@@ -1,6 +1,7 @@
 import type { TimeZone } from "./date";
 import type { Currency } from "./format";
 import type { Language } from "./i18n";
+import type { WeekStart } from "./week";
 
 export type TxType = "expense" | "income";
 
@@ -63,6 +64,8 @@ export type Settings = {
   fixedCosts: Record<string, FixedCost[]>;
   /** day of the month (1–28) each month starts on, e.g. payday */
   monthStartDay: number;
+  /** day each week starts on: 1 Monday, 0 Sunday */
+  weekStartDay: WeekStart;
   /** currency amounts are shown in; numbers are never converted */
   currency: Currency;
   /** time zone "today" is counted in, so the app and Claude agree on the date */
