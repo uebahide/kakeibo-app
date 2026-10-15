@@ -16,10 +16,11 @@ import {
   YAxis,
 } from "recharts";
 import { CATEGORIES, categoryColor } from "@/lib/categories";
-import { addMonths, monthLabel, shortMonthLabel, weekdays } from "@/lib/date";
-import { periodDateLabel, periodDays } from "@/lib/period";
+import { addMonths, monthLabel, shiftDays, shortMonthLabel, today, weekdays } from "@/lib/date";
+import { periodDateLabel, periodDays, periodEnd } from "@/lib/period";
 import { shortYen, yen } from "@/lib/format";
-import { cumulativeDaily, monthStats, variableBudget, weekdayAverages } from "@/lib/stats";
+import { cumulativeDaily, monthStats, variableBudget, weekBudget, weekdayAverages } from "@/lib/stats";
+import { shortDate, weekRangeLabel, weekStartOf } from "@/lib/week";
 import { AiShortcut } from "./AiShortcut";
 import { useKakeibo } from "./KakeiboProvider";
 import { useLanguage, useT } from "./LanguageProvider";
@@ -38,6 +39,7 @@ export function AnalysisView() {
       <AiShortcut className="lg:hidden" />
       <CategoryBreakdown />
       <BudgetPace />
+      <WeeklyTrend />
       <MonthlyTrend />
       <WeekdayHabits />
     </div>
@@ -124,6 +126,54 @@ function BudgetPace() {
         </ResponsiveContainer>
       </div>
       <Legend items={[["var(--accent)", t.analysis.cumulative], ...(budget ? ([["var(--muted)", t.analysis.onBudgetPace]] as const) : [])]} />
+    </Card>
+  );
+}
+
+/** The 8 weeks up to today, or up to the end of the month being looked at. */
+function WeeklyTrend() {
+  const { transactions, settings, month } = useKakeibo();
+  const t = useT();
+  const budget = variableBudget(settings);
+  const end = periodEnd(month, settings.monthStartDay);
+  const last = weekStartOf(end < today() ? end : today(), settings.weekStartDay);
+  const data = Array.from({ length: 8 }, (_, i) => {
+    const w = weekBudget(transactions, settings, shiftDays(last, (i - 7) * 7));
+    return { start: w.start, label: t.analysis.weekTick(shortDate(w.start)), spent: w.spent, allowance: Math.round(w.allowance), over: w.spent > w.allowance };
+  });
+  const byLabel = new Map(data.map((d) => [d.label, d]));
+
+  return (
+    <Card>
+      <CardTitle>{t.analysis.weeklyTitle}</CardTitle>
+      <div className="h-52">
+        <ResponsiveContainer>
+          <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--line)" />
+            <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} interval={0} />
+            <YAxis tickFormatter={shortYen} tick={axisTick} axisLine={false} tickLine={false} width={44} />
+            <Tooltip
+              formatter={(v, name) => [yen(Number(v)), name === "spent" ? t.analysis.weeklySpent : t.analysis.weeklyAllowance]}
+              labelFormatter={(label) => weekRangeLabel(byLabel.get(String(label))?.start ?? "")}
+              cursor={{ fill: "var(--surface-2)" }}
+              {...tooltipStyle}
+            />
+            <Bar dataKey="spent" radius={[3, 3, 0, 0]} maxBarSize={22} isAnimationActive={false}>
+              {data.map((d) => (
+                <Cell key={d.start} fill={d.over ? "var(--warn)" : "var(--accent)"} />
+              ))}
+            </Bar>
+            {budget > 0 && <Line dataKey="allowance" stroke="var(--muted)" strokeWidth={1.5} strokeDasharray="5 5" dot={false} isAnimationActive={false} />}
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <Legend
+        items={[
+          ["var(--accent)", t.analysis.weeklySpent],
+          ["var(--warn)", t.analysis.weeklyOver],
+          ...(budget ? ([["var(--muted)", t.analysis.weeklyAllowance]] as const) : []),
+        ]}
+      />
     </Card>
   );
 }

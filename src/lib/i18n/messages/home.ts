@@ -37,6 +37,27 @@ export const ja = {
     balanceSoFar: "今日までの収支（貯金後）",
   },
 
+  /** the card for the current week */
+  week: {
+    left: "今週使える額",
+    over: "今週の枠をオーバー",
+    spentOfAllowance: (spent: string, allowance: string) => `使った ${spent} / 今週の枠 ${allowance}`,
+    perDayLeft: (days: number, amount: string) => `残り${days}日、1日あたり ${amount}`,
+    lastDay: (amount: string) => `今日まで、あと ${amount}`,
+    extra: (amount: string) => `ほかに予算外 ${amount}`,
+    paceMark: "今日の目安",
+    /** a day's bar in the week's chart */
+    day: (day: string, spent: string, allowance: string) => `${day} 使った ${spent} / 枠 ${allowance}`,
+    /** the popup over a day's bar */
+    dayAllowance: (amount: string) => `枠 ${amount}`,
+    daySpent: (amount: string) => `合計 ${amount}`,
+    dayOver: (amount: string) => `枠より ${amount} オーバー`,
+    dayUnder: (amount: string) => `枠まで あと ${amount}`,
+    dayEmpty: "この日の支出はありません",
+    dayFuture: "まだ先の日です",
+    dayMore: (n: number) => `ほか ${n}件`,
+  },
+
   /** the card listing this month's money */
   money: {
     title: (month: string) => `${month}のお金`,
@@ -142,6 +163,24 @@ export const en: typeof ja = {
     variableBudget: "Variable cost budget",
     extra: "Outside the budget",
     balanceSoFar: "Balance so far (after savings)",
+  },
+
+  week: {
+    left: "Left to spend this week",
+    over: "Over this week's allowance",
+    spentOfAllowance: (spent: string, allowance: string) => `Spent ${spent} / Week's allowance ${allowance}`,
+    perDayLeft: (days: number, amount: string) => `${days} days left, ${amount} a day`,
+    lastDay: (amount: string) => `Last day: ${amount} left`,
+    extra: (amount: string) => `Plus ${amount} outside the budget`,
+    paceMark: "Where you should be today",
+    day: (day: string, spent: string, allowance: string) => `${day}: spent ${spent} of ${allowance}`,
+    dayAllowance: (amount: string) => `Allowance ${amount}`,
+    daySpent: (amount: string) => `Total ${amount}`,
+    dayOver: (amount: string) => `${amount} over the allowance`,
+    dayUnder: (amount: string) => `${amount} under the allowance`,
+    dayEmpty: "No spending this day",
+    dayFuture: "This day is still ahead",
+    dayMore: (n: number) => `${n} more`,
   },
 
   money: {

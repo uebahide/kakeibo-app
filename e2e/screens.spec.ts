@@ -28,6 +28,7 @@ test("the analysis screen draws its charts from sample data", async ({ page }) =
 
   await expect(page.getByText("2026年10月のカテゴリ別支出（固定費込み）")).toBeVisible();
   await expect(page.getByText("変動費の予算に対するペース")).toBeVisible();
+  await expect(page.getByText("週ごとの変動費（8週間）")).toBeVisible();
   await expect(page.getByText("収入と支出の推移（6か月）")).toBeVisible();
   await expect(page.getByText("曜日ごとの使い方")).toBeVisible();
   await expect(page.locator(".recharts-surface").first()).toBeVisible();
@@ -61,4 +62,16 @@ test("the screen fits the width without sideways scrolling", async ({ page }) =>
   await expect(page.getByText("まだ記録がありません")).toBeHidden();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBe(0);
+});
+
+test("weeks can start on Sunday", async ({ page }) => {
+  await openApp(page);
+  await nav(page).getByRole("button", { name: "設定", exact: true }).click();
+  await page.getByRole("radiogroup", { name: "週の始まり" }).getByRole("radio", { name: "日曜日" }).click();
+  await expect(page.getByRole("status")).toHaveText("週を日曜日から数えます");
+
+  await nav(page).getByRole("button", { name: "ホーム", exact: true }).click();
+  // Oct 11–17; ¥106,000 over the 21 days left on the 11th, times 7
+  await expect(page.getByText("10/11〜10/17")).toBeVisible();
+  await expect(page.getByText("¥35,333", { exact: true })).toBeVisible();
 });

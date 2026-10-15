@@ -21,6 +21,12 @@ export const ja = {
   startDayCalendar: "今はカレンダーどおり（1日〜月末）です。",
   startDayExample: (month: string, range: string) => `たとえば「${month}」は ${range} です。`,
 
+  weekStartTitle: "週の始まり",
+  weekStartMonday: "月曜日",
+  weekStartSunday: "日曜日",
+  weekStartToast: (day: string) => `週を${day}から数えます`,
+  weekStartHint: "ホームの「今週使える額」と、分析の週ごとのグラフをこの曜日で区切ります。",
+
   currencyTitle: "通貨",
   currencyToast: (symbol: string, name: string) => `金額を ${symbol}（${name}）で表示します`,
   currencyHint: "表示の単位だけを切り替えます。入力済みの金額は為替で換算しません。",
@@ -63,6 +69,12 @@ export const en: typeof ja = {
   startDayHint: "Match it to your payday so budgets, fixed costs and savings follow your pay cycle.",
   startDayCalendar: "Right now months follow the calendar (1st to month end).",
   startDayExample: (month: string, range: string) => `For example, “${month}” is ${range}.`,
+
+  weekStartTitle: "Week starts on",
+  weekStartMonday: "Monday",
+  weekStartSunday: "Sunday",
+  weekStartToast: (day: string) => `Weeks now start on ${day}`,
+  weekStartHint: "Sets where weeks begin for “Left to spend this week” on Home and the weekly chart in Analysis.",
 
   currencyTitle: "Currency",
   currencyToast: (symbol: string, name: string) => `Showing amounts in ${symbol} (${name})`,

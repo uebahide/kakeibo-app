@@ -16,7 +16,8 @@ import { GoalRing, goalEta } from "./SavingsSettings";
 import { useKakeibo } from "./KakeiboProvider";
 import { useT } from "./LanguageProvider";
 import { WalletReviewCard } from "./WalletImport";
-import { Button, Card, CardTitle, EmptyState, Icons, Meter, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
+import { WeekCard } from "./WeekCard";
+import { Button, Card, CardTitle, EmptyState, Icons, Meter, PACE_BADGE, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
 
 export function useSeedSamples() {
   const { addTransactions, settings, updateSettings, toast } = useKakeibo();
@@ -36,15 +37,6 @@ export function useSeedSamples() {
 }
 
 /** Badge colors along the pace scale: calm teal and green, through yellow and orange, to red. */
-const PACE_BADGE = [
-  "bg-linear-to-r from-teal-500 to-emerald-600 text-white",
-  "bg-linear-to-r from-green-500 to-green-700 text-white",
-  "bg-linear-to-r from-yellow-300 to-amber-400 text-amber-950",
-  "bg-linear-to-r from-amber-400 to-orange-500 text-orange-950",
-  "bg-linear-to-r from-orange-500 to-red-500 text-white",
-  "bg-linear-to-r from-red-600 to-rose-700 text-white",
-];
-
 type Panel = "today" | "income" | "fixed" | "saving" | "extra";
 
 export function HomeView() {
@@ -219,6 +211,8 @@ export function HomeView() {
             {askReveal && <RevealSheet onClose={() => setAskReveal(false)} onRevealed={() => setBreakdownOpen(true)} />}
           </div>
         </section>
+
+        {isCurrent && budget > 0 && <WeekCard />}
 
         <StreakLine />
 

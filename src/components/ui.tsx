@@ -12,6 +12,16 @@ export function cx(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");
 }
 
+/** Pace badge colors, from plenty of room (0) to over budget (5); see paceStep. */
+export const PACE_BADGE = [
+  "bg-linear-to-r from-teal-500 to-emerald-600 text-white",
+  "bg-linear-to-r from-green-500 to-green-700 text-white",
+  "bg-linear-to-r from-yellow-300 to-amber-400 text-amber-950",
+  "bg-linear-to-r from-amber-400 to-orange-500 text-orange-950",
+  "bg-linear-to-r from-orange-500 to-red-500 text-white",
+  "bg-linear-to-r from-red-600 to-rose-700 text-white",
+];
+
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
   return <section className={cx("min-w-0 rounded-2xl border border-line bg-surface p-4", className)}>{children}</section>;
 }

@@ -90,6 +90,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   fixedCosts: {},
   monthStartDay: 1,
+  weekStartDay: 1,
   currency: "JPY",
   timeZone: "Asia/Tokyo",
   language: null,

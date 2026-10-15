@@ -5,7 +5,20 @@ test("an empty app explains how to start and splits the budget over the days lef
   await expect(page.getByText("まだ記録がありません")).toBeVisible();
   // ¥106,000 budget over the 17 days left in October
   await expect(page.getByText("¥6,235", { exact: true })).toBeVisible();
-  await expect(page.getByText("ゆとりあり")).toBeVisible();
+  await expect(page.getByText("ゆとりあり").first()).toBeVisible();
+});
+
+test("the week card splits the budget over this week", async ({ page }) => {
+  await openApp(page);
+  // Oct 12–18; ¥106,000 over the 20 days left on the 12th, times 7
+  await expect(page.getByText("10/12〜10/18")).toBeVisible();
+  await expect(page.getByText("¥37,100", { exact: true })).toBeVisible();
+  await expect(page.getByText("残り4日、1日あたり ¥9,275")).toBeVisible();
+
+  await addExpense(page, "1200");
+  await expect(page.getByText("¥35,900", { exact: true })).toBeVisible();
+  await expect(page.getByText("使った ¥1,200 / 今週の枠 ¥37,100")).toBeVisible();
+  await expect(page.getByRole("button", { name: "木 使った ¥1,200 / 枠 ¥5,300" })).toBeVisible();
 });
 
 test("recording an expense lowers today's amount and shows in recent records", async ({ page }) => {
@@ -49,6 +62,34 @@ test("the N key opens the entry sheet on a computer", async ({ page, isMobile })
   await openApp(page);
   await page.keyboard.press("n");
   await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
+});
+
+test("a day's bar opens what was spent that day", async ({ page, isMobile }) => {
+  await openApp(page);
+  await addExpense(page, "1200", "食費", "ランチ");
+  await addExpense(page, "800", "交通", "バス");
+
+  const thursday = page.getByRole("button", { name: /^木 使った/ });
+  if (isMobile) await thursday.tap();
+  else await thursday.hover();
+  const popup = page.getByRole("dialog", { name: "10/15（木）" });
+  await expect(popup).toBeVisible();
+  await expect(popup.getByText("合計 ¥2,000")).toBeVisible();
+  await expect(popup.getByText("枠 ¥5,300")).toBeVisible();
+  await expect(popup.getByText("枠まで あと ¥3,300")).toBeVisible();
+  await expect(popup.getByText("ランチ")).toBeVisible();
+  await expect(popup.getByText("バス")).toBeVisible();
+
+  // Another day shows its own details; a day ahead says so
+  const saturday = page.getByRole("button", { name: /^土 使った/ });
+  if (isMobile) await saturday.tap();
+  else await saturday.hover();
+  await expect(page.getByRole("dialog", { name: "10/17（土）" }).getByText("まだ先の日です")).toBeVisible();
+  await expect(popup).toBeHidden();
+
+  // Escape closes it
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden();
 });
