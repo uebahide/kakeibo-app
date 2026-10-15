@@ -33,6 +33,15 @@ npm run dev
 http://localhost:3000 を開き、「サンプルを入れる」で3か月分の例を入れられます。
 AI分析を試すときは `.env.local` に `ANTHROPIC_API_KEY` を入れてください（デモモードのAIは開発環境でだけ動きます）。
 
+## テスト
+
+集計（期間、予算、ペース、固定費、貯金）と金額の読み取りのテストがあります。GitHub では PR ごとに lint と一緒に実行されます。
+
+```bash
+npm test          # 1回実行
+npm run test:watch  # 変更のたびに実行
+```
+
 ## 本番の設定
 
 1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`、`0007_language.sql`、`0008_wallet_import.sql`）に実行します。
@@ -63,6 +72,7 @@ src/
   components/     画面の部品（ホーム、履歴、分析、AI分析、設定、入力シート）
   lib/            集計ロジック、カテゴリ、日付、保存先（ブラウザ / Supabase）、Supabase と Claude のクライアント
   lib/i18n/       日本語・英語の文言（messages/ に画面ごとの辞書。英語の訳し忘れは型エラーになる）
+  lib/__tests__/  集計ロジックのテスト（Vitest）
   proxy.ts        ログイン状態の更新と、未ログイン時の /login への誘導
 supabase/migrations/  テーブルと行レベルセキュリティの定義
 ```
