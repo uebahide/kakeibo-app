@@ -151,6 +151,34 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [ready, store]);
 
+  // Payments recorded from the iPhone Wallet arrive while the app sits in the background, so pick up
+  // records created since the newest one shown whenever the app comes back to the front.
+  const newestRef = useRef("");
+  useEffect(() => {
+    newestRef.current = transactions.reduce((max, t) => (t.createdAt > max ? t.createdAt : max), "");
+  }, [transactions]);
+  useEffect(() => {
+    if (!ready || !store.loadNewTransactions) return;
+    const loadNew = store.loadNewTransactions;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      loadNew(newestRef.current || new Date(0).toISOString())
+        .then((created) => {
+          if (!created.length) return;
+          setTransactions((prev) => {
+            const known = new Set(prev.map((t) => t.id));
+            const added = created.filter((t) => !known.has(t.id));
+            return added.length ? [...prev, ...added].sort(byNewest) : prev;
+          });
+        })
+        .catch(() => {
+          // offline: keep showing what we have
+        });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [ready, store]);
+
   const toast = useCallback((msg: string) => {
     setToastMessage(msg);
     clearTimeout(toastTimer.current);

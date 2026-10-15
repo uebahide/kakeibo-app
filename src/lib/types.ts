@@ -14,11 +14,16 @@ export type Transaction = {
   memo: string;
   /** an expense paid from the month's spare money (trips, events…) instead of the budget */
   outsideBudget?: boolean;
+  /** "wallet" when recorded automatically from an iPhone Wallet payment */
+  source?: "wallet";
+  /** an automatic record whose category (or amount, for another currency) was guessed and is not confirmed yet */
+  needsReview?: boolean;
   isSample: boolean;
   createdAt: string;
 };
 
-export type NewTransaction = Omit<Transaction, "id" | "createdAt">;
+/** `source` is set only by automatic imports; `needsReview: false` confirms an automatic record. */
+export type NewTransaction = Omit<Transaction, "id" | "createdAt" | "source">;
 
 export type SavingsGoal = {
   /** target amount; 0 means no target */

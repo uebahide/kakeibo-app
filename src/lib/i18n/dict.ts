@@ -10,6 +10,7 @@ import * as home from "./messages/home";
 import * as savings from "./messages/savings";
 import * as server from "./messages/server";
 import * as settings from "./messages/settings";
+import * as wallet from "./messages/wallet";
 
 // Each messages file holds one area's texts in both languages; `en` is typed as `typeof ja`,
 // so a text missing from English fails the type check.
@@ -25,6 +26,7 @@ const ja = {
   ai: ai.ja,
   auth: auth.ja,
   server: server.ja,
+  wallet: wallet.ja,
 };
 
 export type Dict = typeof ja;
@@ -41,6 +43,7 @@ const en: Dict = {
   ai: ai.en,
   auth: auth.en,
   server: server.en,
+  wallet: wallet.en,
 };
 
 export const DICTS: Record<Language, Dict> = { ja, en };

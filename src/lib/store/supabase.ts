@@ -17,6 +17,8 @@ type TxRow = {
   category: string;
   memo: string;
   outside_budget?: boolean;
+  source?: string | null;
+  needs_review?: boolean;
   is_sample: boolean;
   created_at: string;
 };
@@ -32,6 +34,8 @@ const fromRow = (r: TxRow): Transaction => ({
   category: r.category,
   memo: r.memo ?? "",
   outsideBudget: r.outside_budget ?? false,
+  ...(r.source === "wallet" ? { source: "wallet" as const } : {}),
+  needsReview: r.needs_review ?? false,
   isSample: r.is_sample,
   createdAt: r.created_at,
 });
@@ -44,6 +48,8 @@ const toRow = (t: NewTransaction) => ({
   memo: t.memo,
   // only sent when set, so normal records still save before migration 0003 is run
   ...(t.outsideBudget ? { outside_budget: true } : {}),
+  // only set when confirming an automatic record, which exists only once migration 0008 is run
+  ...(t.needsReview !== undefined ? { needs_review: t.needsReview } : {}),
   is_sample: t.isSample,
 });
 
@@ -118,6 +124,10 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         await supabase.from("transactions").update({ ...toRow(item), outside_budget: Boolean(item.outsideBudget) }).eq("id", id).select(TX_COLUMNS).single(),
       );
       return fromRow(row as TxRow);
+    },
+    async loadNewTransactions(since) {
+      const rows = check(await supabase.from("transactions").select(TX_COLUMNS).gt("created_at", since).order("created_at"));
+      return (rows as TxRow[]).map(fromRow);
     },
     async deleteTransaction(id) {
       check(await supabase.from("transactions").delete().eq("id", id));

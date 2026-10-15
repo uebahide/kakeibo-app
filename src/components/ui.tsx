@@ -99,6 +99,7 @@ export function TxRow({ tx, onClick, showDate = true }: { tx: Transaction; onCli
         <span className="block truncate text-sm">
           {tx.memo || cat.name}
           {tx.outsideBudget && <span className="ml-1.5 rounded bg-warn-soft px-1 align-[1px] text-[10px] font-bold text-warn">{t.common.outsideBudget}</span>}
+          {tx.needsReview && <span className="ml-1.5 rounded bg-accent-soft px-1 align-[1px] text-[10px] font-bold text-accent">{t.common.needsReview}</span>}
         </span>
         <span className="block text-[11px] text-muted">
           {cat.name}
