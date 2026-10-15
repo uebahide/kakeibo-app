@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { DEFAULT_SETTINGS } from "../categories";
+import { DEFAULT_SETTINGS, isDefaultCategories, normalizeCategories } from "../categories";
 import { normalizeTimeZone } from "../date";
 import { normalizeCurrency } from "../format";
 import { normalizeLanguage } from "../i18n";
@@ -69,6 +69,8 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
   let hasTimeZoneColumn = false;
   // And the week_start_day column (migration 0009).
   let hasWeekStartColumn = false;
+  // And the categories column (migration 0010).
+  let hasCategoriesColumn = false;
   // And the language column (migration 0007): null until known (no settings row was loaded yet).
   // Without the column the language is never sent and the choice lives only in this browser's
   // cookie, so picking a language can't break saving.
@@ -89,6 +91,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
       hasCurrencyColumn = Boolean(setRes.data && "currency" in setRes.data);
       hasTimeZoneColumn = Boolean(setRes.data && "time_zone" in setRes.data);
       hasWeekStartColumn = Boolean(setRes.data && "week_start_day" in setRes.data);
+      hasCategoriesColumn = Boolean(setRes.data && "categories" in setRes.data);
       hasLanguageColumn = setRes.data ? "language" in setRes.data : null;
       const s = check(setRes) as {
         budgets: Settings["budgets"];
@@ -97,6 +100,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         currency?: string | null;
         time_zone?: string | null;
         week_start_day?: number | null;
+        categories?: unknown;
         language?: string | null;
         goal: Settings["goal"];
         no_spend_days: string[];
@@ -114,6 +118,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
               timeZone: normalizeTimeZone(s.time_zone, s.currency),
               weekStartDay: normalizeWeekStart(s.week_start_day),
               language: normalizeLanguage(s.language),
+              categories: normalizeCategories(s.categories),
               goal: normalizeGoal(s.goal),
               noSpendDays: s.no_spend_days ?? [],
               lastAi: s.last_ai ?? null,
@@ -141,6 +146,9 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
     async deleteSamples() {
       check(await supabase.from("transactions").delete().eq("is_sample", true));
     },
+    async moveCategory(from, to) {
+      check(await supabase.from("transactions").update({ category: to }).eq("category", from));
+    },
     async saveSettings(settings) {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error(dict().common.sessionExpired);
@@ -154,6 +162,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
           ? { time_zone: settings.timeZone }
           : {}),
         ...(hasWeekStartColumn || settings.weekStartDay !== 1 ? { week_start_day: settings.weekStartDay } : {}),
+        ...(hasCategoriesColumn || !isDefaultCategories(settings.categories) ? { categories: settings.categories } : {}),
         goal: settings.goal,
         no_spend_days: settings.noSpendDays,
         ...(settings.lastAi !== loadedLastAi ? { last_ai: settings.lastAi } : {}),

@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CATEGORIES, categoryColor } from "@/lib/categories";
+import { categoryColor, getCategory } from "@/lib/categories";
 import { addMonths, monthLabel, shiftDays, shortMonthLabel, today, weekdays } from "@/lib/date";
 import { periodDateLabel, periodDays, periodEnd } from "@/lib/period";
 import { shortYen, yen } from "@/lib/format";
@@ -50,8 +50,11 @@ function CategoryBreakdown() {
   const { transactions, settings, month } = useKakeibo();
   const t = useT();
   const stats = monthStats(transactions, month, settings);
-  const items = CATEGORIES.expense
-    .map((c) => ({ id: c.id, name: c.name, value: stats.byCategory[c.id] ?? 0 }))
+  // Records of an unknown category count under the one they are shown as ("other").
+  const byId = new Map<string, number>();
+  for (const [id, value] of Object.entries(stats.byCategory)) byId.set(getCategory(id).id, (byId.get(getCategory(id).id) ?? 0) + value);
+  const items = [...byId]
+    .map(([id, value]) => ({ id, name: getCategory(id).name, value }))
     .filter((x) => x.value > 0)
     .sort((a, b) => b.value - a.value);
   const total = items.reduce((s, x) => s + x.value, 0);

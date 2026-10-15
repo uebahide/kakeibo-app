@@ -10,6 +10,8 @@ export interface KakeiboStore {
   /** Records created after `since` (an ISO time), such as payments recorded from the iPhone while the app was open. */
   loadNewTransactions?(since: string): Promise<Transaction[]>;
   deleteSamples(): Promise<void>;
+  /** Moves every record in category `from` to category `to` (before a category is deleted). */
+  moveCategory(from: string, to: string): Promise<void>;
   saveSettings(settings: Settings): Promise<void>;
   /** Latest saved analysis, which Claude may have written over MCP while the app was open. */
   loadLastAi?(): Promise<Settings["lastAi"]>;

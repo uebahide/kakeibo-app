@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { getCategory } from "@/lib/categories";
+import { getCategory, inCategories, normalizeCategories } from "@/lib/categories";
 import { formatMoney, normalizeCurrency } from "@/lib/format";
 import { inLanguage, normalizeLanguage } from "@/lib/i18n";
 import { DICTS } from "@/lib/i18n/dict";
@@ -62,6 +62,10 @@ export async function POST(request: Request) {
     return text(t.walletForeign(`${payment.currency} ${payment.amount}`));
   }
   const amount = formatMoney(r.amount, userCurrency);
-  const category = inLanguage(language, () => getCategory(r.category).name);
+  // A category the user renamed or added is named as they wrote it (needs migration 0010; without it, the app's names).
+  const categories = await supabase.rpc("wallet_categories", { p_key: key });
+  const category = inLanguage(language, () =>
+    inCategories(normalizeCategories(categories.error ? null : categories.data), () => getCategory(r.category).name),
+  );
   return text(r.needs_review ? t.walletReview(amount, category) : t.walletRecorded(amount, category));
 }

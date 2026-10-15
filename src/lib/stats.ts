@@ -1,4 +1,4 @@
-import { FIXED_COST_CATEGORIES, VARIABLE_CATEGORIES, getCategory } from "./categories";
+import { getCategory, isFixedCategory, variableCategories } from "./categories";
 import { addMonths, parseDate, shiftDays, today, weekdays } from "./date";
 import { getLanguage, pick } from "./i18n";
 import { currentPeriod, periodDayIndex, periodDays, periodOf, periodStart } from "./period";
@@ -54,7 +54,7 @@ export function monthStats(txs: Transaction[], month: string, settings?: Setting
 
 /** Monthly budget for variable costs (fixed costs are set per month instead). */
 export function variableBudget(settings: Settings): number {
-  return VARIABLE_CATEGORIES.reduce((s, c) => s + (settings.budgets[c.id] ?? 0), 0);
+  return variableCategories().reduce((s, c) => s + (settings.budgets[c.id] ?? 0), 0);
 }
 
 export type TodayBudget = {
@@ -243,7 +243,7 @@ export function weekdayAverages(txs: Transaction[], days = 90): number[] {
   const counts = Array(7).fill(0);
   for (let i = 0; i < days; i++) counts[parseDate(shiftDays(today(), -i)).getDay()]++;
   for (const t of txs) {
-    if (t.type === "income" || t.outsideBudget || t.date < since || FIXED_COST_CATEGORIES.has(t.category)) continue;
+    if (t.type === "income" || t.outsideBudget || t.date < since || isFixedCategory(t.category)) continue;
     sums[parseDate(t.date).getDay()] += t.amount;
   }
   return sums.map((s, i) => (counts[i] ? s / counts[i] : 0));
@@ -286,7 +286,7 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
   }
   const wd = Array(7).fill(0);
   for (const t of recent) {
-    if (!t.outsideBudget && !FIXED_COST_CATEGORIES.has(t.category)) wd[parseDate(t.date).getDay()] += t.amount;
+    if (!t.outsideBudget && !isFixedCategory(t.category)) wd[parseDate(t.date).getDay()] += t.amount;
   }
 
   return {
@@ -320,7 +320,7 @@ export function buildAiDigest(txs: Transaction[], settings: Settings) {
       };
     }),
     variableBudgetByCategory: Object.fromEntries(
-      VARIABLE_CATEGORIES.map((c) => [c.name, settings.budgets[c.id] ?? 0]),
+      variableCategories().map((c) => [c.name, settings.budgets[c.id] ?? 0]),
     ),
     variableBudget: variableBudget(settings),
     thisWeek: (() => {

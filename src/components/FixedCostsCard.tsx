@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FIXED_CATEGORY_CHOICES } from "@/lib/categories";
+import { fixedCategoryChoices, withCurrent } from "@/lib/categories";
 import { monthLabel } from "@/lib/date";
 import { changeFixedCosts, fixedCostsFor, sumFixed } from "@/lib/fixed";
 import { parseAmount, yen } from "@/lib/format";
@@ -27,7 +27,7 @@ export function FixedCostsCard({ bare = false }: { bare?: boolean }) {
     setEditing(true);
     void change((list) => [
       ...list,
-      { id: crypto.randomUUID(), name: "", category: FIXED_CATEGORY_CHOICES[0].id, amount: 0, paid: false },
+      { id: crypto.randomUUID(), name: "", category: fixedCategoryChoices()[0].id, amount: 0, paid: false },
     ]);
   };
 
@@ -149,7 +149,7 @@ function EditRow({
         onChange={(e) => onChange({ category: e.target.value })}
         className={field}
       >
-        {FIXED_CATEGORY_CHOICES.map((c) => (
+        {withCurrent(fixedCategoryChoices(), item.category).map((c) => (
           <option key={c.id} value={c.id}>
             {c.name}
           </option>
