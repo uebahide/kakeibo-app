@@ -7,6 +7,8 @@ export interface KakeiboStore {
   addTransactions(items: NewTransaction[]): Promise<Transaction[]>;
   updateTransaction(id: string, item: NewTransaction): Promise<Transaction>;
   deleteTransaction(id: string): Promise<void>;
+  /** Records created after `since` (an ISO time), such as payments recorded from the iPhone while the app was open. */
+  loadNewTransactions?(since: string): Promise<Transaction[]>;
   deleteSamples(): Promise<void>;
   saveSettings(settings: Settings): Promise<void>;
   /** Latest saved analysis, which Claude may have written over MCP while the app was open. */

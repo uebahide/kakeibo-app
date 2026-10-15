@@ -15,6 +15,7 @@ import { changeLanguage, useLanguage, useT } from "./LanguageProvider";
 import { SecretModeSetting } from "./SavingsPrivacy";
 import { SavingsSettings } from "./SavingsSettings";
 import { Button, Card, CardTitle, Stamp, cx } from "./ui";
+import { WalletImportSettings } from "./WalletImport";
 
 export function SettingsView() {
   const { settings, updateSettings, storeKind, deleteSamples, toast, transactions, setMonth } = useKakeibo();
@@ -173,6 +174,8 @@ export function SettingsView() {
         </Card>
 
         <SavingsSettings />
+
+        <WalletImportSettings />
 
         <Card>
           <CardTitle>{t.settings.dataTitle}</CardTitle>

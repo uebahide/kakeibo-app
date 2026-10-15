@@ -10,6 +10,7 @@
 - **貯金**：毎月の貯金額を入れると、その月の収支から差し引かれ、これまでの貯金に積み上がります。目標額は任意で、設定すると進み具合と到達見込みを表示。記録の連続日数、「今日は支出なし」、残り予算を貯金に回すボタンも。
 - **グラフ分析**：カテゴリ別の円グラフ、予算ペース、6か月の収支推移、曜日ごとの使い方。
 - **AI分析**：直近3か月の集計から家計スコア・傾向・節約アクションを出す分析と、家計の相談チャット（Claude API）。
+- **iPhoneの自動記入**：ウォレット（Apple Pay）でカードを使うと、ショートカットのオートメーションが支払いを送り、自動で記入します。以前に確定した店は同じカテゴリで、初めての店はカテゴリを推測して「要確認」として入り、ホームでワンタップで確定できます。
 - **日本語・英語**：設定の「言語」で表示を切り替えられます。未選択のときはブラウザの言語に従い、AI分析の答えも選んだ言語になります。
 
 ## 技術構成
@@ -34,7 +35,7 @@ AI分析を試すときは `.env.local` に `ANTHROPIC_API_KEY` を入れてく�
 
 ## 本番の設定
 
-1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`、`0007_language.sql`）に実行します。
+1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`、`0007_language.sql`、`0008_wallet_import.sql`）に実行します。
 2. ログイン用のアカウントを Supabase で作ります。アプリには新規登録画面がないので、知らない人は登録できません。
    - Authentication → Users →「Add user」→「Create new user」で、メールアドレスとパスワードを入れ、「Auto Confirm User」にチェックを入れて作成
    - Authentication の設定で「Allow new users to sign up」をオフにしておくと、より安全です
@@ -52,11 +53,13 @@ AI分析を試すときは `.env.local` に `ANTHROPIC_API_KEY` を入れてく�
    - Authentication → URL Configuration の Site URL をアプリの本番 URL にする
    - claude.ai の 設定 → コネクタ →「カスタムコネクタを追加」で `https://<本番のドメイン>/api/mcp` を登録し、表示される同意画面で「許可する」
 
+5. iPhoneの自動記入を使う場合は、アプリの 設定 →「iPhoneの自動記入」で連携キーを発行し、そこに出る手順どおりにショートカットの「取引」オートメーションを作ります。支払いは `POST /api/import/wallet` に `Authorization: Bearer <連携キー>` と JSON `{ "amount": "2 500 Ft", "merchant": "LIDL" }` で送られます（金額は文字のままでも数値でも可、通貨は文字から読み取ります）。
+
 ## フォルダ構成
 
 ```
 src/
-  app/            画面（/、/login、/oauth/consent）、APIルート（/api/ai/*、/api/mcp）
+  app/            画面（/、/login、/oauth/consent）、APIルート（/api/ai/*、/api/mcp、/api/import/wallet）
   components/     画面の部品（ホーム、履歴、分析、AI分析、設定、入力シート）
   lib/            集計ロジック、カテゴリ、日付、保存先（ブラウザ / Supabase）、Supabase と Claude のクライアント
   lib/i18n/       日本語・英語の文言（messages/ に画面ごとの辞書。英語の訳し忘れは型エラーになる）

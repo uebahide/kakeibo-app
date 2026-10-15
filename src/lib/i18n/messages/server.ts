@@ -13,6 +13,13 @@ export const ja = {
   refusedChat: "\n（この質問にはお答えできませんでした）",
   chatInterrupted: "\n（回答の途中で問題が起きました。もう一度お試しください）",
   supabaseMissing: "Supabase が設定されていません",
+  walletRecorded: (amount: string, category: string) => `${amount}を「${category}」で記入しました`,
+  walletReview: (amount: string, category: string) => `${amount}を「${category}」で記入しました。カテゴリをアプリで確認してください`,
+  walletForeign: (original: string) => `${original}を記入しました。別の通貨なので、アプリで金額を直してください`,
+  walletDuplicate: "この支払いはもう記入済みです",
+  walletBadKey: "連携キーが正しくありません。設定の「iPhoneの自動記入」で発行し直してください",
+  walletBadAmount: "金額を読み取れませんでした",
+  walletFailed: "記入できませんでした。時間をおいてもう一度お試しください",
 };
 
 export const en: typeof ja = {
@@ -30,4 +37,11 @@ export const en: typeof ja = {
   refusedChat: "\n(I can't answer this question.)",
   chatInterrupted: "\n(Something went wrong mid-answer. Please try again.)",
   supabaseMissing: "Supabase isn't set up",
+  walletRecorded: (amount: string, category: string) => `Recorded ${amount} as ${category}`,
+  walletReview: (amount: string, category: string) => `Recorded ${amount} as ${category}. Check the category in the app`,
+  walletForeign: (original: string) => `Recorded ${original}. It's in another currency, so fix the amount in the app`,
+  walletDuplicate: "This payment is already recorded",
+  walletBadKey: "The link key is wrong. Issue a new one under “Auto-record from iPhone” in Settings",
+  walletBadAmount: "Couldn't read the amount",
+  walletFailed: "Couldn't record it. Please try again in a little while",
 };

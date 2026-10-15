@@ -15,6 +15,7 @@ import { RevealSheet, SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
 import { GoalRing, goalEta } from "./SavingsSettings";
 import { useKakeibo } from "./KakeiboProvider";
 import { useT } from "./LanguageProvider";
+import { WalletReviewCard } from "./WalletImport";
 import { Button, Card, CardTitle, EmptyState, Icons, Meter, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
 
 export function useSeedSamples() {
@@ -100,6 +101,7 @@ export function HomeView() {
       )}
 
       <div className="grid gap-3.5">
+        <WalletReviewCard />
         <section className="rounded-2xl bg-accent p-4 text-accent-ink shadow-[0_6px_20px_rgb(22_32_54/0.08)]">
           {showToday && (
             <div className="mb-3 border-b border-white/20 pb-3">

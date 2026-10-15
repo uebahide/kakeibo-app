@@ -21,9 +21,12 @@ export function setCurrency(c: Currency) {
 
 export const currencySymbol = () => (currency === "HUF" ? "Ft" : "¥");
 
-/** Money label in the display currency: "¥12,300" or "12 300 Ft". (Named before HUF existed.) */
-export const yen = (n: number) =>
-  currency === "HUF" ? Math.round(n).toLocaleString("hu-HU", { useGrouping: "always" }) + " Ft" : "¥" + Math.round(n).toLocaleString("ja-JP");
+/** Money label in a given currency: "¥12,300" or "12 300 Ft". */
+export const formatMoney = (n: number, c: Currency) =>
+  c === "HUF" ? Math.round(n).toLocaleString("hu-HU", { useGrouping: "always" }) + " Ft" : "¥" + Math.round(n).toLocaleString("ja-JP");
+
+/** Money label in the display currency. (Named before HUF existed.) */
+export const yen = (n: number) => formatMoney(n, currency);
 
 /** Short axis label: 125000 -> "12.5万" (yen in Japanese) or "125k" (forint, or English) */
 export function shortYen(n: number): string {

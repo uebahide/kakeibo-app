@@ -69,6 +69,8 @@ function EntryForm({ onClose }: { onClose: () => void }) {
       memo: memo.trim().slice(0, 60),
       outsideBudget: type === "expense" && outsideBudget,
       isSample: editing?.isSample ?? false,
+      // saving an automatic record confirms it
+      ...(editing?.needsReview ? { needsReview: false } : {}),
     };
     setBusy(true);
     try {
@@ -132,6 +134,8 @@ function EntryForm({ onClose }: { onClose: () => void }) {
             {t.common.close}
           </Button>
         </div>
+
+        {editing?.needsReview && <p className="mb-2.5 rounded-xl bg-accent-soft px-3 py-2 text-xs">{t.wallet.sheetNote}</p>}
 
         <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
           {(["expense", "income"] as const).map((k) => (
