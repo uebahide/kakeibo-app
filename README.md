@@ -35,11 +35,20 @@ AI分析を試すときは `.env.local` に `ANTHROPIC_API_KEY` を入れてく�
 
 ## テスト
 
+何を確かめているかの一覧は [docs/testing.md](docs/testing.md) にあります。
+
 集計（期間、予算、ペース、固定費、貯金）と金額の読み取りのテストがあります。GitHub では PR ごとに lint と一緒に実行されます。
 
 ```bash
 npm test          # 1回実行
 npm run test:watch  # 変更のたびに実行
+```
+
+画面のテスト（`e2e/`）は Playwright で、デモモードのアプリを本物のブラウザで開き、記入・編集・削除、分析画面、月の切り替え、言語の切り替えなどを iPhone 幅と PC 幅の両方で確かめます。「今日」は 2026年10月15日に固定しています。
+
+```bash
+npx playwright install chromium  # 初回だけ
+npm run test:e2e
 ```
 
 ## 本番の設定
@@ -75,4 +84,5 @@ src/
   lib/__tests__/  集計ロジックのテスト（Vitest）
   proxy.ts        ログイン状態の更新と、未ログイン時の /login への誘導
 supabase/migrations/  テーブルと行レベルセキュリティの定義
+e2e/              画面のテスト（Playwright）
 ```
