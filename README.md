@@ -42,6 +42,13 @@ npm test          # 1回実行
 npm run test:watch  # 変更のたびに実行
 ```
 
+画面のテスト（`e2e/`）は Playwright で、デモモードのアプリを本物のブラウザで開き、記入・編集・削除、分析画面、月の切り替え、言語の切り替えなどを iPhone 幅と PC 幅の両方で確かめます。「今日」は 2026年10月15日に固定しています。
+
+```bash
+npx playwright install chromium  # 初回だけ
+npm run test:e2e
+```
+
 ## 本番の設定
 
 1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`、`0007_language.sql`、`0008_wallet_import.sql`）に実行します。
@@ -75,4 +82,5 @@ src/
   lib/__tests__/  集計ロジックのテスト（Vitest）
   proxy.ts        ログイン状態の更新と、未ログイン時の /login への誘導
 supabase/migrations/  テーブルと行レベルセキュリティの定義
+e2e/              画面のテスト（Playwright）
 ```
