@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { VARIABLE_CATEGORIES } from "@/lib/categories";
+import { variableCategories } from "@/lib/categories";
 import { TIME_ZONE_TAG, dayLabel, monthLabel, shortDayLabel, today } from "@/lib/date";
 import { currentPeriod } from "@/lib/period";
 import { fixedCostsFor } from "@/lib/fixed";
@@ -65,7 +65,7 @@ export function HomeView() {
   const spare = stats.income - stats.fixed - saving - plannedVariable - stats.extra;
   const fixed = fixedCostsFor(settings.fixedCosts, month).items;
   const incomeList = stats.list.filter((t) => t.type === "income");
-  const unused = VARIABLE_CATEGORIES.filter((c) => settings.budgets[c.id] && !stats.variableByCategory[c.id]);
+  const unused = variableCategories().filter((c) => settings.budgets[c.id] && !stats.variableByCategory[c.id]);
   const recent = transactions.slice(0, 5);
   const target = settings.goal.target;
   const saved = totalSaved(settings);
@@ -256,7 +256,7 @@ export function HomeView() {
       <div className="grid gap-3.5">
         <Card>
           <CardTitle action={<TextButton onClick={() => setView("settings")}>{t.home.budgets.edit}</TextButton>}>{t.home.budgets.title}</CardTitle>
-          {VARIABLE_CATEGORIES.map((c) => {
+          {variableCategories().map((c) => {
             const b = settings.budgets[c.id] ?? 0;
             const s = stats.variableByCategory[c.id] ?? 0;
             if (!s) return null;

@@ -8,7 +8,7 @@ export const ja = {
   budgetTitle: "変動費の月の予算",
   budgetTotal: (amount: string) => `合計 ${amount}`,
   budgetHint:
-    "入力欄から離れると保存されます。0 にするとそのカテゴリの予算は表示されません。家賃や通信費などの固定費は、ホームの「固定費」で月ごとに設定します。",
+    "入力欄から離れると保存されます。0 にするとそのカテゴリの予算は表示されません。家賃や通信費などの固定費は、ホームの「固定費」で月ごとに設定します。非表示のカテゴリと固定費のカテゴリはここに出ません。",
 
   startDayTitle: "月の始まり",
   /** text before and after the day select */
@@ -58,7 +58,7 @@ export const en: typeof ja = {
   budgetTitle: "Monthly budget for variable costs",
   budgetTotal: (amount: string) => `Total ${amount}`,
   budgetHint:
-    "Saved when you leave the field. Set 0 to hide a category's budget. Fixed costs like rent and phone bills are set per month under “Fixed costs” on Home.",
+    "Saved when you leave the field. Set 0 to hide a category's budget. Fixed costs like rent and phone bills are set per month under “Fixed costs” on Home. Hidden and fixed-cost categories aren't listed here.",
 
   startDayTitle: "Start of the month",
   startDayBefore: "Count each month from the",

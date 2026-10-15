@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CATEGORIES, getCategory } from "@/lib/categories";
+import { categoriesOf, getCategory, withCurrent } from "@/lib/categories";
 import { today } from "@/lib/date";
 import { currentPeriod, periodOf, periodStart } from "@/lib/period";
 import { currencySymbol, formatAmountInput, parseAmount, yen } from "@/lib/format";
@@ -23,7 +23,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   const editing = entry.editing;
   const t = useT();
   const [type, setType] = useState<TxType>(editing?.type ?? entry.type ?? "expense");
-  const [category, setCategory] = useState(editing?.category ?? CATEGORIES[type][0].id);
+  const [category, setCategory] = useState(editing?.category ?? categoriesOf(type)[0].id);
   const [amount, setAmount] = useState(editing ? editing.amount.toLocaleString("ja-JP") : "");
   const startDay = settings.monthStartDay;
   const [date, setDate] = useState(editing?.date ?? (month === currentPeriod(startDay) ? today() : periodStart(month, startDay)));
@@ -51,7 +51,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
 
   const switchType = (next: TxType) => {
     setType(next);
-    setCategory(CATEGORIES[next][0].id);
+    setCategory(categoriesOf(next)[0].id);
   };
 
   async function save(keepOpen: boolean) {
@@ -167,8 +167,8 @@ function EntryForm({ onClose }: { onClose: () => void }) {
           {currencySymbol() === "Ft" && <span className="num text-2xl text-muted">Ft</span>}
         </label>
 
-        <div className="grid grid-cols-3 gap-1.5 min-[400px]:grid-cols-4">
-          {CATEGORIES[type].map((c) => (
+        <div className="grid grid-cols-3 gap-1.5 min-[400px]:grid-cols-4" role="group" aria-label={t.entry.categoryGroup}>
+          {withCurrent(categoriesOf(type), editing?.type === type ? editing.category : undefined).map((c) => (
             <button
               key={c.id}
               type="button"

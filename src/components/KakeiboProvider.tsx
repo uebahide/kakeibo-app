@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { DEFAULT_SETTINGS } from "@/lib/categories";
+import { DEFAULT_SETTINGS, FALLBACK_CATEGORY, getCategory, setCategories } from "@/lib/categories";
 import { setTimeZone } from "@/lib/date";
 import { setCurrency } from "@/lib/format";
 import { dict } from "@/lib/i18n/dict";
@@ -44,6 +44,8 @@ type Ctx = {
   updateTransaction: (id: string, item: NewTransaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   deleteSamples: () => Promise<void>;
+  /** Deletes a category the user added; its records and fixed costs move to `moveTo`. */
+  deleteCategory: (id: string, moveTo: string) => Promise<void>;
   updateSettings: (change: (s: Settings) => Settings) => Promise<void>;
   toast: (msg: string) => void;
   toastMessage: string | null;
@@ -91,6 +93,8 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
   setCurrency(settings.currency);
   // Same for the time zone "today" is read in.
   setTimeZone(settings.timeZone);
+  // And the user's categories.
+  setCategories(settings.categories);
   // Set after mount: the current date must not be read while prerendering.
   const [month, setMonth] = useState("");
   const [view, setViewState] = useState<View>("home");
@@ -111,6 +115,7 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
         setSettings(data.settings);
         settingsRef.current = data.settings;
         setTimeZone(data.settings.timeZone);
+        setCategories(data.settings.categories);
         setMonth(currentPeriod(data.settings.monthStartDay));
         try {
           setSavingsHidden(localStorage.getItem(HIDE_KEY) === "1");
@@ -154,7 +159,9 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
   // Payments recorded from the iPhone Wallet arrive while the app sits in the background, so pick up
   // records created since the newest one shown whenever the app comes back to the front.
   const newestRef = useRef("");
+  const transactionsRef = useRef(transactions);
   useEffect(() => {
+    transactionsRef.current = transactions;
     newestRef.current = transactions.reduce((max, t) => (t.createdAt > max ? t.createdAt : max), "");
   }, [transactions]);
   useEffect(() => {
@@ -236,6 +243,32 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     }
   }, [store, updateSettings]);
 
+  const deleteCategory = useCallback(
+    async (id: string, moveTo: string) => {
+      const target = moveTo || FALLBACK_CATEGORY[getCategory(id).type];
+      if (transactionsRef.current.some((t) => t.category === id)) {
+        await store.moveCategory(id, target);
+        setTransactions((prev) => prev.map((t) => (t.category === id ? { ...t, category: target } : t)));
+      }
+      await updateSettings((s) => {
+        const fixedCosts: Settings["fixedCosts"] = {};
+        for (const [month, items] of Object.entries(s.fixedCosts)) {
+          fixedCosts[month] = items.map((f) => (f.category === id ? { ...f, category: target } : f));
+        }
+        const budgets = { ...s.budgets };
+        delete budgets[id];
+        const order = Object.fromEntries(Object.entries(s.categories.order).map(([type, ids]) => [type, ids?.filter((x) => x !== id)]));
+        return {
+          ...s,
+          budgets,
+          fixedCosts,
+          categories: { ...s.categories, custom: s.categories.custom.filter((c) => c.id !== id), order },
+        };
+      });
+    },
+    [store, updateSettings],
+  );
+
   const hideSavings = useCallback(() => {
     setSavingsHidden(true);
     storeHidden(true);
@@ -279,6 +312,7 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     updateTransaction,
     deleteTransaction,
     deleteSamples,
+    deleteCategory,
     updateSettings,
     toast,
     toastMessage,

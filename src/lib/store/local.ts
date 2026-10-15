@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS } from "../categories";
+import { DEFAULT_SETTINGS, normalizeCategories } from "../categories";
 import { normalizeTimeZone } from "../date";
 import { normalizeCurrency } from "../format";
 import { normalizeLanguage } from "../i18n";
@@ -29,6 +29,7 @@ function read(): Saved {
           timeZone: normalizeTimeZone(saved.settings?.timeZone, saved.settings?.currency),
           weekStartDay: normalizeWeekStart(saved.settings?.weekStartDay),
           language: normalizeLanguage(saved.settings?.language),
+          categories: normalizeCategories(saved.settings?.categories),
         },
       };
     }
@@ -81,6 +82,10 @@ export function createLocalStore(): KakeiboStore {
     },
     async deleteSamples() {
       get().transactions = get().transactions.filter((t) => !t.isSample);
+      commit();
+    },
+    async moveCategory(from, to) {
+      for (const t of get().transactions) if (t.category === from) t.category = to;
       commit();
     },
     async saveSettings(settings) {

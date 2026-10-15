@@ -1,6 +1,7 @@
 import "server-only";
 import type { McpServer, ServerContext } from "@modelcontextprotocol/server";
 import { DIGEST_NOTE } from "@/lib/ai/server";
+import { inCategories } from "@/lib/categories";
 import { inTimeZone } from "@/lib/date";
 import { inLanguage } from "@/lib/i18n";
 import { buildAiDigest } from "@/lib/stats";
@@ -66,8 +67,11 @@ export function registerTools(server: McpServer) {
     async (ctx) => {
       const { transactions, settings } = await createSupabaseStore(supabaseFor(ctx)).load();
       // The server runs in UTC; count "today" in the user's own time zone, and name categories
-      // and weekdays in the user's language (Japanese until one is picked), which the digest carries.
-      const digest = inLanguage(settings.language ?? "ja", () => inTimeZone(settings.timeZone, () => buildAiDigest(transactions, settings)));
+      // and weekdays in the user's language (Japanese until one is picked), which the digest carries,
+      // with the user's own categories.
+      const digest = inLanguage(settings.language ?? "ja", () =>
+        inTimeZone(settings.timeZone, () => inCategories(settings.categories, () => buildAiDigest(transactions, settings))),
+      );
       return { content: [{ type: "text", text: JSON.stringify(digest) }] };
     },
   );

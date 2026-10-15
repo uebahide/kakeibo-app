@@ -1,3 +1,4 @@
+import type { CategorySettings } from "./categories";
 import type { TimeZone } from "./date";
 import type { Currency } from "./format";
 import type { Language } from "./i18n";
@@ -72,6 +73,8 @@ export type Settings = {
   timeZone: TimeZone;
   /** display language; null when never picked (the browser's language is used) */
   language: Language | null;
+  /** the user's changes to the categories (renamed, recolored, reordered, hidden, added) */
+  categories: CategorySettings;
   goal: SavingsGoal;
   /** days marked as "no spending" (YYYY-MM-DD) */
   noSpendDays: string[];

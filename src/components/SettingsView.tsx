@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { VARIABLE_CATEGORIES } from "@/lib/categories";
+import { variableCategories } from "@/lib/categories";
 import { currencies, normalizeCurrency, parseAmount, yen } from "@/lib/format";
 import { monthLabel, timeZones } from "@/lib/date";
 import { LANGUAGES, type Language } from "@/lib/i18n";
@@ -9,6 +9,7 @@ import { DICTS } from "@/lib/i18n/dict";
 import { clampStartDay, currentPeriod, periodRangeLabel } from "@/lib/period";
 import { variableBudget } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/client";
+import { CategoriesCard } from "./CategoriesCard";
 import { useSeedSamples } from "./HomeView";
 import { useKakeibo } from "./KakeiboProvider";
 import { changeLanguage, useLanguage, useT } from "./LanguageProvider";
@@ -37,29 +38,33 @@ export function SettingsView() {
 
   return (
     <div className="grid items-start gap-3.5 lg:grid-cols-[1.15fr_1fr]">
-      <Card>
-        <CardTitle action={<span className="num text-ink">{t.settings.budgetTotal(yen(variableBudget(settings)))}</span>}>{t.settings.budgetTitle}</CardTitle>
-        {VARIABLE_CATEGORIES.map((c) => (
-          <label key={c.id} className="grid grid-cols-[auto_1fr_120px] items-center gap-2.5 py-1.5">
-            <Stamp category={c.id} size="sm" />
-            <span>{c.name}</span>
-            <input
-              id={`budget-${c.id}`}
-              inputMode="numeric"
-              defaultValue={settings.budgets[c.id] ?? 0}
-              onBlur={(e) => {
-                const value = parseAmount(e.target.value);
-                e.target.value = String(value);
-                if (value !== (settings.budgets[c.id] ?? 0)) {
-                  void updateSettings((s) => ({ ...s, budgets: { ...s.budgets, [c.id]: value } }));
-                }
-              }}
-              className="num w-full rounded-xl border border-line bg-bg px-3 py-2 text-right"
-            />
-          </label>
-        ))}
-        <p className="mt-1.5 text-xs text-muted">{t.settings.budgetHint}</p>
-      </Card>
+      <div className="grid gap-3.5">
+        <Card>
+          <CardTitle action={<span className="num text-ink">{t.settings.budgetTotal(yen(variableBudget(settings)))}</span>}>{t.settings.budgetTitle}</CardTitle>
+          {variableCategories().map((c) => (
+            <label key={c.id} className="grid grid-cols-[auto_1fr_120px] items-center gap-2.5 py-1.5">
+              <Stamp category={c.id} size="sm" />
+              <span>{c.name}</span>
+              <input
+                id={`budget-${c.id}`}
+                inputMode="numeric"
+                defaultValue={settings.budgets[c.id] ?? 0}
+                onBlur={(e) => {
+                  const value = parseAmount(e.target.value);
+                  e.target.value = String(value);
+                  if (value !== (settings.budgets[c.id] ?? 0)) {
+                    void updateSettings((s) => ({ ...s, budgets: { ...s.budgets, [c.id]: value } }));
+                  }
+                }}
+                className="num w-full rounded-xl border border-line bg-bg px-3 py-2 text-right"
+              />
+            </label>
+          ))}
+          <p className="mt-1.5 text-xs text-muted">{t.settings.budgetHint}</p>
+        </Card>
+
+        <CategoriesCard />
+      </div>
 
       <div className="grid gap-3.5">
         <Card>

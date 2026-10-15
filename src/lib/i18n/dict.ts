@@ -2,6 +2,7 @@ import { getLanguage, type Language } from ".";
 import * as ai from "./messages/ai";
 import * as analysis from "./messages/analysis";
 import * as auth from "./messages/auth";
+import * as categories from "./messages/categories";
 import * as common from "./messages/common";
 import * as entry from "./messages/entry";
 import * as fixed from "./messages/fixed";
@@ -21,6 +22,7 @@ const ja = {
   history: history.ja,
   analysis: analysis.ja,
   settings: settings.ja,
+  categories: categories.ja,
   savings: savings.ja,
   fixed: fixed.ja,
   ai: ai.ja,
@@ -38,6 +40,7 @@ const en: Dict = {
   history: history.en,
   analysis: analysis.en,
   settings: settings.en,
+  categories: categories.en,
   savings: savings.en,
   fixed: fixed.en,
   ai: ai.en,
