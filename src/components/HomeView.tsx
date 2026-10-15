@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import { VARIABLE_CATEGORIES } from "@/lib/categories";
-import { TIME_ZONE_TAG, dayLabel, monthLabel, parseDate, shortDayLabel, today, weekdays } from "@/lib/date";
+import { TIME_ZONE_TAG, dayLabel, monthLabel, shortDayLabel, today } from "@/lib/date";
 import { currentPeriod } from "@/lib/period";
 import { fixedCostsFor } from "@/lib/fixed";
 import { parseAmount, yen } from "@/lib/format";
 import { averageMonthlySavings, monthSavings, totalSaved } from "@/lib/savings";
 import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
-import { elapsedFraction, monthStats, paceLevel, paceStep, paceSteps, recordStreak, todayBudget, variableBudget, weekBudget } from "@/lib/stats";
-import { weekRangeLabel } from "@/lib/week";
+import { elapsedFraction, monthStats, paceLevel, paceStep, paceSteps, recordStreak, todayBudget, variableBudget } from "@/lib/stats";
 import { AiShortcut } from "./AiShortcut";
 import { FixedCostsCard } from "./FixedCostsCard";
 import { RevealSheet, SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
@@ -17,7 +16,8 @@ import { GoalRing, goalEta } from "./SavingsSettings";
 import { useKakeibo } from "./KakeiboProvider";
 import { useT } from "./LanguageProvider";
 import { WalletReviewCard } from "./WalletImport";
-import { Button, Card, CardTitle, EmptyState, Icons, Meter, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
+import { WeekCard } from "./WeekCard";
+import { Button, Card, CardTitle, EmptyState, Icons, Meter, PACE_BADGE, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
 
 export function useSeedSamples() {
   const { addTransactions, settings, updateSettings, toast } = useKakeibo();
@@ -37,15 +37,6 @@ export function useSeedSamples() {
 }
 
 /** Badge colors along the pace scale: calm teal and green, through yellow and orange, to red. */
-const PACE_BADGE = [
-  "bg-linear-to-r from-teal-500 to-emerald-600 text-white",
-  "bg-linear-to-r from-green-500 to-green-700 text-white",
-  "bg-linear-to-r from-yellow-300 to-amber-400 text-amber-950",
-  "bg-linear-to-r from-amber-400 to-orange-500 text-orange-950",
-  "bg-linear-to-r from-orange-500 to-red-500 text-white",
-  "bg-linear-to-r from-red-600 to-rose-700 text-white",
-];
-
 type Panel = "today" | "income" | "fixed" | "saving" | "extra";
 
 export function HomeView() {
@@ -509,69 +500,6 @@ function SavingsCard({ canMoveLeftover, leftover }: { canMoveLeftover: boolean; 
         </form>
       )}
     </div>
-  );
-}
-
-function WeekCard() {
-  const { transactions, settings } = useKakeibo();
-  const t = useT();
-  const w = t.home.week;
-  const week = weekBudget(transactions, settings);
-  const fraction = week.elapsed / 7;
-  const step = week.allowance > 0 ? paceStep(week.spent, week.allowance, fraction) : week.spent > 0 ? 5 : 0;
-  const daysLeft = 7 - week.elapsed + 1;
-  const peak = Math.max(...week.days.map((d) => Math.max(d.spent, d.allowance)), 1);
-  const now = today();
-
-  return (
-    <Card>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-baseline gap-x-2 text-xs font-bold tracking-wide text-muted">
-            <span>{week.left >= 0 ? w.left : w.over}</span>
-            <span className="num font-medium">{weekRangeLabel(week.start)}</span>
-          </div>
-          <div className={cx("num text-2xl leading-tight font-bold", week.left < 0 && "text-bad")}>
-            {week.left >= 0 ? yen(week.left) : t.home.hero.over(yen(-week.left))}
-          </div>
-        </div>
-        <span className={cx("rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm", PACE_BADGE[step])}>{paceSteps()[step]}</span>
-      </div>
-      <div className="num mt-0.5 text-[13px] text-muted">{w.spentOfAllowance(yen(week.spent), yen(week.allowance))}</div>
-      <div className="relative my-2.5 h-2 rounded-full bg-surface-2">
-        <div
-          className={cx("h-full rounded-full", step >= 4 ? "bg-bad" : step >= 2 ? "bg-warn" : "bg-accent")}
-          style={{ width: `${week.allowance ? Math.min(100, (week.spent / week.allowance) * 100) : 100}%` }}
-        />
-        <div title={w.paceMark} className="absolute -top-1 -bottom-1 w-0.5 bg-ink/50" style={{ left: `${fraction * 100}%` }} />
-      </div>
-
-      <ul className="grid grid-cols-7 gap-1.5">
-        {week.days.map((d) => {
-          const name = weekdays()[parseDate(d.date).getDay()];
-          const future = d.date > now;
-          return (
-            <li key={d.date} aria-label={w.day(name, yen(d.spent), yen(d.allowance))} className="grid gap-1 text-center">
-              <div className="relative h-12 overflow-hidden rounded-md bg-surface-2">
-                {!future && (
-                  <div
-                    className={cx("absolute inset-x-0 bottom-0 rounded-md", d.spent > d.allowance ? "bg-warn" : "bg-accent")}
-                    style={{ height: `${(d.spent / peak) * 100}%` }}
-                  />
-                )}
-                <div className="absolute inset-x-0 border-t border-dashed border-muted/60" style={{ bottom: `${(d.allowance / peak) * 100}%` }} />
-              </div>
-              <span className={cx("text-[11px]", d.date === now ? "font-bold text-accent" : "text-muted")}>{name}</span>
-            </li>
-          );
-        })}
-      </ul>
-
-      {week.left > 0 && (
-        <p className="num mt-2 text-[13px]">{daysLeft > 1 ? w.perDayLeft(daysLeft, yen(week.perDayLeft)) : w.lastDay(yen(week.left))}</p>
-      )}
-      {week.extra > 0 && <p className="num mt-0.5 text-xs text-muted">{w.extra(yen(week.extra))}</p>}
-    </Card>
   );
 }
 

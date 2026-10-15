@@ -48,6 +48,14 @@ export const ja = {
     paceMark: "今日の目安",
     /** a day's bar in the week's chart */
     day: (day: string, spent: string, allowance: string) => `${day} 使った ${spent} / 枠 ${allowance}`,
+    /** the popup over a day's bar */
+    dayAllowance: (amount: string) => `枠 ${amount}`,
+    daySpent: (amount: string) => `合計 ${amount}`,
+    dayOver: (amount: string) => `枠より ${amount} オーバー`,
+    dayUnder: (amount: string) => `枠まで あと ${amount}`,
+    dayEmpty: "この日の支出はありません",
+    dayFuture: "まだ先の日です",
+    dayMore: (n: number) => `ほか ${n}件`,
   },
 
   /** the card listing this month's money */
@@ -166,6 +174,13 @@ export const en: typeof ja = {
     extra: (amount: string) => `Plus ${amount} outside the budget`,
     paceMark: "Where you should be today",
     day: (day: string, spent: string, allowance: string) => `${day}: spent ${spent} of ${allowance}`,
+    dayAllowance: (amount: string) => `Allowance ${amount}`,
+    daySpent: (amount: string) => `Total ${amount}`,
+    dayOver: (amount: string) => `${amount} over the allowance`,
+    dayUnder: (amount: string) => `${amount} under the allowance`,
+    dayEmpty: "No spending this day",
+    dayFuture: "This day is still ahead",
+    dayMore: (n: number) => `${n} more`,
   },
 
   money: {
