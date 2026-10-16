@@ -219,7 +219,8 @@ export function SettingsView() {
               <CardTitle>{t.settings.accountTitle}</CardTitle>
               <Button
                 onClick={async () => {
-                  await createClient().auth.signOut();
+                  // Only this browser: other devices and the claude.ai connector stay signed in.
+                  await createClient().auth.signOut({ scope: "local" });
                   router.replace("/login");
                   router.refresh();
                 }}
