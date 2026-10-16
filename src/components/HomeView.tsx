@@ -11,6 +11,7 @@ import { averageMonthlySavings, monthSavings, totalSaved } from "@/lib/savings";
 import { makeSampleFixedCosts, makeSampleTransactions } from "@/lib/samples";
 import { elapsedFraction, monthStats, paceLevel, paceStep, paceSteps, recordStreak, todayBudget, variableBudget } from "@/lib/stats";
 import { AiShortcut } from "./AiShortcut";
+import { BudgetSuggestCard } from "./BudgetSuggest";
 import { FixedCostsCard } from "./FixedCostsCard";
 import { RevealSheet, SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
 import { GoalRing, goalEta } from "./SavingsSettings";
@@ -95,6 +96,7 @@ export function HomeView() {
 
       <div className="grid gap-3.5">
         <WalletReviewCard />
+        <BudgetSuggestCard />
         <section className="rounded-2xl bg-accent p-4 text-accent-ink shadow-[0_6px_20px_rgb(22_32_54/0.08)]">
           {showToday && (
             <div className="mb-3 border-b border-white/20 pb-3">

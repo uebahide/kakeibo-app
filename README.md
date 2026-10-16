@@ -58,7 +58,7 @@ npm run test:e2e
 
 ## 本番の設定
 
-1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`、`0007_language.sql`、`0008_wallet_import.sql`、`0009_week_start.sql`、`0010_categories.sql`、`0011_split_payments.sql`、`0012_receipts.sql`、`0013_auto_read_receipts.sql`）に実行します。`0012_receipts.sql` はレシートの写真用のストレージ（非公開のバケット `receipts`）も作ります。
+1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`、`0007_language.sql`、`0008_wallet_import.sql`、`0009_week_start.sql`、`0010_categories.sql`、`0011_split_payments.sql`、`0012_receipts.sql`、`0013_auto_read_receipts.sql`、`0014_budget_reviewed.sql`）に実行します。`0012_receipts.sql` はレシートの写真用のストレージ（非公開のバケット `receipts`）も作ります。
 2. ログイン用のアカウントを Supabase で作ります。アプリには新規登録画面がないので、知らない人は登録できません。
    - Authentication → Users →「Add user」→「Create new user」で、メールアドレスとパスワードを入れ、「Auto Confirm User」にチェックを入れて作成
    - Authentication の設定で「Allow new users to sign up」をオフにしておくと、より安全です

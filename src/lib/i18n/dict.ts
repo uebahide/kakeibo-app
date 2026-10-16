@@ -12,6 +12,7 @@ import * as receipt from "./messages/receipt";
 import * as savings from "./messages/savings";
 import * as server from "./messages/server";
 import * as settings from "./messages/settings";
+import * as suggest from "./messages/suggest";
 import * as wallet from "./messages/wallet";
 
 // Each messages file holds one area's texts in both languages; `en` is typed as `typeof ja`,
@@ -24,6 +25,7 @@ const ja = {
   history: history.ja,
   analysis: analysis.ja,
   settings: settings.ja,
+  suggest: suggest.ja,
   categories: categories.ja,
   savings: savings.ja,
   fixed: fixed.ja,
@@ -43,6 +45,7 @@ const en: Dict = {
   history: history.en,
   analysis: analysis.en,
   settings: settings.en,
+  suggest: suggest.en,
   categories: categories.en,
   savings: savings.en,
   fixed: fixed.en,

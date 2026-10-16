@@ -1,8 +1,9 @@
 export const ja = {
   /** prompt filled into a new claude.ai chat; Claude then uses the 家計簿 connector (MCP) */
-  claudePrompt:
+  claudePrompt: (account: string | null) =>
     "家計簿コネクタの get_monthly_digest で直近3か月の集計を取り、家計を分析して要点を教えてください。" +
-    "最後に save_analysis で分析結果を家計簿アプリに保存してください。",
+    "最後に save_analysis で分析結果を家計簿アプリに保存してください。" +
+    (account ? `アプリは ${account} でログインしているので、どちらのツールにも account として「${account}」を渡してください。` : ""),
   genericError: "うまくいきませんでした。もう一度お試しください",
   lockedNote: "シークレットモード中は、AI分析とAIチャットは使えません。",
   unlock: "パスワードで解除する",
@@ -38,9 +39,10 @@ export const ja = {
 };
 
 export const en: typeof ja = {
-  claudePrompt:
+  claudePrompt: (account: string | null) =>
     "Use get_monthly_digest from the Kakeibo connector to get the last 3 months of totals, analyze my household finances, and tell me the key points. " +
-    "Finally, save the analysis to the Kakeibo app with save_analysis.",
+    "Finally, save the analysis to the Kakeibo app with save_analysis." +
+    (account ? ` The app is signed in as ${account}, so pass "${account}" as account to both tools.` : ""),
   genericError: "Something went wrong. Please try again",
   lockedNote: "AI analysis and AI chat aren't available in secret mode.",
   unlock: "Unlock with password",

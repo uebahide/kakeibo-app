@@ -7,7 +7,7 @@ import { inLanguage } from "@/lib/i18n";
 import { buildAiDigest } from "@/lib/stats";
 import { createSupabaseStore } from "@/lib/store/supabase";
 import { z } from "zod";
-import { supabaseFor } from "./auth";
+import { accountMismatch, supabaseFor } from "./auth";
 import { registerReceiptTools } from "./receipts";
 
 /**
@@ -46,6 +46,13 @@ const AnalysisSchema = z.object({
   cheer: z.string().min(1).max(200).describe("貯金を続ける励ましの一言（50字以内）/ One encouraging line about saving (100 English characters or fewer)"),
 });
 
+const account = z
+  .string()
+  .optional()
+  .describe(
+    "依頼文にアプリでログイン中のアカウント（メールアドレス）があれば、そのまま渡す / The account (email) the app is signed in to, if the request names one",
+  );
+
 export function registerTools(server: McpServer) {
   server.registerTool(
     "get_monthly_digest",
@@ -55,10 +62,15 @@ export function registerTools(server: McpServer) {
         "家計簿の直近3か月の集計（収入・支出・カテゴリ別・予算・固定費・貯金）を JSON で返す。" +
         "家計の分析やアドバイスをする前に呼ぶ。1件ずつの記録ではなく合計だけを返す。" +
         DIGEST_NOTE +
-        " Write the analysis and any answer in the digest's `language` (ja = Japanese, en = English).",
+        " Write the analysis and any answer in the digest's `language` (ja = Japanese, en = English)." +
+        " 違うアカウントにつながっているとエラーを返すので、その文面をそのまま伝えて分析はしない。" +
+        " If it returns an error because a different account is connected, pass the message on and don't analyze.",
+      inputSchema: z.object({ account }),
       annotations: { readOnlyHint: true },
     },
-    async (ctx) => {
+    async ({ account }, ctx) => {
+      const mismatch = accountMismatch(ctx, account);
+      if (mismatch) return { isError: true, content: [{ type: "text", text: mismatch }] };
       const { transactions, settings } = await createSupabaseStore(supabaseFor(ctx)).load();
       // The server runs in UTC; count "today" in the user's own time zone, and name categories
       // and weekdays in the user's language (Japanese until one is picked), which the digest carries,
@@ -79,9 +91,11 @@ export function registerTools(server: McpServer) {
         "get_monthly_digest の数字にもとづいて分析してから呼ぶ。金額は currency の単位。" +
         "文章はダイジェストの language の言語で書く。" +
         " Write every text field in the digest's `language` (ja = Japanese, en = English).",
-      inputSchema: AnalysisSchema,
+      inputSchema: AnalysisSchema.extend({ account }),
     },
-    async (result, ctx) => {
+    async ({ account, ...result }, ctx) => {
+      const mismatch = accountMismatch(ctx, account);
+      if (mismatch) return { isError: true, content: [{ type: "text", text: mismatch }] };
       const userId = ctx.http?.authInfo?.extra?.userId;
       const { error } = await supabaseFor(ctx)
         .from("user_settings")

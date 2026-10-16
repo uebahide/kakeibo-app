@@ -9,6 +9,7 @@ import { DICTS } from "@/lib/i18n/dict";
 import { clampStartDay, currentPeriod, periodRangeLabel } from "@/lib/period";
 import { variableBudget } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/client";
+import { BudgetSuggestButton } from "./BudgetSuggest";
 import { CategoriesCard } from "./CategoriesCard";
 import { useSeedSamples } from "./HomeView";
 import { useKakeibo } from "./KakeiboProvider";
@@ -49,6 +50,8 @@ export function SettingsView() {
                 <Stamp category={c.id} size="sm" />
                 <span>{c.name}</span>
                 <input
+                  // a new key when the amount changes elsewhere (a suggestion was used), so the field shows it
+                  key={settings.budgets[c.id] ?? 0}
                   id={`budget-${c.id}`}
                   inputMode="numeric"
                   defaultValue={settings.budgets[c.id] ?? 0}
@@ -64,6 +67,7 @@ export function SettingsView() {
               </label>
             ))}
             <p className="mt-1.5 text-xs text-muted">{t.settings.budgetHint}</p>
+            <BudgetSuggestButton />
           </Card>
 
           <CategoriesCard />
