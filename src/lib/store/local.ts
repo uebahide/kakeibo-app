@@ -52,6 +52,13 @@ export function createLocalStore(): KakeiboStore {
   let data: Saved | null = null;
   const get = () => (data ??= read());
   const commit = () => write(get());
+  // Creation times always move forward, so records saved together (a split payment's parts) keep their order.
+  let lastCreated = "";
+  const createdNow = () => {
+    let at = new Date().toISOString();
+    if (at <= lastCreated) at = new Date(Date.parse(lastCreated) + 1).toISOString();
+    return (lastCreated = at);
+  };
 
   return {
     kind: "local",
@@ -62,7 +69,7 @@ export function createLocalStore(): KakeiboStore {
       const created = items.map((item) => ({
         ...item,
         id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
+        createdAt: createdNow(),
       }));
       get().transactions.push(...created);
       commit();
@@ -73,6 +80,8 @@ export function createLocalStore(): KakeiboStore {
       const i = list.findIndex((t) => t.id === id);
       if (i < 0) throw new Error(dict().common.recordNotFound);
       list[i] = { ...list[i], ...item };
+      // a record taken out of a split payment loses the mark
+      if (!item.splitId) delete list[i].splitId;
       commit();
       return list[i];
     },

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { getCategory } from "@/lib/categories";
 import { dayLabel } from "@/lib/date";
 import { periodOf } from "@/lib/period";
+import { groupSplits } from "@/lib/split";
 import { yen } from "@/lib/format";
 import type { Transaction } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
@@ -90,8 +91,8 @@ export function HistoryView() {
                 <span>{dayLabel(date)}</span>
                 {spent > 0 && <span className="num">{t.history.daySpent(yen(spent))}</span>}
               </div>
-              {items.map((tx) => (
-                <TxRow key={tx.id} tx={tx} showDate={false} onClick={() => openEntry(tx)} />
+              {groupSplits(items).map((e) => (
+                <TxRow key={e.tx.id} tx={e.tx} parts={e.parts} showDate={false} onClick={() => openEntry(e.tx)} />
               ))}
             </div>
           );

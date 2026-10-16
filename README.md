@@ -5,6 +5,7 @@
 - **手早い入力**：金額 → カテゴリを1タップで保存。よく使う記録はワンタップの候補になります。PCでは N キーで入力画面が開きます。
 - **予算管理**：予算は変動費だけに設定し、今日の目安ペースと1日あたり使える額を表示。カテゴリ別の使いすぎは色で表示。
 - **週の予算**：今週使える額、使った額、使いすぎのペースをホームに表示し、分析では直近8週の支出と週の枠をグラフで比べます。週の枠は、週の始まりの時点での「残り予算 ÷ 残り日数」× 7日。給料日をまたぐ週は、新しい月の日の分を新しい月の予算から数えます。週の始まり（月曜・日曜）は設定で選べます。
+- **支払いの分割**：スーパーで食費と日用品をまとめて買ったときのように、1回の支払いを複数のカテゴリに分けて記録できます。内訳はそれぞれのカテゴリで集計され、履歴では1つの支払いとしてまとめて表示・編集・削除できます。
 - **カテゴリの追加・編集**：設定の「カテゴリ」で、名前・マーク・色・並び順・固定費かどうかを変えたり、自分のカテゴリを追加したりできます。アプリのカテゴリは消さずに非表示にでき、追加したカテゴリを削除するときは記録の移動先を選びます。
 - **月の始まり**：給料日に合わせて、毎月何日から1か月とするかを設定できます（例：5日なら「10月」は 10/5〜11/4）。
 - **予算外の支出**：旅行やイベントなど、予算とは別の出費は「予算外」として記録できます。予算ではなく「予算どおりなら浮くお金」から引かれ、ホームにまとめて表示されます。
@@ -55,7 +56,7 @@ npm run test:e2e
 
 ## 本番の設定
 
-1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`、`0007_language.sql`、`0008_wallet_import.sql`、`0009_week_start.sql`、`0010_categories.sql`）に実行します。
+1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`、`0007_language.sql`、`0008_wallet_import.sql`、`0009_week_start.sql`、`0010_categories.sql`、`0011_split_payments.sql`）に実行します。
 2. ログイン用のアカウントを Supabase で作ります。アプリには新規登録画面がないので、知らない人は登録できません。
    - Authentication → Users →「Add user」→「Create new user」で、メールアドレスとパスワードを入れ、「Auto Confirm User」にチェックを入れて作成
    - Authentication の設定で「Allow new users to sign up」をオフにしておくと、より安全です

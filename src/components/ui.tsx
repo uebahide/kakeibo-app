@@ -94,10 +94,13 @@ export function Meter({ ratio, level, className }: { ratio: number; level: PaceL
   );
 }
 
-export function TxRow({ tx, onClick, showDate = true }: { tx: Transaction; onClick: () => void; showDate?: boolean }) {
+/** One record, or with `parts` the records one payment was split into (shown as one line with their total). */
+export function TxRow({ tx, parts = [tx], onClick, showDate = true }: { tx: Transaction; parts?: Transaction[]; onClick: () => void; showDate?: boolean }) {
   const t = useT();
   const cat = getCategory(tx.category);
   const income = tx.type === "income";
+  const split = parts.length > 1;
+  const amount = parts.reduce((s, p) => s + p.amount, 0);
   return (
     <button
       type="button"
@@ -109,17 +112,18 @@ export function TxRow({ tx, onClick, showDate = true }: { tx: Transaction; onCli
         <span className="block truncate text-sm">
           {tx.memo || cat.name}
           {tx.outsideBudget && <span className="ml-1.5 rounded bg-warn-soft px-1 align-[1px] text-[10px] font-bold text-warn">{t.common.outsideBudget}</span>}
-          {tx.needsReview && <span className="ml-1.5 rounded bg-accent-soft px-1 align-[1px] text-[10px] font-bold text-accent">{t.common.needsReview}</span>}
+          {parts.some((p) => p.needsReview) && <span className="ml-1.5 rounded bg-accent-soft px-1 align-[1px] text-[10px] font-bold text-accent">{t.common.needsReview}</span>}
+          {(split || tx.splitId) && <span className="ml-1.5 rounded bg-surface-2 px-1 align-[1px] text-[10px] font-bold text-muted">{t.common.split}</span>}
         </span>
-        <span className="block text-[11px] text-muted">
-          {cat.name}
+        <span className="block truncate text-[11px] text-muted">
+          {split ? parts.map((p) => `${getCategory(p.category).name} ${yen(p.amount)}`).join(t.common.sep) : cat.name}
           {showDate && `${t.common.sep}${dayLabel(tx.date)}`}
           {tx.isSample && `${t.common.sep}${t.common.sample}`}
         </span>
       </span>
       <span className={cx("num whitespace-nowrap text-base font-semibold", income && "text-good")}>
         {income ? "+" : "−"}
-        {yen(tx.amount)}
+        {yen(amount)}
       </span>
     </button>
   );

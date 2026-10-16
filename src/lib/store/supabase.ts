@@ -20,6 +20,7 @@ type TxRow = {
   outside_budget?: boolean;
   source?: string | null;
   needs_review?: boolean;
+  split_id?: string | null;
   is_sample: boolean;
   created_at: string;
 };
@@ -37,6 +38,7 @@ const fromRow = (r: TxRow): Transaction => ({
   outsideBudget: r.outside_budget ?? false,
   ...(r.source === "wallet" ? { source: "wallet" as const } : {}),
   needsReview: r.needs_review ?? false,
+  ...(r.split_id ? { splitId: r.split_id } : {}),
   isSample: r.is_sample,
   createdAt: r.created_at,
 });
@@ -51,6 +53,8 @@ const toRow = (t: NewTransaction) => ({
   ...(t.outsideBudget ? { outside_budget: true } : {}),
   // only set when confirming an automatic record, which exists only once migration 0008 is run
   ...(t.needsReview !== undefined ? { needs_review: t.needsReview } : {}),
+  // only sent for split payments, which need migration 0011
+  ...(t.splitId ? { split_id: t.splitId } : {}),
   is_sample: t.isSample,
 });
 
@@ -69,6 +73,8 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
   let hasTimeZoneColumn = false;
   // And the week_start_day column (migration 0009).
   let hasWeekStartColumn = false;
+  // And the split_id column (migration 0011), seen on any loaded record.
+  let hasSplitColumn = false;
   // And the categories column (migration 0010).
   let hasCategoriesColumn = false;
   // And the language column (migration 0007): null until known (no settings row was loaded yet).
@@ -87,6 +93,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         supabase.from("user_settings").select("*").maybeSingle(),
       ]);
       const rows = check(txRes) as TxRow[];
+      hasSplitColumn = rows.some((r) => "split_id" in r);
       hasStartDayColumn = Boolean(setRes.data && "month_start_day" in setRes.data);
       hasCurrencyColumn = Boolean(setRes.data && "currency" in setRes.data);
       hasTimeZoneColumn = Boolean(setRes.data && "time_zone" in setRes.data);
@@ -132,7 +139,9 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
     },
     async updateTransaction(id, item) {
       const row = check(
-        await supabase.from("transactions").update({ ...toRow(item), outside_budget: Boolean(item.outsideBudget) }).eq("id", id).select(TX_COLUMNS).single(),
+        await supabase
+          .from("transactions")
+          .update({ ...toRow(item), outside_budget: Boolean(item.outsideBudget), ...(hasSplitColumn || item.splitId ? { split_id: item.splitId ?? null } : {}) }).eq("id", id).select(TX_COLUMNS).single(),
       );
       return fromRow(row as TxRow);
     },

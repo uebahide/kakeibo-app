@@ -20,6 +20,8 @@ export type Transaction = {
   source?: "wallet";
   /** an automatic record whose category (or amount, for another currency) was guessed and is not confirmed yet */
   needsReview?: boolean;
+  /** shared by the records one payment was split into (one per category) */
+  splitId?: string;
   isSample: boolean;
   createdAt: string;
 };

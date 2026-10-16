@@ -5,8 +5,9 @@ import { categoriesOf, getCategory, withCurrent } from "@/lib/categories";
 import { today } from "@/lib/date";
 import { currentPeriod, periodOf, periodStart } from "@/lib/period";
 import { currencySymbol, formatAmountInput, parseAmount, yen } from "@/lib/format";
+import { newSplitId, splitParts } from "@/lib/split";
 import { quickPicks } from "@/lib/stats";
-import type { NewTransaction, TxType } from "@/lib/types";
+import type { NewTransaction, Transaction, TxType } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
 import { useT } from "./LanguageProvider";
 import { Button, Stamp, cx } from "./ui";
@@ -20,11 +21,14 @@ export function EntrySheet() {
 
 function EntryForm({ onClose }: { onClose: () => void }) {
   const { entry, transactions, settings, month, setMonth, addTransactions, updateTransaction, deleteTransaction, toast } = useKakeibo();
-  const editing = entry.editing;
+  // A split payment is edited as a whole: its first part is the one shown, the others are its extra parts.
+  const [group] = useState(() => (entry.editing ? splitParts(transactions, entry.editing) : []));
+  const editing = group[0] ?? null;
   const t = useT();
   const [type, setType] = useState<TxType>(editing?.type ?? entry.type ?? "expense");
   const [category, setCategory] = useState(editing?.category ?? categoriesOf(type)[0].id);
-  const [amount, setAmount] = useState(editing ? editing.amount.toLocaleString("ja-JP") : "");
+  const [amount, setAmount] = useState(editing ? group.reduce((s, p) => s + p.amount, 0).toLocaleString("ja-JP") : "");
+  const [parts, setParts] = useState<Part[]>(() => group.slice(1).map((p) => ({ id: p.id, category: p.category, amount: p.amount.toLocaleString("ja-JP") })));
   const startDay = settings.monthStartDay;
   const [date, setDate] = useState(editing?.date ?? (month === currentPeriod(startDay) ? today() : periodStart(month, startDay)));
   const [memo, setMemo] = useState(editing?.memo ?? "");
@@ -52,7 +56,17 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   const switchType = (next: TxType) => {
     setType(next);
     setCategory(categoriesOf(next)[0].id);
+    setParts([]);
   };
+
+  const total = parseAmount(amount);
+  const rest = total - parts.reduce((s, p) => s + parseAmount(p.amount), 0);
+  const addPart = () => {
+    const used = new Set([category, ...parts.map((p) => p.category)]);
+    const choices = categoriesOf(type);
+    setParts([...parts, { category: (choices.find((c) => !used.has(c.id)) ?? choices[0]).id, amount: "" }]);
+  };
+  const changePart = (i: number, values: Partial<Part>) => setParts(parts.map((p, j) => (j === i ? { ...p, ...values } : p)));
 
   async function save(keepOpen: boolean) {
     const value = parseAmount(amount);
@@ -61,33 +75,47 @@ function EntryForm({ onClose }: { onClose: () => void }) {
       amountRef.current?.focus();
       return;
     }
-    const item: NewTransaction = {
+    if (parts.some((p) => !parseAmount(p.amount))) return toast(t.entry.splitEnterAmounts);
+    if (rest <= 0) return toast(t.entry.splitTooMuch);
+    const splitId = parts.length ? (editing?.splitId ?? newSplitId()) : undefined;
+    const base: NewTransaction = {
       date: date || today(),
-      amount: value,
+      amount: rest,
       type,
       category,
       memo: memo.trim().slice(0, 60),
       outsideBudget: type === "expense" && outsideBudget,
+      ...(splitId ? { splitId } : {}),
       isSample: editing?.isSample ?? false,
       // saving an automatic record confirms it
-      ...(editing?.needsReview ? { needsReview: false } : {}),
+      ...(group.some((p) => p.needsReview) ? { needsReview: false } : {}),
     };
+    // Each record with the id it already has (none for a new one).
+    const items: [string | undefined, NewTransaction][] = [
+      [editing?.id, base],
+      ...parts.map((p): [string | undefined, NewTransaction] => [p.id, { ...base, category: p.category, amount: parseAmount(p.amount) }]),
+    ];
     setBusy(true);
     try {
       if (editing) {
-        await updateTransaction(editing.id, item);
+        const kept = new Set(items.map(([id]) => id));
+        for (const [id, item] of items) if (id) await updateTransaction(id, item);
+        // One at a time, so each part gets a later creation time and the parts keep their order.
+        for (const [id, item] of items) if (!id) await addTransactions([item]);
+        for (const p of group) if (!kept.has(p.id)) await deleteTransaction(p.id);
         toast(t.entry.updated);
         onClose();
       } else {
-        await addTransactions([item]);
-        toast(t.entry.recorded(getCategory(category).name, yen(value)));
+        for (const [, item] of items) await addTransactions([item]);
+        toast(parts.length ? t.entry.recordedSplit(items.length, yen(value)) : t.entry.recorded(getCategory(category).name, yen(value)));
         if (keepOpen) {
           setAmount("");
           setMemo("");
+          setParts([]);
           amountRef.current?.focus();
         } else onClose();
       }
-      if (!keepOpen && periodOf(item.date, startDay) !== month) setMonth(periodOf(item.date, startDay));
+      if (!keepOpen && periodOf(base.date, startDay) !== month) setMonth(periodOf(base.date, startDay));
     } catch {
       toast(t.entry.saveFailed);
     } finally {
@@ -103,7 +131,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
     }
     setBusy(true);
     try {
-      await deleteTransaction(editing.id);
+      for (const p of group) await deleteTransaction(p.id);
       toast(t.entry.deleted);
       onClose();
     } catch {
@@ -186,6 +214,24 @@ function EntryForm({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
+
+        {parts.length ? (
+          <SplitParts
+            type={type}
+            main={category}
+            rest={rest}
+            total={total}
+            parts={parts}
+            current={group.slice(1)}
+            onChange={changePart}
+            onRemove={(i) => setParts(parts.filter((_, j) => j !== i))}
+            onAdd={addPart}
+          />
+        ) : (
+          <button type="button" onClick={addPart} className="mt-2 px-1 py-1.5 text-[13px] font-medium text-accent">
+            {t.entry.split}
+          </button>
+        )}
 
         {type === "expense" && (
           <div className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={t.entry.budgetGroup}>
@@ -278,5 +324,72 @@ function EntryForm({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+type Part = { id?: string; category: string; amount: string };
+
+/** The other parts of a split payment; the category picked above takes the rest of the total. */
+function SplitParts(props: {
+  type: TxType;
+  main: string;
+  rest: number;
+  total: number;
+  parts: Part[];
+  current: Transaction[];
+  onChange: (i: number, values: Partial<Part>) => void;
+  onRemove: (i: number) => void;
+  onAdd: () => void;
+}) {
+  const t = useT();
+  const field = "min-w-0 rounded-xl border border-line bg-bg px-2.5 py-2";
+  return (
+    <section className="mt-2.5 rounded-xl bg-surface-2 p-2.5" aria-label={t.entry.splitTitle}>
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 px-1 pb-2 text-sm">
+        <Stamp category={props.main} size="sm" />
+        <span className="truncate">{getCategory(props.main).name}</span>
+        <span className={cx("num font-semibold", props.total > 0 && props.rest <= 0 && "text-bad")}>
+          <span className="mr-1.5 text-[11px] font-normal text-muted">{t.entry.splitRest}</span>
+          {yen(props.rest)}
+        </span>
+      </div>
+      {props.parts.map((p, i) => (
+        <div key={i} className="grid grid-cols-[1fr_7.5rem_auto] items-center gap-1.5 pb-1.5">
+          <select
+            aria-label={t.entry.splitCategory(i + 2)}
+            value={p.category}
+            onChange={(e) => props.onChange(i, { category: e.target.value })}
+            className={field}
+          >
+            {withCurrent(categoriesOf(props.type), props.current.find((c) => c.id === p.id)?.category).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <input
+            aria-label={t.entry.splitAmount(i + 2)}
+            value={p.amount}
+            onChange={(e) => props.onChange(i, { amount: formatAmountInput(e.target.value) })}
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="0"
+            className={cx(field, "num text-right")}
+          />
+          <button
+            type="button"
+            aria-label={t.entry.splitRemove(i + 2)}
+            onClick={() => props.onRemove(i)}
+            className="grid size-9 place-items-center rounded-lg text-lg text-muted hover:bg-surface"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button type="button" onClick={props.onAdd} className="px-1 py-1 text-[13px] font-medium text-accent">
+        {t.entry.splitAdd}
+      </button>
+      <p className="px-1 pt-1 text-[11px] text-muted">{t.entry.splitHint}</p>
+    </section>
   );
 }
