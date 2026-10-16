@@ -36,7 +36,7 @@ export function CardTitle({ children, action }: { children: ReactNode; action?: 
 }
 
 export function TextButton(props: ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button type="button" {...props} className={cx("text-[13px] font-medium text-accent", props.className)} />;
+  return <button type="button" {...props} className={cx("hit text-[13px] font-medium text-accent", props.className)} />;
 }
 
 type Variant = "primary" | "default" | "ghost" | "danger";

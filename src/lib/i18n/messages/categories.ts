@@ -1,5 +1,8 @@
 export const ja = {
   title: "カテゴリ",
+  manage: "並び替え・編集",
+  done: "閉じる",
+  summary: (expense: number, income: number) => `支出 ${expense}個・収入 ${income}個`,
   expense: "支出",
   income: "収入",
   fixed: "固定費",
@@ -39,6 +42,9 @@ export const ja = {
 
 export const en: typeof ja = {
   title: "Categories",
+  manage: "Reorder and edit",
+  done: "Done",
+  summary: (expense: number, income: number) => `${expense} for expenses, ${income} for income`,
   expense: "Expenses",
   income: "Income",
   fixed: "Fixed",

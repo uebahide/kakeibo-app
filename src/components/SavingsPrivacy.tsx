@@ -74,7 +74,7 @@ export function SavingsEye({ className }: { className?: string }) {
         title={label}
         onClick={toggle}
         className={cx(
-          "grid size-8 place-items-center rounded-full text-muted hover:bg-surface-2 [&_svg]:size-5",
+          "hit grid size-8 place-items-center rounded-full text-muted hover:bg-surface-2 [&_svg]:size-5",
           className,
         )}
       >
@@ -97,7 +97,7 @@ export function SecretModeButton({ className }: { className?: string }) {
         aria-label={on ? t.savings.buttonOnLabel : t.savings.buttonOffLabel}
         onClick={toggle}
         className={cx(
-          "flex h-9 flex-none items-center gap-1 rounded-full border px-2 text-xs sm:px-2.5 font-bold whitespace-nowrap [&_svg]:size-4",
+          "hit flex h-9 flex-none items-center gap-1 rounded-full border px-2 text-xs sm:px-2.5 font-bold whitespace-nowrap [&_svg]:size-4",
           on ? "border-accent bg-accent text-accent-ink" : "border-line bg-surface text-muted hover:bg-surface-2",
           className,
         )}

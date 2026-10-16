@@ -32,6 +32,8 @@ export function CategoriesCard() {
   const [open, setOpen] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const list = categoriesOf(type, { withHidden: true });
+  // Closed at first: the list is long, and changed far less often than the rest of settings.
+  const [expanded, setExpanded] = useState(false);
 
   const add = async () => {
     const name = newName.trim();
@@ -42,6 +44,29 @@ export function CategoriesCard() {
     setNewName("");
     toast(t.categories.added([...name].slice(0, MAX_NAME).join("")));
   };
+
+  if (!expanded) {
+    const shown = categoriesOf("expense");
+    return (
+      <Card>
+        <CardTitle
+          action={
+            <button type="button" aria-expanded={false} onClick={() => setExpanded(true)} className="min-h-11 rounded-lg px-2 text-[13px] font-medium text-accent">
+              {t.categories.manage}
+            </button>
+          }
+        >
+          {t.categories.title}
+        </CardTitle>
+        <div className="flex flex-wrap gap-1" aria-hidden>
+          {shown.map((c) => (
+            <Stamp key={c.id} category={c.id} size="sm" />
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted">{t.categories.summary(shown.length, categoriesOf("income").length)}</p>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -58,7 +83,7 @@ export function CategoriesCard() {
                   setType(x);
                   setOpen(null);
                 }}
-                className={cx("rounded-lg px-3 py-1 text-xs font-bold", type === x ? "bg-surface text-ink shadow-sm" : "text-muted")}
+                className={cx("min-h-9 rounded-lg px-3 py-1 text-xs font-bold", type === x ? "bg-surface text-ink shadow-sm" : "text-muted")}
               >
                 {t.categories[x]}
               </button>
@@ -102,7 +127,7 @@ export function CategoriesCard() {
                   aria-expanded={open === c.id}
                   aria-label={t.categories.editLabel(c.name)}
                   onClick={() => setOpen(open === c.id ? null : c.id)}
-                  className="min-h-9 rounded-lg px-2 text-[13px] font-medium text-accent"
+                  className="min-h-11 rounded-lg px-2 text-[13px] font-medium text-accent"
                 >
                   {t.categories.edit}
                 </button>
@@ -133,6 +158,16 @@ export function CategoriesCard() {
         </Button>
       </form>
       <p className="mt-2 text-xs text-muted">{t.categories.hint}</p>
+      <Button
+        className="mt-3 w-full"
+        aria-expanded
+        onClick={() => {
+          setExpanded(false);
+          setOpen(null);
+        }}
+      >
+        {t.categories.done}
+      </Button>
     </Card>
   );
 }
@@ -147,7 +182,7 @@ function IconButton({ label, children, ...props }: { label: string; children: st
       type="button"
       aria-label={label}
       {...props}
-      className="grid size-9 place-items-center rounded-lg text-muted hover:bg-surface-2 disabled:opacity-25"
+      className="grid size-11 place-items-center rounded-lg text-muted hover:bg-surface-2 disabled:opacity-25"
     >
       {children}
     </button>

@@ -37,246 +37,280 @@ export function SettingsView() {
   };
 
   return (
-    <div className="grid items-start gap-3.5 lg:grid-cols-[1.15fr_1fr]">
-      <div className="grid gap-3.5">
-        <Card>
-          <CardTitle action={<span className="num text-ink">{t.settings.budgetTotal(yen(variableBudget(settings)))}</span>}>{t.settings.budgetTitle}</CardTitle>
-          {variableCategories().map((c) => (
-            <label key={c.id} className="grid grid-cols-[auto_1fr_120px] items-center gap-2.5 py-1.5">
-              <Stamp category={c.id} size="sm" />
-              <span>{c.name}</span>
-              <input
-                id={`budget-${c.id}`}
-                inputMode="numeric"
-                defaultValue={settings.budgets[c.id] ?? 0}
-                onBlur={(e) => {
-                  const value = parseAmount(e.target.value);
-                  e.target.value = String(value);
-                  if (value !== (settings.budgets[c.id] ?? 0)) {
-                    void updateSettings((s) => ({ ...s, budgets: { ...s.budgets, [c.id]: value } }));
-                  }
-                }}
-                className="num w-full rounded-xl border border-line bg-bg px-3 py-2 text-right"
-              />
-            </label>
-          ))}
-          <p className="mt-1.5 text-xs text-muted">{t.settings.budgetHint}</p>
-        </Card>
+    <div className="grid gap-3.5">
+      <SectionNav />
+      {/* two balanced columns on a computer, filled top to bottom in this order */}
+      <div className="gap-3.5 lg:columns-2">
+        <Section id="budget">
+          <Card>
+            <CardTitle action={<span className="num text-ink">{t.settings.budgetTotal(yen(variableBudget(settings)))}</span>}>{t.settings.budgetTitle}</CardTitle>
+            {variableCategories().map((c) => (
+              <label key={c.id} className="grid grid-cols-[auto_1fr_120px] items-center gap-2.5 py-1">
+                <Stamp category={c.id} size="sm" />
+                <span>{c.name}</span>
+                <input
+                  id={`budget-${c.id}`}
+                  inputMode="numeric"
+                  defaultValue={settings.budgets[c.id] ?? 0}
+                  onBlur={(e) => {
+                    const value = parseAmount(e.target.value);
+                    e.target.value = String(value);
+                    if (value !== (settings.budgets[c.id] ?? 0)) {
+                      void updateSettings((s) => ({ ...s, budgets: { ...s.budgets, [c.id]: value } }));
+                    }
+                  }}
+                  className="num min-h-11 w-full rounded-xl border border-line bg-bg px-3 py-2 text-right"
+                />
+              </label>
+            ))}
+            <p className="mt-1.5 text-xs text-muted">{t.settings.budgetHint}</p>
+          </Card>
 
-        <CategoriesCard />
-      </div>
+          <CategoriesCard />
+        </Section>
 
-      <div className="grid gap-3.5">
-        <Card>
-          <CardTitle>{t.settings.startDayTitle}</CardTitle>
-          <label className="flex flex-wrap items-center gap-2 text-sm">
-            {t.settings.startDayBefore}
-            <select
-              id="month-start-day"
-              value={startDay}
-              onChange={async (e) => {
-                const day = clampStartDay(e.target.value);
-                await updateSettings((s) => ({ ...s, monthStartDay: day }));
-                setMonth(currentPeriod(day));
-                toast(day === 1 ? t.settings.startDayReset : t.settings.startDayToast(day));
-              }}
-              className="num rounded-xl border border-line bg-bg px-3 py-2"
-            >
-              {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
-                <option key={d} value={d}>
-                  {t.settings.startDayOption(d)}
-                </option>
-              ))}
-            </select>
-            {t.settings.startDayAfter}
-          </label>
-          <p className="mt-2 text-xs text-muted">
-            {t.settings.startDayHint}
-            {startDay === 1
-              ? t.settings.startDayCalendar
-              : t.settings.startDayExample(monthLabel(example), periodRangeLabel(example, startDay))}
-          </p>
-        </Card>
+        <Section id="display">
+          <Card>
+            <Row title={t.settings.startDayTitle}>
+              <label className="flex flex-wrap items-center gap-2 text-sm">
+                {t.settings.startDayBefore}
+                <select
+                  id="month-start-day"
+                  aria-label={t.settings.startDayTitle}
+                  value={startDay}
+                  onChange={async (e) => {
+                    const day = clampStartDay(e.target.value);
+                    await updateSettings((s) => ({ ...s, monthStartDay: day }));
+                    setMonth(currentPeriod(day));
+                    toast(day === 1 ? t.settings.startDayReset : t.settings.startDayToast(day));
+                  }}
+                  className="num min-h-11 rounded-xl border border-line bg-bg px-3 py-2"
+                >
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={d}>
+                      {t.settings.startDayOption(d)}
+                    </option>
+                  ))}
+                </select>
+                {t.settings.startDayAfter}
+              </label>
+              <Hint>
+                {t.settings.startDayHint}
+                {startDay === 1
+                  ? t.settings.startDayCalendar
+                  : t.settings.startDayExample(monthLabel(example), periodRangeLabel(example, startDay))}
+              </Hint>
+            </Row>
 
-        <Card>
-          <CardTitle>{t.settings.weekStartTitle}</CardTitle>
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={t.settings.weekStartTitle}>
-            {([
-              [1, t.settings.weekStartMonday],
-              [0, t.settings.weekStartSunday],
-            ] as const).map(([day, name]) => (
-              <button
-                key={day}
-                type="button"
-                role="radio"
-                aria-checked={settings.weekStartDay === day}
-                onClick={async () => {
-                  if (settings.weekStartDay === day) return;
+            <Row title={t.settings.weekStartTitle}>
+              <Choice
+                label={t.settings.weekStartTitle}
+                value={settings.weekStartDay}
+                options={[
+                  { value: 1, name: t.settings.weekStartMonday },
+                  { value: 0, name: t.settings.weekStartSunday },
+                ]}
+                onChoose={async (day, name) => {
                   await updateSettings((s) => ({ ...s, weekStartDay: day }));
                   toast(t.settings.weekStartToast(name));
                 }}
-                className={cx("rounded-lg py-2 text-sm font-bold", settings.weekStartDay === day ? "bg-surface text-ink shadow-sm" : "text-muted")}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-muted">{t.settings.weekStartHint}</p>
-        </Card>
+              />
+              <Hint>{t.settings.weekStartHint}</Hint>
+            </Row>
 
-        <Card>
-          <CardTitle>{t.settings.currencyTitle}</CardTitle>
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={t.settings.currencyTitle}>
-            {currencies().map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                role="radio"
-                aria-checked={settings.currency === c.id}
-                onClick={async () => {
-                  if (settings.currency === c.id) return;
-                  await updateSettings((s) => ({ ...s, currency: normalizeCurrency(c.id) }));
+            <Row title={t.settings.currencyTitle}>
+              <Choice
+                label={t.settings.currencyTitle}
+                value={settings.currency}
+                options={currencies().map((c) => ({ value: c.id, name: `${c.symbol} ${c.name}` }))}
+                onChoose={async (id) => {
+                  const c = currencies().find((x) => x.id === id)!;
+                  await updateSettings((s) => ({ ...s, currency: normalizeCurrency(id) }));
                   toast(t.settings.currencyToast(c.symbol, c.name));
                 }}
-                className={cx(
-                  "rounded-lg py-2 text-sm font-bold",
-                  settings.currency === c.id ? "bg-surface text-ink shadow-sm" : "text-muted",
-                )}
-              >
-                {c.symbol} {c.name}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-muted">{t.settings.currencyHint}</p>
-        </Card>
+              />
+              <Hint>{t.settings.currencyHint}</Hint>
+            </Row>
 
-        <Card>
-          <CardTitle>{t.settings.timeZoneTitle}</CardTitle>
-          <div id="time-zone" className="grid scroll-mt-24 grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={t.settings.timeZoneTitle}>
-            {timeZones().map((z) => (
-              <button
-                key={z.id}
-                type="button"
-                role="radio"
-                aria-checked={settings.timeZone === z.id}
-                onClick={async () => {
-                  if (settings.timeZone === z.id) return;
-                  await updateSettings((s) => ({ ...s, timeZone: z.id }));
-                  toast(t.settings.timeZoneToast(z.name));
+            <Row title={t.settings.timeZoneTitle} id="time-zone">
+              <Choice
+                label={t.settings.timeZoneTitle}
+                value={settings.timeZone}
+                options={timeZones().map((z) => ({ value: z.id, name: z.name }))}
+                onChoose={async (id, name) => {
+                  await updateSettings((s) => ({ ...s, timeZone: id }));
+                  toast(t.settings.timeZoneToast(name));
                 }}
-                className={cx(
-                  "rounded-lg py-2 text-sm font-bold",
-                  settings.timeZone === z.id ? "bg-surface text-ink shadow-sm" : "text-muted",
-                )}
-              >
-                {z.name}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-muted">{t.settings.timeZoneHint}</p>
-        </Card>
+              />
+              <Hint>{t.settings.timeZoneHint}</Hint>
+            </Row>
 
-        <Card>
-          <CardTitle>{t.settings.languageTitle}</CardTitle>
-          <div id="language" className="grid scroll-mt-24 grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={t.settings.languageTitle}>
-            {LANGUAGES.map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                role="radio"
-                lang={l.id}
-                aria-checked={language === l.id}
-                onClick={() => void chooseLanguage(l.id)}
-                className={cx(
-                  "rounded-lg py-2 text-sm font-bold",
-                  language === l.id ? "bg-surface text-ink shadow-sm" : "text-muted",
-                )}
-              >
-                {l.name}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-muted">{t.settings.languageHint}</p>
-        </Card>
+            <Row title={t.settings.languageTitle} id="language">
+              <Choice
+                label={t.settings.languageTitle}
+                value={settings.language ? language : null}
+                options={LANGUAGES.map((l) => ({ value: l.id, name: l.name, lang: l.id }))}
+                onChoose={(l) => void chooseLanguage(l)}
+                checked={(l) => language === l}
+              />
+              <Hint>{t.settings.languageHint}</Hint>
+            </Row>
+          </Card>
+        </Section>
 
-        <Card>
-          <CardTitle>{t.settings.secretModeTitle}</CardTitle>
-          <SecretModeSetting />
-        </Card>
-
-        <SavingsSettings />
-
-        {receipts && canReadReceipts && (
+        <Section id="savings">
+          <SavingsSettings />
           <Card>
-            <CardTitle>{t.settings.autoReadTitle}</CardTitle>
-            <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={t.settings.autoReadTitle}>
-              {([
-                [true, t.settings.autoReadOn],
-                [false, t.settings.autoReadOff],
-              ] as const).map(([on, name]) => (
-                <button
-                  key={String(on)}
-                  type="button"
-                  role="radio"
-                  aria-checked={settings.autoReadReceipts === on}
-                  onClick={async () => {
-                    if (settings.autoReadReceipts === on) return;
-                    await updateSettings((s) => ({ ...s, autoReadReceipts: on }));
-                    toast(t.settings.autoReadToast(on));
-                  }}
-                  className={cx("rounded-lg py-2 text-sm font-bold", settings.autoReadReceipts === on ? "bg-surface text-ink shadow-sm" : "text-muted")}
-                >
-                  {name}
-                </button>
-              ))}
+            <CardTitle>{t.settings.secretModeTitle}</CardTitle>
+            <SecretModeSetting />
+          </Card>
+        </Section>
+
+        <Section id="links">
+          {receipts && canReadReceipts && (
+            <Card>
+              <CardTitle>{t.settings.autoReadTitle}</CardTitle>
+              <Choice
+                label={t.settings.autoReadTitle}
+                value={settings.autoReadReceipts}
+                options={[
+                  { value: true, name: t.settings.autoReadOn },
+                  { value: false, name: t.settings.autoReadOff },
+                ]}
+                onChoose={async (on) => {
+                  await updateSettings((s) => ({ ...s, autoReadReceipts: on }));
+                  toast(t.settings.autoReadToast(on));
+                }}
+              />
+              <Hint>{t.settings.autoReadHint}</Hint>
+            </Card>
+          )}
+
+          <WalletImportSettings />
+
+          <Card>
+            <CardTitle>{t.settings.dataTitle}</CardTitle>
+            <p className="mb-2.5 text-sm">{storeKind === "supabase" ? t.settings.dataCloud : t.settings.dataLocal}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={seed}>{t.settings.addSamples}</Button>
+              <Button
+                variant="danger"
+                disabled={!sampleCount}
+                onClick={async () => {
+                  try {
+                    await deleteSamples();
+                    toast(t.settings.samplesDeleted);
+                  } catch {
+                    toast(t.settings.samplesDeleteFailed);
+                  }
+                }}
+              >
+                {t.settings.deleteSamples(sampleCount)}
+              </Button>
             </div>
-            <p className="mt-2 text-xs text-muted">{t.settings.autoReadHint}</p>
           </Card>
-        )}
 
-        <WalletImportSettings />
-
-        <Card>
-          <CardTitle>{t.settings.dataTitle}</CardTitle>
-          <p className="mb-2.5 text-sm">
-            {storeKind === "supabase"
-              ? t.settings.dataCloud
-              : t.settings.dataLocal}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={seed}>{t.settings.addSamples}</Button>
-            <Button
-              variant="danger"
-              disabled={!sampleCount}
-              onClick={async () => {
-                try {
-                  await deleteSamples();
-                  toast(t.settings.samplesDeleted);
-                } catch {
-                  toast(t.settings.samplesDeleteFailed);
-                }
-              }}
-            >
-              {t.settings.deleteSamples(sampleCount)}
-            </Button>
-          </div>
-        </Card>
-
-        {storeKind === "supabase" && (
-          <Card>
-            <CardTitle>{t.settings.accountTitle}</CardTitle>
-            <Button
-              onClick={async () => {
-                await createClient().auth.signOut();
-                router.replace("/login");
-                router.refresh();
-              }}
-            >
-              {t.settings.signOut}
-            </Button>
-          </Card>
-        )}
+          {storeKind === "supabase" && (
+            <Card>
+              <CardTitle>{t.settings.accountTitle}</CardTitle>
+              <Button
+                onClick={async () => {
+                  await createClient().auth.signOut();
+                  router.replace("/login");
+                  router.refresh();
+                }}
+              >
+                {t.settings.signOut}
+              </Button>
+            </Card>
+          )}
+        </Section>
       </div>
+    </div>
+  );
+}
+
+const SECTIONS = ["budget", "display", "savings", "links"] as const;
+type SectionId = (typeof SECTIONS)[number];
+
+/** Buttons that jump to each group of settings; on a phone the groups are far apart. */
+function SectionNav() {
+  const t = useT();
+  return (
+    <div role="group" aria-label={t.settings.sectionsLabel} className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 lg:hidden">
+      {SECTIONS.map((id) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => document.getElementById(`settings-${id}`)?.scrollIntoView({ block: "start", behavior: "smooth" })}
+          className="min-h-11 flex-none rounded-full border border-line bg-surface px-2.5 text-xs font-bold text-muted hover:bg-surface-2"
+        >
+          {t.settings.sections[id]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Section({ id, children }: { id: SectionId; children: React.ReactNode }) {
+  const t = useT();
+  const headingId = `settings-${id}`;
+  return (
+    <section aria-labelledby={headingId} className="mb-3.5 grid break-inside-avoid gap-3.5">
+      <h2 id={headingId} className="scroll-mt-20 px-1 pt-1 text-base font-bold">
+        {t.settings.sections[id]}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+/** One setting inside a card that holds several, with a line between them. */
+function Row({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
+  return (
+    <div id={id} className="scroll-mt-24 border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0">
+      <h3 className="mb-2.5 text-[13px] font-bold tracking-wide text-muted">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function Hint({ children }: { children: React.ReactNode }) {
+  return <p className="mt-2 text-xs text-muted">{children}</p>;
+}
+
+/** Two-way switch: the option picked looks raised. Picking the one already on does nothing. */
+function Choice<V extends string | number | boolean>({
+  label,
+  value,
+  options,
+  onChoose,
+  checked = (v) => v === value,
+}: {
+  label: string;
+  value: V | null;
+  options: { value: V; name: string; lang?: string }[];
+  onChoose: (value: V, name: string) => void;
+  checked?: (value: V) => boolean;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <button
+          key={String(o.value)}
+          type="button"
+          role="radio"
+          lang={o.lang}
+          aria-checked={checked(o.value)}
+          onClick={() => {
+            if (o.value === value) return;
+            onChoose(o.value, o.name);
+          }}
+          className={cx("min-h-10 rounded-lg py-2 text-sm font-bold", checked(o.value) ? "bg-surface text-ink shadow-sm" : "text-muted")}
+        >
+          {o.name}
+        </button>
+      ))}
     </div>
   );
 }

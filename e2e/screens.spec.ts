@@ -69,6 +69,26 @@ test("a category row on the analysis screen opens its records", async ({ page })
   await expect(page.getByText("スーパー")).toBeHidden();
 });
 
+test("the category table folds fixed costs and unused budgets so it stays short", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("button", { name: "サンプルを入れる" }).click();
+  await expect(page.getByText("まだ記録がありません")).toBeHidden();
+  await nav(page).getByRole("button", { name: "分析", exact: true }).click();
+
+  // A budget nothing was spent on is listed on the last line, not as a row of its own
+  await expect(page.getByText(/^まだ使っていない：.*医療 ¥5,000/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /^医療/ })).toBeHidden();
+
+  // The fixed costs are one row that opens to show each of them
+  const fixed = page.getByRole("button", { name: /^固定費（\d件）/ });
+  const opened = page.getByRole("listitem").filter({ has: fixed }).getByRole("listitem");
+  await expect(fixed).toHaveAttribute("aria-expanded", "false");
+  await expect(opened).toHaveCount(0);
+  await fixed.click();
+  await expect(fixed).toHaveAttribute("aria-expanded", "true");
+  await expect(opened.filter({ hasText: "住居" })).toBeVisible();
+});
+
 test("the month arrows move between months", async ({ page }) => {
   await openApp(page);
   await expect(page.getByText("2026年10月").first()).toBeVisible();

@@ -106,3 +106,13 @@ html[data-lang-pending] body {
     display: none;
   }
 }
+
+/* Makes a small button easier to tap (44px or more) without changing how it looks or its layout. */
+@utility hit {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+}

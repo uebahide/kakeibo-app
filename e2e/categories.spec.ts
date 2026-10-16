@@ -3,6 +3,8 @@ import { addExpense, expect, nav, openApp, openEntry, test } from "./fixtures";
 
 async function openCategories(page: Page) {
   await nav(page).getByRole("button", { name: "設定", exact: true }).click();
+  // The list starts closed
+  await page.getByRole("button", { name: "並び替え・編集" }).click();
   return page.getByRole("list", { name: "カテゴリ" });
 }
 
