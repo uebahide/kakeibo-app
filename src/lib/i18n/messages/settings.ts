@@ -39,6 +39,11 @@ export const ja = {
   languageToast: "表示を日本語にしました",
   languageHint: "画面の表示言語です。AI分析の答えもこの言語になります。",
 
+  autoReadTitle: "レシートの読み取り",
+  autoReadOn: "写真を付けたら自動",
+  autoReadOff: "ボタンを押したとき",
+  autoReadToast: (on: boolean): string => (on ? "レシートの写真を付けたら自動で読み取ります" : "レシートは「Claude で読み取る」を押したときに読み取ります"),
+  autoReadHint: "自動にすると、写真を付けたときに合計・カテゴリごとの内訳・店名が入ります。金額は入力済みでもレシートの合計にします。手で分けた内訳はそのまま残します。1枚読むごとに API の費用がかかります。",
   secretModeTitle: "シークレットモード",
 
   dataTitle: "データ",
@@ -88,6 +93,11 @@ export const en: typeof ja = {
   languageToast: "Switched to English",
   languageHint: "The language of the app. AI analysis answers in it too.",
 
+  autoReadTitle: "Reading receipts",
+  autoReadOn: "When a photo is added",
+  autoReadOff: "When I tap the button",
+  autoReadToast: (on: boolean) => (on ? "Receipts are read as soon as a photo is added" : "Receipts are read when you tap “Read with Claude”"),
+  autoReadHint: "When automatic, adding a photo fills in the total, the parts per category and the shop name. The amount becomes the receipt total even if you entered one; parts you split by hand are kept. Each photo read costs a little API usage.",
   secretModeTitle: "Secret mode",
 
   dataTitle: "Data",
