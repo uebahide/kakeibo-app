@@ -1,4 +1,4 @@
-import type { Transaction } from "./types";
+import type { NewTransaction, Transaction } from "./types";
 
 /** A line in a list of records: one record, or the records one payment was split into. */
 export type Entry = {
@@ -40,3 +40,26 @@ export function groupSplits(list: Transaction[]): Entry[] {
 
 /** A new id shared by the records of a split payment. */
 export const newSplitId = () => crypto.randomUUID();
+
+/** One part of a payment to save: its category, amount and note. */
+export type PartInput = { category: string; amount: number; note: string };
+
+/**
+ * The writes that turn the records of a payment (`group`, first part first; empty for a new payment)
+ * into `parts`: existing records are reused in order, missing ones added, and extra ones deleted.
+ * `base` holds the fields every part shares (date, memo, receipt…). Several parts share a split id.
+ */
+export function splitWrites(group: Transaction[], parts: PartInput[], base: NewTransaction) {
+  const splitId = parts.length > 1 ? (group.find((p) => p.splitId)?.splitId ?? newSplitId()) : undefined;
+  const items = parts.map((p): NewTransaction => {
+    const item: NewTransaction = { ...base, category: p.category, amount: p.amount };
+    delete item.splitId;
+    delete item.note;
+    return splitId ? { ...item, splitId, ...(p.note.trim() ? { note: p.note.trim().slice(0, 40) } : {}) } : item;
+  });
+  return {
+    updates: items.slice(0, group.length).map((item, i) => ({ id: group[i].id, item })),
+    adds: items.slice(group.length),
+    deletes: group.slice(items.length).map((p) => p.id),
+  };
+}

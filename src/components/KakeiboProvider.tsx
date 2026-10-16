@@ -32,6 +32,8 @@ type Ctx = {
   storeKind: KakeiboStore["kind"];
   /** Receipt photos; only when signed in. */
   receipts?: ReceiptStore;
+  /** Whether "Read with Claude" is offered for a receipt photo. */
+  canReadReceipts: boolean;
   transactions: Transaction[];
   settings: Settings;
   month: string;
@@ -50,6 +52,8 @@ type Ctx = {
   deleteCategory: (id: string, moveTo: string) => Promise<void>;
   updateSettings: (change: (s: Settings) => Settings) => Promise<void>;
   toast: (msg: string) => void;
+  /** Load every record again when the app comes back to the front (Claude may change records in claude.ai meanwhile). */
+  reloadOnReturn: () => void;
   toastMessage: string | null;
   /** Savings amounts masked as ***** on this device (a screen-privacy aid, like hiding a balance). */
   savingsHidden: boolean;
@@ -80,7 +84,8 @@ export function useKakeibo(): Ctx {
 const byNewest = (a: Transaction, b: Transaction) =>
   b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt);
 
-export function KakeiboProvider({ children }: { children: ReactNode }) {
+/** `canReadReceipts`: the server has a Claude API key, so the app can read receipt photos itself. */
+export function KakeiboProvider({ children, canReadReceipts = false }: { children: ReactNode; canReadReceipts?: boolean }) {
   const store = useMemo<KakeiboStore>(
     () => (isSupabaseConfigured ? createSupabaseStore(createClient()) : createLocalStore()),
     [],
@@ -161,6 +166,10 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
   // Payments recorded from the iPhone Wallet arrive while the app sits in the background, so pick up
   // records created since the newest one shown whenever the app comes back to the front.
   const newestRef = useRef("");
+  const reloadRef = useRef(false);
+  const reloadOnReturn = useCallback(() => {
+    reloadRef.current = true;
+  }, []);
   const transactionsRef = useRef(transactions);
   useEffect(() => {
     transactionsRef.current = transactions;
@@ -171,6 +180,16 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     const loadNew = store.loadNewTransactions;
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
+      if (reloadRef.current) {
+        reloadRef.current = false;
+        store
+          .load()
+          .then((data) => setTransactions(data.transactions.sort(byNewest)))
+          .catch(() => {
+            // offline: keep showing what we have
+          });
+        return;
+      }
       loadNew(newestRef.current || new Date(0).toISOString())
         .then((created) => {
           if (!created.length) return;
@@ -302,6 +321,7 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     loadError,
     storeKind: store.kind,
     receipts: store.receipts,
+    canReadReceipts,
     transactions,
     settings,
     month,
@@ -318,6 +338,7 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     deleteCategory,
     updateSettings,
     toast,
+    reloadOnReturn,
     toastMessage,
     savingsHidden,
     hideSavings,
