@@ -69,10 +69,9 @@ test("an app category can be renamed, hidden and reset", async ({ page }) => {
 test("the order set in Settings is the order on the entry sheet", async ({ page }) => {
   await openApp(page);
   const list = await openCategories(page);
-  await list.getByRole("button", { name: "交通を上へ" }).click();
-  await list.getByRole("button", { name: "交通を上へ" }).click();
+  for (let i = 0; i < 3; i++) await list.getByRole("button", { name: "交通を上へ" }).click();
   await expect(list.getByRole("listitem").first()).toHaveAccessibleName("交通");
-  expect((await entryCategories(page)).slice(0, 3)).toEqual(["交通", "食費", "日用品"]);
+  expect((await entryCategories(page)).slice(0, 3)).toEqual(["交通", "食費", "嗜好品"]);
 });
 
 test("deleting an added category moves its records to the chosen one", async ({ page }) => {

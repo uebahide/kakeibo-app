@@ -54,6 +54,8 @@ describe("Wallet amounts", () => {
     expect(categoryHint("LIDL Budapest")).toBe("food");
     expect(categoryHint("NETFLIX.COM")).toBe("subscription");
     expect(categoryHint("SEPHORA Arena")).toBe("cosmetics");
+    expect(categoryHint("Nemzeti Dohánybolt")).toBe("treats");
+    expect(categoryHint("KAKUYASU Shibuya")).toBe("treats");
     expect(categoryHint("dm drogerie")).toBe("daily");
     expect(categoryHint("BKK automata")).toBe("transport");
     expect(categoryHint("Unknown shop")).toBeNull();
