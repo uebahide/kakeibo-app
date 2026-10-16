@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { categoriesOf, getCategory, withCurrent } from "@/lib/categories";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FALLBACK_CATEGORY, categoriesOf, getCategory, withCurrent } from "@/lib/categories";
 import { today } from "@/lib/date";
 import { currentPeriod, periodOf, periodStart } from "@/lib/period";
 import { currencySymbol, formatAmountInput, parseAmount, yen } from "@/lib/format";
 import { newSplitId, splitParts } from "@/lib/split";
+import { shrinkPhoto } from "@/lib/photo";
+import { receiptParts, type ReceiptReading } from "@/lib/receipt";
 import { quickPicks } from "@/lib/stats";
 import type { NewTransaction, Transaction, TxType } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
-import { useT } from "./LanguageProvider";
+import { useLanguage, useT } from "./LanguageProvider";
+import { ReceiptPhoto } from "./ReceiptPhoto";
 import { Button, Stamp, cx } from "./ui";
 
 export function EntrySheet() {
@@ -20,11 +23,12 @@ export function EntrySheet() {
 }
 
 function EntryForm({ onClose }: { onClose: () => void }) {
-  const { entry, transactions, settings, month, setMonth, addTransactions, updateTransaction, deleteTransaction, toast } = useKakeibo();
+  const { entry, transactions, settings, month, setMonth, addTransactions, updateTransaction, deleteTransaction, toast, receipts } = useKakeibo();
   // A split payment is edited as a whole: its first part is the one shown, the others are its extra parts.
   const [group] = useState(() => (entry.editing ? splitParts(transactions, entry.editing) : []));
   const editing = group[0] ?? null;
   const t = useT();
+  const language = useLanguage();
   const [type, setType] = useState<TxType>(editing?.type ?? entry.type ?? "expense");
   const [category, setCategory] = useState(editing?.category ?? categoriesOf(type)[0].id);
   const [amount, setAmount] = useState(editing ? group.reduce((s, p) => s + p.amount, 0).toLocaleString("ja-JP") : "");
@@ -41,15 +45,116 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
 
+  // The receipt photo. A photo is saved as soon as it is picked; one picked here and never saved with
+  // the record (the sheet was closed, or the photo was replaced) is deleted again.
+  const savedReceipt = editing?.receiptId;
+  const [receiptId, setReceiptId] = useState(savedReceipt);
+  const [photoSrc, setPhotoSrc] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [readDone, setReadDone] = useState(false);
+  // "Sort it out later": save the record as one to check (only offered for an unsplit record with a photo).
+  const [later, setLater] = useState(false);
+  const unsaved = useRef(new Set<string>());
+  const dropReceipt = useCallback((id: string) => void receipts?.remove(id).catch(() => {}), [receipts]);
+  const dropUnsaved = useCallback(
+    (keep?: string) => {
+      for (const id of unsaved.current) if (id !== keep) dropReceipt(id);
+      unsaved.current.clear();
+    },
+    [dropReceipt],
+  );
+  const cancel = useCallback(() => {
+    dropUnsaved();
+    onClose();
+  }, [dropUnsaved, onClose]);
+
+  useEffect(() => {
+    if (!receiptId || !receipts || unsaved.current.has(receiptId)) return;
+    let stale = false;
+    receipts
+      .photoUrl(receiptId)
+      .then((url) => !stale && setPhotoSrc(url))
+      .catch(() => !stale && toast(t.receipt.photoFailed));
+    return () => {
+      stale = true;
+    };
+  }, [receiptId, receipts, toast, t]);
+
   useEffect(() => {
     const timer = setTimeout(() => amountRef.current?.focus(), 30);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && cancel();
     window.addEventListener("keydown", onKey);
     return () => {
       clearTimeout(timer);
       window.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, [cancel]);
+
+  async function pickPhoto(file: File) {
+    if (!receipts) return;
+    setUploading(true);
+    try {
+      const photo = await shrinkPhoto(file);
+      const id = await receipts.upload(photo);
+      if (receiptId && unsaved.current.delete(receiptId)) dropReceipt(receiptId);
+      unsaved.current.add(id);
+      setReceiptId(id);
+      setPhotoSrc(URL.createObjectURL(photo));
+      setReadDone(false);
+      if (!editing) setLater(true);
+    } catch {
+      toast(t.receipt.uploadFailed);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removePhoto() {
+    if (receiptId && unsaved.current.delete(receiptId)) dropReceipt(receiptId);
+    setReceiptId(undefined);
+    setPhotoSrc(null);
+    setReadDone(false);
+    setLater(false);
+  }
+
+  async function readReceipt() {
+    if (!receiptId) return;
+    setReading(true);
+    try {
+      const res = await fetch("/api/ai/receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          receiptId,
+          categories: categoriesOf("expense").map((c) => ({ id: c.id, name: c.name })),
+          fallback: FALLBACK_CATEGORY.expense,
+          language,
+          again: readDone,
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { result?: ReceiptReading; error?: string };
+      const proposed = body.result ? receiptParts(body.result) : [];
+      if (!res.ok || !proposed.length) throw new Error(body.error ?? t.receipt.readFailed);
+      const sum = proposed.reduce((s, p) => s + p.amount, 0);
+      if (total && total !== sum) toast(t.receipt.totalChanged(yen(total), yen(sum)));
+      else toast(t.receipt.applied(proposed.length));
+      // Fill the sheet: the largest part is the category picked above, the others are its extra parts
+      // (reusing the records an edited split payment already has).
+      setType("expense");
+      setAmount(sum.toLocaleString("ja-JP"));
+      setCategory(proposed[0].category);
+      setMainNote(proposed.length > 1 ? proposed[0].note : "");
+      setParts(proposed.slice(1).map((p, i) => ({ id: parts[i]?.id, category: p.category, amount: p.amount.toLocaleString("ja-JP"), note: p.note })));
+      if (!memo.trim() && body.result?.store) setMemo(body.result.store.slice(0, 60));
+      setLater(false);
+      setReadDone(true);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : t.receipt.readFailed);
+    } finally {
+      setReading(false);
+    }
+  }
 
   const picks = useMemo(() => quickPicks(transactions, type), [transactions, type]);
   const memoOptions = useMemo(
@@ -91,8 +196,9 @@ function EntryForm({ onClose }: { onClose: () => void }) {
       outsideBudget: type === "expense" && outsideBudget,
       ...(splitId ? { splitId } : {}),
       isSample: editing?.isSample ?? false,
-      // saving an automatic record confirms it
-      ...(group.some((p) => p.needsReview) ? { needsReview: false } : {}),
+      ...(receiptId ? { receiptId } : {}),
+      // saving an automatic record confirms it; a record with its receipt can be kept to sort out later
+      ...(later && receiptId && !parts.length ? { needsReview: true } : group.some((p) => p.needsReview) ? { needsReview: false } : {}),
     };
     // Each record with the id it already has (none for a new one).
     const withNote = (item: NewTransaction, note: string): NewTransaction =>
@@ -109,16 +215,22 @@ function EntryForm({ onClose }: { onClose: () => void }) {
         // One at a time, so each part gets a later creation time and the parts keep their order.
         for (const [id, item] of items) if (!id) await addTransactions([item]);
         for (const p of group) if (!kept.has(p.id)) await deleteTransaction(p.id);
+        receiptSaved();
         toast(t.entry.updated);
         onClose();
       } else {
         for (const [, item] of items) await addTransactions([item]);
+        receiptSaved();
         toast(parts.length ? t.entry.recordedSplit(items.length, yen(value)) : t.entry.recorded(getCategory(category).name, yen(value)));
         if (keepOpen) {
           setAmount("");
           setMemo("");
           setParts([]);
           setMainNote("");
+          setReceiptId(undefined);
+          setPhotoSrc(null);
+          setReadDone(false);
+          setLater(false);
           amountRef.current?.focus();
         } else onClose();
       }
@@ -130,6 +242,12 @@ function EntryForm({ onClose }: { onClose: () => void }) {
     }
   }
 
+  /** After saving: the photo now on the record is kept; any other picked here, or the one it replaced, is deleted. */
+  function receiptSaved() {
+    dropUnsaved(receiptId);
+    if (savedReceipt && savedReceipt !== receiptId) dropReceipt(savedReceipt);
+  }
+
   async function remove() {
     if (!editing) return;
     if (!confirmDelete) {
@@ -139,6 +257,8 @@ function EntryForm({ onClose }: { onClose: () => void }) {
     setBusy(true);
     try {
       for (const p of group) await deleteTransaction(p.id);
+      dropUnsaved();
+      if (savedReceipt) dropReceipt(savedReceipt);
       toast(t.entry.deleted);
       onClose();
     } catch {
@@ -155,7 +275,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim lg:items-center" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim lg:items-center" onClick={(e) => e.target === e.currentTarget && cancel()}>
       <div
         role="dialog"
         aria-modal="true"
@@ -165,12 +285,14 @@ function EntryForm({ onClose }: { onClose: () => void }) {
         <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-line lg:hidden" />
         <div className="mb-2.5 flex items-center justify-between">
           <b id="entry-title">{editing ? t.entry.editTitle : t.common.write}</b>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={cancel}>
             {t.common.close}
           </Button>
         </div>
 
-        {editing?.needsReview && <p className="mb-2.5 rounded-xl bg-accent-soft px-3 py-2 text-xs">{t.wallet.sheetNote}</p>}
+        {editing?.needsReview && (
+          <p className="mb-2.5 rounded-xl bg-accent-soft px-3 py-2 text-xs">{editing.source === "wallet" ? t.wallet.sheetNote : t.receipt.laterNote}</p>
+        )}
 
         <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
           {(["expense", "income"] as const).map((k) => (
@@ -240,6 +362,21 @@ function EntryForm({ onClose }: { onClose: () => void }) {
           <button type="button" onClick={addPart} className="mt-2 px-1 py-1.5 text-[13px] font-medium text-accent">
             {t.entry.split}
           </button>
+        )}
+
+        {receipts && type === "expense" && (
+          <ReceiptPhoto
+            src={photoSrc}
+            hasPhoto={Boolean(receiptId)}
+            uploading={uploading}
+            reading={reading}
+            read={readDone}
+            onPick={pickPhoto}
+            onRemove={removePhoto}
+            onRead={readReceipt}
+            later={parts.length ? null : later}
+            onLater={setLater}
+          />
         )}
 
         {type === "expense" && (

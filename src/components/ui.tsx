@@ -114,6 +114,7 @@ export function TxRow({ tx, parts = [tx], onClick, showDate = true }: { tx: Tran
           {tx.outsideBudget && <span className="ml-1.5 rounded bg-warn-soft px-1 align-[1px] text-[10px] font-bold text-warn">{t.common.outsideBudget}</span>}
           {parts.some((p) => p.needsReview) && <span className="ml-1.5 rounded bg-accent-soft px-1 align-[1px] text-[10px] font-bold text-accent">{t.common.needsReview}</span>}
           {(split || tx.splitId) && <span className="ml-1.5 rounded bg-surface-2 px-1 align-[1px] text-[10px] font-bold text-muted">{t.common.split}</span>}
+          {tx.receiptId && <span className="ml-1.5 rounded bg-surface-2 px-1 align-[1px] text-[10px] font-bold text-muted">{t.common.receipt}</span>}
         </span>
         {/* a split payment lists its parts one per line, so none is cut off on a phone */}
         {split &&

@@ -24,6 +24,8 @@ export type Transaction = {
   splitId?: string;
   /** a short note on one part of a split payment (e.g. シャンプー) */
   note?: string;
+  /** the receipt photo of the payment (shared by all parts of a split payment) */
+  receiptId?: string;
   isSample: boolean;
   createdAt: string;
 };

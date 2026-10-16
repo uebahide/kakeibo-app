@@ -32,8 +32,9 @@ export const ja = {
   stepsNote:
     "タップ決済のたびに記入されます。初めての店はカテゴリを推測して「要確認」になり、一度確定した店は次から同じカテゴリで記入されます。別の通貨の支払いは換算せず、要確認として記入します。",
 
-  reviewTitle: (n: number) => `確認待ちの自動記入（${n}件）`,
+  reviewTitle: (n: number) => `確認待ちの記録（${n}件）`,
   reviewHint: "iPhoneから自動で記入した支払いです。カテゴリが合っていれば「OK」、違えばタップして直してください。",
+  reviewHintReceipt: "あとで整理するレシート付きの記録です。タップして写真を見ながら直すか、そのままでよければ「OK」。",
   ok: "OK",
   okAll: "すべてOK",
   confirmed: "確定しました",
@@ -74,8 +75,9 @@ export const en: typeof ja = {
   stepsNote:
     "Every tap-to-pay payment is recorded. A new shop gets a guessed category and is marked to check; once you confirm a shop, it gets the same category from then on. Payments in another currency aren't converted and are marked to check.",
 
-  reviewTitle: (n: number) => `Auto-recorded, to check (${n})`,
+  reviewTitle: (n: number) => `Records to check (${n})`,
   reviewHint: "Payments recorded from your iPhone. Tap OK if the category is right, or tap the payment to fix it.",
+  reviewHintReceipt: "Records saved with a receipt photo to sort out later. Tap one to fix it while looking at the photo, or tap OK if it's fine as is.",
   ok: "OK",
   okAll: "All OK",
   confirmed: "Confirmed",
