@@ -40,3 +40,11 @@ describe("split payments", () => {
     expect(weekdayAverages([food, daily])[1] * 13).toBeCloseTo(5000);
   });
 });
+
+describe("notes on the parts", () => {
+  it("stay with their own part when the payment is grouped", () => {
+    const withNote = { ...daily, note: "シャンプー" };
+    const [entry] = groupSplits([food, withNote]);
+    expect(entry.parts.map((p) => p.note ?? "")).toEqual(["", "シャンプー"]);
+  });
+});

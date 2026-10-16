@@ -30,8 +30,9 @@ const draftOf = (id: string, change: Partial<CategoryDraft> = {}): CategoryDraft
 };
 
 describe("the app's own categories", () => {
-  it("list 14 expense and 4 income categories, with names in the display language", () => {
-    expect(categoriesOf("expense")).toHaveLength(14);
+  it("list 15 expense and 4 income categories, with names in the display language", () => {
+    expect(categoriesOf("expense")).toHaveLength(15);
+    expect(getCategory("cosmetics").name).toBe("コスメ");
     expect(ids(categoriesOf("income"))).toEqual(["salary", "bonus", "side", "income_other"]);
     expect(getCategory("food").name).toBe("食費");
     expect(getCategory("food").mark).toBe("食");
@@ -103,7 +104,7 @@ describe("hiding a category", () => {
   it("keeps a record's hidden category in its own select", () => {
     setCategories(hidden);
     expect(ids(withCurrent(categoriesOf("expense"), "clothes")).at(-1)).toBe("clothes");
-    expect(withCurrent(categoriesOf("expense"), "food")).toHaveLength(13);
+    expect(withCurrent(categoriesOf("expense"), "food")).toHaveLength(14);
   });
 
   it("drops its budget from the total", () => {

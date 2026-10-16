@@ -115,10 +115,21 @@ export function TxRow({ tx, parts = [tx], onClick, showDate = true }: { tx: Tran
           {parts.some((p) => p.needsReview) && <span className="ml-1.5 rounded bg-accent-soft px-1 align-[1px] text-[10px] font-bold text-accent">{t.common.needsReview}</span>}
           {(split || tx.splitId) && <span className="ml-1.5 rounded bg-surface-2 px-1 align-[1px] text-[10px] font-bold text-muted">{t.common.split}</span>}
         </span>
+        {/* a split payment lists its parts one per line, so none is cut off on a phone */}
+        {split &&
+          parts.map((p) => (
+            <span key={p.id} className="flex justify-between gap-2 text-[11px] text-muted">
+              <span className="truncate">
+                {getCategory(p.category).name}
+                {p.note && `（${p.note}）`}
+              </span>
+              <span className="num">{yen(p.amount)}</span>
+            </span>
+          ))}
         <span className="block truncate text-[11px] text-muted">
-          {split ? parts.map((p) => `${getCategory(p.category).name} ${yen(p.amount)}`).join(t.common.sep) : cat.name}
-          {showDate && `${t.common.sep}${dayLabel(tx.date)}`}
-          {tx.isSample && `${t.common.sep}${t.common.sample}`}
+          {[!split && `${cat.name}${tx.note ? `（${tx.note}）` : ""}`, showDate && dayLabel(tx.date), tx.isSample && t.common.sample]
+            .filter(Boolean)
+            .join(t.common.sep)}
         </span>
       </span>
       <span className={cx("num whitespace-nowrap text-base font-semibold", income && "text-good")}>

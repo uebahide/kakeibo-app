@@ -38,7 +38,7 @@ export function HistoryView() {
   const active = chips.some((c) => c.id === filter) ? filter : "all";
 
   const list = inMonth.filter(
-    (tx) => matches(tx, active) && (!q || tx.memo.toLowerCase().includes(q) || getCategory(tx.category).name.toLowerCase().includes(q)),
+    (tx) => matches(tx, active) && (!q || tx.memo.toLowerCase().includes(q) || (tx.note ?? "").toLowerCase().includes(q) || getCategory(tx.category).name.toLowerCase().includes(q)),
   );
   const groups = new Map<string, Transaction[]>();
   for (const tx of list) groups.set(tx.date, [...(groups.get(tx.date) ?? []), tx]);

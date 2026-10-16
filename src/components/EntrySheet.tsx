@@ -28,7 +28,11 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   const [type, setType] = useState<TxType>(editing?.type ?? entry.type ?? "expense");
   const [category, setCategory] = useState(editing?.category ?? categoriesOf(type)[0].id);
   const [amount, setAmount] = useState(editing ? group.reduce((s, p) => s + p.amount, 0).toLocaleString("ja-JP") : "");
-  const [parts, setParts] = useState<Part[]>(() => group.slice(1).map((p) => ({ id: p.id, category: p.category, amount: p.amount.toLocaleString("ja-JP") })));
+  const [parts, setParts] = useState<Part[]>(() =>
+    group.slice(1).map((p) => ({ id: p.id, category: p.category, amount: p.amount.toLocaleString("ja-JP"), note: p.note ?? "" })),
+  );
+  // The note on the part in the category picked above (only kept when the payment is split).
+  const [mainNote, setMainNote] = useState(editing?.note ?? "");
   const startDay = settings.monthStartDay;
   const [date, setDate] = useState(editing?.date ?? (month === currentPeriod(startDay) ? today() : periodStart(month, startDay)));
   const [memo, setMemo] = useState(editing?.memo ?? "");
@@ -64,7 +68,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   const addPart = () => {
     const used = new Set([category, ...parts.map((p) => p.category)]);
     const choices = categoriesOf(type);
-    setParts([...parts, { category: (choices.find((c) => !used.has(c.id)) ?? choices[0]).id, amount: "" }]);
+    setParts([...parts, { category: (choices.find((c) => !used.has(c.id)) ?? choices[0]).id, amount: "", note: "" }]);
   };
   const changePart = (i: number, values: Partial<Part>) => setParts(parts.map((p, j) => (j === i ? { ...p, ...values } : p)));
 
@@ -91,9 +95,11 @@ function EntryForm({ onClose }: { onClose: () => void }) {
       ...(group.some((p) => p.needsReview) ? { needsReview: false } : {}),
     };
     // Each record with the id it already has (none for a new one).
+    const withNote = (item: NewTransaction, note: string): NewTransaction =>
+      splitId && note.trim() ? { ...item, note: note.trim().slice(0, 40) } : item;
     const items: [string | undefined, NewTransaction][] = [
-      [editing?.id, base],
-      ...parts.map((p): [string | undefined, NewTransaction] => [p.id, { ...base, category: p.category, amount: parseAmount(p.amount) }]),
+      [editing?.id, withNote(base, mainNote)],
+      ...parts.map((p): [string | undefined, NewTransaction] => [p.id, withNote({ ...base, category: p.category, amount: parseAmount(p.amount) }, p.note)]),
     ];
     setBusy(true);
     try {
@@ -112,6 +118,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
           setAmount("");
           setMemo("");
           setParts([]);
+          setMainNote("");
           amountRef.current?.focus();
         } else onClose();
       }
@@ -222,6 +229,8 @@ function EntryForm({ onClose }: { onClose: () => void }) {
             rest={rest}
             total={total}
             parts={parts}
+            mainNote={mainNote}
+            onMainNote={setMainNote}
             current={group.slice(1)}
             onChange={changePart}
             onRemove={(i) => setParts(parts.filter((_, j) => j !== i))}
@@ -327,7 +336,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-type Part = { id?: string; category: string; amount: string };
+type Part = { id?: string; category: string; amount: string; note: string };
 
 /** The other parts of a split payment; the category picked above takes the rest of the total. */
 function SplitParts(props: {
@@ -336,6 +345,8 @@ function SplitParts(props: {
   rest: number;
   total: number;
   parts: Part[];
+  mainNote: string;
+  onMainNote: (note: string) => void;
   current: Transaction[];
   onChange: (i: number, values: Partial<Part>) => void;
   onRemove: (i: number) => void;
@@ -343,6 +354,7 @@ function SplitParts(props: {
 }) {
   const t = useT();
   const field = "min-w-0 rounded-xl border border-line bg-bg px-2.5 py-2";
+  const noteField = "mb-2.5 w-full min-w-0 rounded-xl border border-line bg-bg px-2.5 py-1.5 text-sm";
   return (
     <section className="mt-2.5 rounded-xl bg-surface-2 p-2.5" aria-label={t.entry.splitTitle}>
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 px-1 pb-2 text-sm">
@@ -353,37 +365,55 @@ function SplitParts(props: {
           {yen(props.rest)}
         </span>
       </div>
+      <input
+        aria-label={t.entry.splitNote(1)}
+        value={props.mainNote}
+        maxLength={40}
+        onChange={(e) => props.onMainNote(e.target.value)}
+        placeholder={t.entry.splitNotePlaceholder}
+        className={noteField}
+      />
       {props.parts.map((p, i) => (
-        <div key={i} className="grid grid-cols-[1fr_7.5rem_auto] items-center gap-1.5 pb-1.5">
-          <select
-            aria-label={t.entry.splitCategory(i + 2)}
-            value={p.category}
-            onChange={(e) => props.onChange(i, { category: e.target.value })}
-            className={field}
-          >
-            {withCurrent(categoriesOf(props.type), props.current.find((c) => c.id === p.id)?.category).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+        <div key={i}>
+          <div className="grid grid-cols-[1fr_7.5rem_auto] items-center gap-1.5 pb-1.5">
+            <select
+              aria-label={t.entry.splitCategory(i + 2)}
+              value={p.category}
+              onChange={(e) => props.onChange(i, { category: e.target.value })}
+              className={field}
+            >
+              {withCurrent(categoriesOf(props.type), props.current.find((c) => c.id === p.id)?.category).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <input
+              aria-label={t.entry.splitAmount(i + 2)}
+              value={p.amount}
+              onChange={(e) => props.onChange(i, { amount: formatAmountInput(e.target.value) })}
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="0"
+              className={cx(field, "num text-right")}
+            />
+            <button
+              type="button"
+              aria-label={t.entry.splitRemove(i + 2)}
+              onClick={() => props.onRemove(i)}
+              className="grid size-9 place-items-center rounded-lg text-lg text-muted hover:bg-surface"
+            >
+              ×
+            </button>
+          </div>
           <input
-            aria-label={t.entry.splitAmount(i + 2)}
-            value={p.amount}
-            onChange={(e) => props.onChange(i, { amount: formatAmountInput(e.target.value) })}
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="0"
-            className={cx(field, "num text-right")}
+            aria-label={t.entry.splitNote(i + 2)}
+            value={p.note}
+            maxLength={40}
+            onChange={(e) => props.onChange(i, { note: e.target.value })}
+            placeholder={t.entry.splitNotePlaceholder}
+            className={noteField}
           />
-          <button
-            type="button"
-            aria-label={t.entry.splitRemove(i + 2)}
-            onClick={() => props.onRemove(i)}
-            className="grid size-9 place-items-center rounded-lg text-lg text-muted hover:bg-surface"
-          >
-            ×
-          </button>
         </div>
       ))}
       <button type="button" onClick={props.onAdd} className="px-1 py-1 text-[13px] font-medium text-accent">

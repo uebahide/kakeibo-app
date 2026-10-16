@@ -11,6 +11,7 @@ test("one payment can be split over categories, shown and edited as one", async 
   const split = sheet.getByRole("region", { name: "内訳" });
   await split.getByLabel("内訳2のカテゴリ").selectOption({ label: "日用品" });
   await split.getByLabel("内訳2の金額").fill("1200");
+  await split.getByLabel("内訳2の説明").fill("シャンプー");
   await expect(split.getByText("¥3,800")).toBeVisible();
   await sheet.getByRole("button", { name: "保存", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("¥5,000 を2つのカテゴリに分けて記録しました");
@@ -21,7 +22,8 @@ test("one payment can be split over categories, shown and edited as one", async 
   await nav(page).getByRole("button", { name: "履歴", exact: true }).click();
   const row = page.getByRole("button", { name: /スーパー/ });
   await expect(row).toHaveCount(1);
-  await expect(row).toContainText("食費 ¥3,800・日用品 ¥1,200");
+  await expect(row).toContainText("食費¥3,800");
+  await expect(row).toContainText("日用品（シャンプー）¥1,200");
   await expect(row).toContainText("¥5,000");
 
   // Filtering by a category shows just its part

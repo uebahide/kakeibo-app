@@ -82,6 +82,7 @@ export function createLocalStore(): KakeiboStore {
       list[i] = { ...list[i], ...item };
       // a record taken out of a split payment loses the mark
       if (!item.splitId) delete list[i].splitId;
+      if (!item.note) delete list[i].note;
       commit();
       return list[i];
     },

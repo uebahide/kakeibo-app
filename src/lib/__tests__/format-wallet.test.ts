@@ -53,6 +53,8 @@ describe("Wallet amounts", () => {
   it("guesses a category from the merchant", () => {
     expect(categoryHint("LIDL Budapest")).toBe("food");
     expect(categoryHint("NETFLIX.COM")).toBe("subscription");
+    expect(categoryHint("SEPHORA Arena")).toBe("cosmetics");
+    expect(categoryHint("dm drogerie")).toBe("daily");
     expect(categoryHint("BKK automata")).toBe("transport");
     expect(categoryHint("Unknown shop")).toBeNull();
   });
