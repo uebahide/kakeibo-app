@@ -52,6 +52,8 @@ type Ctx = {
   deleteCategory: (id: string, moveTo: string) => Promise<void>;
   updateSettings: (change: (s: Settings) => Settings) => Promise<void>;
   toast: (msg: string) => void;
+  /** Load every record again when the app comes back to the front (Claude may change records in claude.ai meanwhile). */
+  reloadOnReturn: () => void;
   toastMessage: string | null;
   /** Savings amounts masked as ***** on this device (a screen-privacy aid, like hiding a balance). */
   savingsHidden: boolean;
@@ -164,6 +166,10 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
   // Payments recorded from the iPhone Wallet arrive while the app sits in the background, so pick up
   // records created since the newest one shown whenever the app comes back to the front.
   const newestRef = useRef("");
+  const reloadRef = useRef(false);
+  const reloadOnReturn = useCallback(() => {
+    reloadRef.current = true;
+  }, []);
   const transactionsRef = useRef(transactions);
   useEffect(() => {
     transactionsRef.current = transactions;
@@ -174,6 +180,16 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     const loadNew = store.loadNewTransactions;
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
+      if (reloadRef.current) {
+        reloadRef.current = false;
+        store
+          .load()
+          .then((data) => setTransactions(data.transactions.sort(byNewest)))
+          .catch(() => {
+            // offline: keep showing what we have
+          });
+        return;
+      }
       loadNew(newestRef.current || new Date(0).toISOString())
         .then((created) => {
           if (!created.length) return;
@@ -322,6 +338,7 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     deleteCategory,
     updateSettings,
     toast,
+    reloadOnReturn,
     toastMessage,
     savingsHidden,
     hideSavings,

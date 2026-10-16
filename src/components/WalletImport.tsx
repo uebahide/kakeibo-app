@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { NewTransaction, Transaction } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
 import { useT } from "./LanguageProvider";
-import { Button, Card, CardTitle, TextButton, TxRow } from "./ui";
+import { Button, Card, CardTitle, TextButton, TxRow, buttonClass } from "./ui";
 
 type KeyInfo = { created_at: string; last_used_at: string | null };
 
@@ -157,7 +157,7 @@ export const confirmed = (tx: Transaction): NewTransaction => ({
 
 /** Home card listing automatic records that still need a look. */
 export function WalletReviewCard() {
-  const { transactions, updateTransaction, openEntry, toast } = useKakeibo();
+  const { transactions, updateTransaction, openEntry, toast, storeKind, reloadOnReturn } = useKakeibo();
   const t = useT().wallet;
   const [busy, setBusy] = useState(false);
   const pending = transactions.filter((tx) => tx.needsReview);
@@ -182,6 +182,20 @@ export function WalletReviewCard() {
       </CardTitle>
       {pending.some((tx) => tx.source === "wallet") && <p className="mb-1 text-xs text-muted">{t.reviewHint}</p>}
       {pending.some((tx) => tx.source !== "wallet") && <p className="mb-1 text-xs text-muted">{t.reviewHintReceipt}</p>}
+      {storeKind === "supabase" && pending.some((tx) => tx.receiptId) && (
+        <div className="mb-2">
+          <a
+            href={"https://claude.ai/new?q=" + encodeURIComponent(t.claudeSortPrompt)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={reloadOnReturn}
+            className={buttonClass("default")}
+          >
+            {t.claudeSort}
+          </a>
+          <p className="mt-1 text-[11px] text-muted">{t.claudeSortHint}</p>
+        </div>
+      )}
       {pending.map((tx) => (
         <div key={tx.id} className="grid grid-cols-[1fr_auto] items-center gap-2 border-t border-line first:border-t-0">
           <TxRow tx={tx} onClick={() => openEntry(tx)} />
