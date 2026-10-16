@@ -5,6 +5,7 @@ import { normalizeCurrency } from "../format";
 import { normalizeLanguage } from "../i18n";
 import { dict } from "../i18n/dict";
 import { clampStartDay } from "../period";
+import { RECEIPT_BUCKET } from "../receipt";
 import { normalizeGoal } from "../savings";
 import { normalizeWeekStart } from "../week";
 import type { NewTransaction, Settings, Transaction } from "../types";
@@ -22,6 +23,7 @@ type TxRow = {
   needs_review?: boolean;
   split_id?: string | null;
   note?: string | null;
+  receipt_id?: string | null;
   is_sample: boolean;
   created_at: string;
 };
@@ -41,6 +43,7 @@ const fromRow = (r: TxRow): Transaction => ({
   needsReview: r.needs_review ?? false,
   ...(r.split_id ? { splitId: r.split_id } : {}),
   ...(r.note ? { note: r.note } : {}),
+  ...(r.receipt_id ? { receiptId: r.receipt_id } : {}),
   isSample: r.is_sample,
   createdAt: r.created_at,
 });
@@ -58,6 +61,8 @@ const toRow = (t: NewTransaction) => ({
   // only sent for split payments, which need migration 0011
   ...(t.splitId ? { split_id: t.splitId } : {}),
   ...(t.note ? { note: t.note } : {}),
+  // only sent with a receipt photo, which needs migration 0012
+  ...(t.receiptId ? { receipt_id: t.receiptId } : {}),
   is_sample: t.isSample,
 });
 
@@ -78,6 +83,8 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
   let hasWeekStartColumn = false;
   // And the split_id and note columns (migration 0011), seen on any loaded record.
   let hasSplitColumn = false;
+  // And the receipt_id column (migration 0012).
+  let hasReceiptColumn = false;
   // And the categories column (migration 0010).
   let hasCategoriesColumn = false;
   // And the language column (migration 0007): null until known (no settings row was loaded yet).
@@ -97,6 +104,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
       ]);
       const rows = check(txRes) as TxRow[];
       hasSplitColumn = rows.some((r) => "split_id" in r);
+      hasReceiptColumn = rows.some((r) => "receipt_id" in r);
       hasStartDayColumn = Boolean(setRes.data && "month_start_day" in setRes.data);
       hasCurrencyColumn = Boolean(setRes.data && "currency" in setRes.data);
       hasTimeZoneColumn = Boolean(setRes.data && "time_zone" in setRes.data);
@@ -138,13 +146,14 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
     },
     async addTransactions(items) {
       const rows = check(await supabase.from("transactions").insert(items.map(toRow)).select(TX_COLUMNS));
+      if ((rows as TxRow[]).some((r) => "receipt_id" in r)) hasReceiptColumn = true;
       return (rows as TxRow[]).map(fromRow);
     },
     async updateTransaction(id, item) {
       const row = check(
         await supabase
           .from("transactions")
-          .update({ ...toRow(item), outside_budget: Boolean(item.outsideBudget), ...(hasSplitColumn || item.splitId ? { split_id: item.splitId ?? null, note: item.note ?? null } : {}) }).eq("id", id).select(TX_COLUMNS).single(),
+          .update({ ...toRow(item), outside_budget: Boolean(item.outsideBudget), ...(hasSplitColumn || item.splitId ? { split_id: item.splitId ?? null, note: item.note ?? null } : {}), ...(hasReceiptColumn || item.receiptId ? { receipt_id: item.receiptId ?? null } : {}) }).eq("id", id).select(TX_COLUMNS).single(),
       );
       return fromRow(row as TxRow);
     },
@@ -191,6 +200,33 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
       }
       check(res);
       loadedLastAi = settings.lastAi;
+    },
+    receipts: {
+      async upload(photo) {
+        const { data: auth } = await supabase.auth.getUser();
+        if (!auth.user) throw new Error(dict().common.sessionExpired);
+        const id = crypto.randomUUID();
+        const path = `${auth.user.id}/${id}.jpg`;
+        check(await supabase.storage.from(RECEIPT_BUCKET).upload(path, photo, { contentType: "image/jpeg" }));
+        const res = await supabase.from("receipts").insert({ id, path });
+        if (res.error) {
+          await supabase.storage.from(RECEIPT_BUCKET).remove([path]);
+          throw new Error(res.error.message);
+        }
+        return id;
+      },
+      async photoUrl(id) {
+        const row = check(await supabase.from("receipts").select("path").eq("id", id).single()) as { path: string };
+        const signed = check(await supabase.storage.from(RECEIPT_BUCKET).createSignedUrl(row.path, 60 * 60));
+        if (!signed) throw new Error("no signed url");
+        return signed.signedUrl;
+      },
+      async remove(id) {
+        const row = check(await supabase.from("receipts").select("path").eq("id", id).maybeSingle()) as { path: string } | null;
+        if (!row) return;
+        check(await supabase.storage.from(RECEIPT_BUCKET).remove([row.path]));
+        check(await supabase.from("receipts").delete().eq("id", id));
+      },
     },
     async loadLastAi() {
       const row = check(await supabase.from("user_settings").select("last_ai").maybeSingle()) as {

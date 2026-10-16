@@ -8,7 +8,7 @@ import { dict } from "@/lib/i18n/dict";
 import { currentPeriod } from "@/lib/period";
 import { createLocalStore } from "@/lib/store/local";
 import { createSupabaseStore } from "@/lib/store/supabase";
-import type { KakeiboStore } from "@/lib/store/types";
+import type { KakeiboStore, ReceiptStore } from "@/lib/store/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/client";
 import type { NewTransaction, Settings, Transaction, TxType } from "@/lib/types";
@@ -30,6 +30,8 @@ type Ctx = {
   ready: boolean;
   loadError: string | null;
   storeKind: KakeiboStore["kind"];
+  /** Receipt photos; only when signed in. */
+  receipts?: ReceiptStore;
   transactions: Transaction[];
   settings: Settings;
   month: string;
@@ -299,6 +301,7 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     ready,
     loadError,
     storeKind: store.kind,
+    receipts: store.receipts,
     transactions,
     settings,
     month,

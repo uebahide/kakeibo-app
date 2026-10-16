@@ -148,6 +148,9 @@ export const confirmed = (tx: Transaction): NewTransaction => ({
   category: tx.category,
   memo: tx.memo,
   outsideBudget: tx.outsideBudget,
+  ...(tx.splitId ? { splitId: tx.splitId } : {}),
+  ...(tx.note ? { note: tx.note } : {}),
+  ...(tx.receiptId ? { receiptId: tx.receiptId } : {}),
   isSample: tx.isSample,
   needsReview: false,
 });
@@ -177,7 +180,8 @@ export function WalletReviewCard() {
       <CardTitle action={pending.length > 1 && <TextButton disabled={busy} onClick={() => confirmItems(pending)}>{t.okAll}</TextButton>}>
         {t.reviewTitle(pending.length)}
       </CardTitle>
-      <p className="mb-1 text-xs text-muted">{t.reviewHint}</p>
+      {pending.some((tx) => tx.source === "wallet") && <p className="mb-1 text-xs text-muted">{t.reviewHint}</p>}
+      {pending.some((tx) => tx.source !== "wallet") && <p className="mb-1 text-xs text-muted">{t.reviewHintReceipt}</p>}
       {pending.map((tx) => (
         <div key={tx.id} className="grid grid-cols-[1fr_auto] items-center gap-2 border-t border-line first:border-t-0">
           <TxRow tx={tx} onClick={() => openEntry(tx)} />
