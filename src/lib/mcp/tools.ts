@@ -1,5 +1,5 @@
 import "server-only";
-import type { McpServer, ServerContext } from "@modelcontextprotocol/server";
+import type { McpServer } from "@modelcontextprotocol/server";
 import { DIGEST_NOTE } from "@/lib/ai/server";
 import { inCategories } from "@/lib/categories";
 import { inTimeZone } from "@/lib/date";
@@ -7,7 +7,8 @@ import { inLanguage } from "@/lib/i18n";
 import { buildAiDigest } from "@/lib/stats";
 import { createSupabaseStore } from "@/lib/store/supabase";
 import { z } from "zod";
-import { userClient } from "./auth";
+import { supabaseFor } from "./auth";
+import { registerReceiptTools } from "./receipts";
 
 /**
  * Same shape as the in-app analysis (AiAnalysis), so the AI analysis screen can show it as is.
@@ -44,13 +45,6 @@ const AnalysisSchema = z.object({
     .describe("次の一手 2〜3件 / 2-3 next steps"),
   cheer: z.string().min(1).max(200).describe("貯金を続ける励ましの一言（50字以内）/ One encouraging line about saving (100 English characters or fewer)"),
 });
-
-/** The signed-in user's Supabase client, from the token withMcpAuth checked. */
-function supabaseFor(ctx: ServerContext) {
-  const token = ctx.http?.authInfo?.token;
-  if (!token) throw new Error("ログインしていません / Not signed in");
-  return userClient(token);
-}
 
 export function registerTools(server: McpServer) {
   server.registerTool(
@@ -100,4 +94,6 @@ export function registerTools(server: McpServer) {
       return { content: [{ type: "text", text: "保存しました。家計簿アプリの「AI分析」画面で見られます。/ Saved. It's shown on the AI analysis screen of the Kakeibo app." }] };
     },
   );
+
+  registerReceiptTools(server);
 }

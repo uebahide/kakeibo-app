@@ -32,6 +32,8 @@ type Ctx = {
   storeKind: KakeiboStore["kind"];
   /** Receipt photos; only when signed in. */
   receipts?: ReceiptStore;
+  /** Whether "Read with Claude" is offered for a receipt photo. */
+  canReadReceipts: boolean;
   transactions: Transaction[];
   settings: Settings;
   month: string;
@@ -80,7 +82,8 @@ export function useKakeibo(): Ctx {
 const byNewest = (a: Transaction, b: Transaction) =>
   b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt);
 
-export function KakeiboProvider({ children }: { children: ReactNode }) {
+/** `canReadReceipts`: the server has a Claude API key, so the app can read receipt photos itself. */
+export function KakeiboProvider({ children, canReadReceipts = false }: { children: ReactNode; canReadReceipts?: boolean }) {
   const store = useMemo<KakeiboStore>(
     () => (isSupabaseConfigured ? createSupabaseStore(createClient()) : createLocalStore()),
     [],
@@ -302,6 +305,7 @@ export function KakeiboProvider({ children }: { children: ReactNode }) {
     loadError,
     storeKind: store.kind,
     receipts: store.receipts,
+    canReadReceipts,
     transactions,
     settings,
     month,

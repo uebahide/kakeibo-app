@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
-import type { AuthInfo } from "@modelcontextprotocol/server";
+import type { AuthInfo, ServerContext } from "@modelcontextprotocol/server";
 import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 
 /**
@@ -29,4 +29,11 @@ export async function verifyToken(_req: Request, token?: string): Promise<AuthIn
     expiresAt: data.claims.exp,
     extra: { userId: data.claims.sub },
   };
+}
+
+/** The signed-in user's Supabase client, from the token withMcpAuth checked. */
+export function supabaseFor(ctx: ServerContext) {
+  const token = ctx.http?.authInfo?.token;
+  if (!token) throw new Error("ログインしていません / Not signed in");
+  return userClient(token);
 }

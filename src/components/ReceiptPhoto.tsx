@@ -18,7 +18,8 @@ export function ReceiptPhoto(props: {
   read: boolean;
   onPick: (file: File) => void;
   onRemove: () => void;
-  onRead: () => void;
+  /** null when the app can't read receipts itself (no API key): Claude can still read them through the connector */
+  onRead: (() => void) | null;
   later: boolean | null;
   onLater: (later: boolean) => void;
 }) {
@@ -56,9 +57,11 @@ export function ReceiptPhoto(props: {
             )}
           </button>
           <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
-            <Button variant="primary" className="px-3 py-2 text-[13px]" onClick={props.onRead} disabled={props.reading || props.uploading}>
-              {props.reading ? t.reading : props.read ? t.readAgain : t.read}
-            </Button>
+            {props.onRead && (
+              <Button variant="primary" className="px-3 py-2 text-[13px]" onClick={props.onRead} disabled={props.reading || props.uploading}>
+                {props.reading ? t.reading : props.read ? t.readAgain : t.read}
+              </Button>
+            )}
             <div className="flex gap-3 px-1">
               <TextButton onClick={pick} disabled={props.uploading || props.reading}>
                 {props.uploading ? t.uploading : t.replace}
