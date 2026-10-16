@@ -53,6 +53,13 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   const [uploading, setUploading] = useState(false);
   const [reading, setReading] = useState(false);
   const [readDone, setReadDone] = useState(false);
+  // Set once the payment is split by hand: a reading started by adding a photo leaves the split alone.
+  const edited = useRef(group.length > 1);
+  // What a reading finds when it comes back (the sheet may have changed while it ran).
+  const latest = useRef({ amount, memo, receiptId });
+  useEffect(() => {
+    latest.current = { amount, memo, receiptId };
+  });
   // "Sort it out later": save the record as one to check (only offered for an unsplit record with a photo).
   const [later, setLater] = useState(false);
   const unsaved = useRef(new Set<string>());
@@ -100,9 +107,11 @@ function EntryForm({ onClose }: { onClose: () => void }) {
       if (receiptId && unsaved.current.delete(receiptId)) dropReceipt(receiptId);
       unsaved.current.add(id);
       setReceiptId(id);
+      latest.current.receiptId = id;
       setPhotoSrc(URL.createObjectURL(photo));
       setReadDone(false);
       if (!editing) setLater(true);
+      if (settings.autoReadReceipts && canReadReceipts) void readReceipt(id, true);
     } catch {
       toast(t.receipt.uploadFailed);
     } finally {
@@ -113,40 +122,33 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   function removePhoto() {
     if (receiptId && unsaved.current.delete(receiptId)) dropReceipt(receiptId);
     setReceiptId(undefined);
+    latest.current.receiptId = undefined;
     setPhotoSrc(null);
     setReadDone(false);
     setLater(false);
   }
 
-  async function readReceipt() {
-    if (!receiptId) return;
+  /** Reads the photo with Claude and fills the sheet. `auto`: started by adding the photo, so what was picked by hand stays. */
+  async function readReceipt(id = receiptId, auto = false) {
+    if (!id) return;
     setReading(true);
     try {
       const res = await fetch("/api/ai/receipt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          receiptId,
+          receiptId: id,
           categories: categoriesOf("expense").map((c) => ({ id: c.id, name: c.name })),
           fallback: FALLBACK_CATEGORY.expense,
           language,
-          again: readDone,
+          again: !auto && readDone,
         }),
       });
       const body = (await res.json().catch(() => ({}))) as { result?: ReceiptReading; error?: string };
-      const proposed = body.result ? receiptParts(body.result) : [];
-      if (!res.ok || !proposed.length) throw new Error(body.error ?? t.receipt.readFailed);
-      const sum = proposed.reduce((s, p) => s + p.amount, 0);
-      if (total && total !== sum) toast(t.receipt.totalChanged(yen(total), yen(sum)));
-      else toast(t.receipt.applied(proposed.length));
-      // Fill the sheet: the largest part is the category picked above, the others are its extra parts
-      // (reusing the records an edited split payment already has).
-      setType("expense");
-      setAmount(sum.toLocaleString("ja-JP"));
-      setCategory(proposed[0].category);
-      setMainNote(proposed.length > 1 ? proposed[0].note : "");
-      setParts(proposed.slice(1).map((p, i) => ({ id: parts[i]?.id, category: p.category, amount: p.amount.toLocaleString("ja-JP"), note: p.note })));
-      if (!memo.trim() && body.result?.store) setMemo(body.result.store.slice(0, 60));
+      // The photo was replaced or removed while it was being read.
+      if (latest.current.receiptId !== id) return;
+      if (!res.ok || !body.result || !receiptParts(body.result).length) throw new Error(body.error ?? t.receipt.readFailed);
+      fill(body.result, auto);
       setLater(false);
       setReadDone(true);
     } catch (e) {
@@ -154,6 +156,28 @@ function EntryForm({ onClose }: { onClose: () => void }) {
     } finally {
       setReading(false);
     }
+  }
+
+  /**
+   * Fills the sheet from a reading: the amount becomes the receipt's total, the memo the shop's name
+   * when empty, and the parts one per category. `keepPicked`: leave the category and parts alone when
+   * the payment was split by hand (the reading was started by adding the photo, not by the button).
+   */
+  function fill(reading: ReceiptReading, keepPicked: boolean) {
+    const proposed = receiptParts(reading);
+    const sum = proposed.reduce((s, p) => s + p.amount, 0);
+    const entered = parseAmount(latest.current.amount);
+    setAmount(sum.toLocaleString("ja-JP"));
+    if (!(keepPicked && edited.current)) {
+      // The largest part is the category picked above, the others are its extra parts
+      // (reusing the records an edited split payment already has).
+      setType("expense");
+      setCategory(proposed[0].category);
+      setMainNote(proposed.length > 1 ? proposed[0].note : "");
+      setParts((before) => proposed.slice(1).map((p, i) => ({ id: before[i]?.id, category: p.category, amount: p.amount.toLocaleString("ja-JP"), note: p.note })));
+    }
+    if (!latest.current.memo.trim() && reading.store) setMemo(reading.store.slice(0, 60));
+    toast(entered && entered !== sum ? t.receipt.totalChanged(yen(entered), yen(sum)) : t.receipt.applied(proposed.length));
   }
 
   const picks = useMemo(() => quickPicks(transactions, type), [transactions, type]);
@@ -171,11 +195,15 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   const total = parseAmount(amount);
   const rest = total - parts.reduce((s, p) => s + parseAmount(p.amount), 0);
   const addPart = () => {
+    edited.current = true;
     const used = new Set([category, ...parts.map((p) => p.category)]);
     const choices = categoriesOf(type);
     setParts([...parts, { category: (choices.find((c) => !used.has(c.id)) ?? choices[0]).id, amount: "", note: "" }]);
   };
-  const changePart = (i: number, values: Partial<Part>) => setParts(parts.map((p, j) => (j === i ? { ...p, ...values } : p)));
+  const changePart = (i: number, values: Partial<Part>) => {
+    edited.current = true;
+    setParts(parts.map((p, j) => (j === i ? { ...p, ...values } : p)));
+  };
 
   async function save(keepOpen: boolean) {
     const value = parseAmount(amount);
@@ -231,6 +259,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
           setPhotoSrc(null);
           setReadDone(false);
           setLater(false);
+          edited.current = false;
           amountRef.current?.focus();
         } else onClose();
       }
@@ -355,7 +384,10 @@ function EntryForm({ onClose }: { onClose: () => void }) {
             onMainNote={setMainNote}
             current={group.slice(1)}
             onChange={changePart}
-            onRemove={(i) => setParts(parts.filter((_, j) => j !== i))}
+            onRemove={(i) => {
+              edited.current = true;
+              setParts(parts.filter((_, j) => j !== i));
+            }}
             onAdd={addPart}
           />
         ) : (
@@ -373,7 +405,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
             read={readDone}
             onPick={pickPhoto}
             onRemove={removePhoto}
-            onRead={canReadReceipts ? readReceipt : null}
+            onRead={canReadReceipts ? () => readReceipt() : null}
             later={parts.length ? null : later}
             onLater={setLater}
           />

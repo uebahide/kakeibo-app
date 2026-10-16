@@ -19,7 +19,7 @@ import { Button, Card, CardTitle, Stamp, cx } from "./ui";
 import { WalletImportSettings } from "./WalletImport";
 
 export function SettingsView() {
-  const { settings, updateSettings, storeKind, deleteSamples, toast, transactions, setMonth } = useKakeibo();
+  const { settings, updateSettings, storeKind, deleteSamples, toast, transactions, setMonth, receipts, canReadReceipts } = useKakeibo();
   const startDay = settings.monthStartDay;
   const example = currentPeriod(startDay);
   const seed = useSeedSamples();
@@ -205,6 +205,34 @@ export function SettingsView() {
         </Card>
 
         <SavingsSettings />
+
+        {receipts && canReadReceipts && (
+          <Card>
+            <CardTitle>{t.settings.autoReadTitle}</CardTitle>
+            <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={t.settings.autoReadTitle}>
+              {([
+                [true, t.settings.autoReadOn],
+                [false, t.settings.autoReadOff],
+              ] as const).map(([on, name]) => (
+                <button
+                  key={String(on)}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.autoReadReceipts === on}
+                  onClick={async () => {
+                    if (settings.autoReadReceipts === on) return;
+                    await updateSettings((s) => ({ ...s, autoReadReceipts: on }));
+                    toast(t.settings.autoReadToast(on));
+                  }}
+                  className={cx("rounded-lg py-2 text-sm font-bold", settings.autoReadReceipts === on ? "bg-surface text-ink shadow-sm" : "text-muted")}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted">{t.settings.autoReadHint}</p>
+          </Card>
+        )}
 
         <WalletImportSettings />
 
