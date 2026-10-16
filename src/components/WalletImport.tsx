@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getLanguage } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import type { NewTransaction, Transaction } from "@/lib/types";
+import { claudeUrl, useAccount } from "./claudeLink";
 import { useKakeibo } from "./KakeiboProvider";
 import { useT } from "./LanguageProvider";
 import { Button, Card, CardTitle, TextButton, TxRow, buttonClass } from "./ui";
@@ -158,7 +159,8 @@ export const confirmed = (tx: Transaction): NewTransaction => ({
 /** Home card listing automatic records that still need a look. */
 export function WalletReviewCard() {
   const { transactions, updateTransaction, openEntry, toast, storeKind, reloadOnReturn } = useKakeibo();
-  const t = useT().wallet;
+  const { wallet: t, common } = useT();
+  const account = useAccount(storeKind === "supabase");
   const [busy, setBusy] = useState(false);
   const pending = transactions.filter((tx) => tx.needsReview);
   if (!pending.length) return null;
@@ -185,7 +187,7 @@ export function WalletReviewCard() {
       {storeKind === "supabase" && pending.some((tx) => tx.receiptId) && (
         <div className="mb-2">
           <a
-            href={"https://claude.ai/new?q=" + encodeURIComponent(t.claudeSortPrompt)}
+            href={claudeUrl(t.claudeSortPrompt, common.claudeAccount(account))}
             target="_blank"
             rel="noopener noreferrer"
             onClick={reloadOnReturn}

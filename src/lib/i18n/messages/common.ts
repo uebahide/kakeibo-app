@@ -8,6 +8,9 @@ export const ja = {
   keyHint: "N キーでいつでも記入",
   savedCloud: "クラウドに自動保存",
   savedLocal: "デモ：このブラウザに保存",
+  /** added to every request the app fills into claude.ai, so the connector can check it is on the same account */
+  claudeAccount: (account: string | null) =>
+    account ? `アプリは ${account} でログインしているので、家計簿コネクタのツールには毎回 account として「${account}」を渡してください。` : "",
   prevMonth: "前の月",
   nextMonth: "次の月",
   loadFailed: "記録を読み込めませんでした",
@@ -34,6 +37,8 @@ export const en: typeof ja = {
   keyHint: "Press N to add an entry anytime",
   savedCloud: "Saved to the cloud automatically",
   savedLocal: "Demo: saved in this browser",
+  claudeAccount: (account: string | null) =>
+    account ? ` The app is signed in as ${account}, so pass "${account}" as account to every Kakeibo connector tool.` : "",
   prevMonth: "Previous month",
   nextMonth: "Next month",
   loadFailed: "Couldn't load your records",

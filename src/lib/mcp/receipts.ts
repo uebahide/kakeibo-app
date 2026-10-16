@@ -9,7 +9,7 @@ import { groupSplits, splitParts, splitWrites } from "@/lib/split";
 import { createSupabaseStore } from "@/lib/store/supabase";
 import type { NewTransaction, Settings, Transaction } from "@/lib/types";
 import { z } from "zod";
-import { supabaseFor } from "./auth";
+import { accountInput as account, accountMismatch, supabaseFor } from "./auth";
 
 // Tools for sorting out receipts from claude.ai: Claude reads the photo itself (no API key on our side),
 // and the app does the arithmetic (discounts, tax, rounding) exactly as when the receipt is read in the app.
@@ -90,10 +90,13 @@ export function registerReceiptTools(server: McpServer) {
       inputSchema: z.object({
         include_sorted: z.boolean().default(false).describe("整理済みの写真付き記録も含める / Also list records with a photo that are already sorted"),
         limit: z.number().int().min(1).max(50).default(20),
+        account,
       }),
       annotations: { readOnlyHint: true },
     },
-    async ({ include_sorted, limit }, ctx) => {
+    async ({ include_sorted, limit, account }, ctx) => {
+      const mismatch = accountMismatch(ctx, account);
+      if (mismatch) return fail(mismatch);
       const { transactions, settings } = await load(ctx);
       const entries = groupSplits(transactions.filter((t) => t.receiptId && (include_sorted || t.needsReview))).slice(0, limit);
       return ok(
@@ -121,10 +124,12 @@ export function registerReceiptTools(server: McpServer) {
       description:
         "記録に付いたレシートの写真を画像で返す。写真の品目と金額を読み、apply_receipt に渡す。アプリで前に読み取った結果があれば一緒に返す。" +
         " Returns the receipt photo of a record as an image to read for apply_receipt, with any earlier reading from the app.",
-      inputSchema: z.object({ record_id: z.string().uuid().describe("list_receipts_to_sort の record_id") }),
+      inputSchema: z.object({ record_id: z.string().uuid().describe("list_receipts_to_sort の record_id"), account }),
       annotations: { readOnlyHint: true },
     },
-    async ({ record_id }, ctx) => {
+    async ({ record_id, account }, ctx) => {
+      const mismatch = accountMismatch(ctx, account);
+      if (mismatch) return fail(mismatch);
       const { supabase, transactions } = await load(ctx);
       const tx = transactions.find((t) => t.id === record_id);
       if (!tx?.receiptId) return fail("写真の付いた記録が見つかりません / No record with a receipt photo has this id");
@@ -169,9 +174,12 @@ export function registerReceiptTools(server: McpServer) {
             "記録の金額とレシートの合計が違うときだけ指定。record は記録の金額に合わせ、receipt はレシートの合計に直す。ユーザーに選んでもらう。" +
               " Only when the record's amount and the receipt total differ: record keeps the record's amount, receipt changes it to the receipt total. Ask the user.",
           ),
+        account,
       }),
     },
     async (input, ctx) => {
+      const mismatch = accountMismatch(ctx, input.account);
+      if (mismatch) return fail(mismatch);
       const { supabase, store, transactions, settings } = await load(ctx);
       const tx = transactions.find((t) => t.id === input.record_id);
       if (!tx) return fail("記録が見つかりません / No record has this id");
@@ -233,9 +241,12 @@ export function registerReceiptTools(server: McpServer) {
           .optional()
           .describe("購入日 YYYY-MM-DD。なければ今日 / Purchase date; today if left out"),
         outside_budget: z.boolean().default(false).describe("旅行やイベントなど予算外の支出 / Spending outside the budget, such as a trip"),
+        account,
       }),
     },
     async (input, ctx) => {
+      const mismatch = accountMismatch(ctx, input.account);
+      if (mismatch) return fail(mismatch);
       const { store, transactions, settings } = await load(ctx);
       const reading = toReading(settings, input);
       const parts = receiptParts(reading);

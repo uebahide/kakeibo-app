@@ -26,7 +26,8 @@ const store = {
 };
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/store/supabase", () => ({ createSupabaseStore: () => store }));
-vi.mock("@/lib/mcp/auth", () => ({
+vi.mock("@/lib/mcp/auth", async (actual) => ({
+  ...(await actual<typeof import("@/lib/mcp/auth")>()),
   supabaseFor: () => ({
     from: () => ({ update: (row: unknown) => ({ eq: async () => (receiptUpdates.push(row), { error: null }) }) }),
   }),
@@ -38,9 +39,10 @@ const { registerReceiptTools } = await import("@/lib/mcp/receipts");
 registerReceiptTools({
   registerTool: (name: string, config: { inputSchema: { parse: (v: unknown) => Record<string, unknown> } }, run: Handler) => tools.set(name, { schema: config.inputSchema, run }),
 } as never);
-const call = (name: string, input: Record<string, unknown>) => {
+/** Calls a tool as the connector signed in to `email` (none: the token carries no email). */
+const call = (name: string, input: Record<string, unknown>, email?: string) => {
   const tool = tools.get(name)!;
-  return tool.run(tool.schema.parse(input), {});
+  return tool.run(tool.schema.parse(input), email ? { http: { authInfo: { extra: { email } } } } : {});
 };
 const text = (r: Awaited<ReturnType<typeof call>>) => r.content.map((c) => c.text ?? "").join("");
 
@@ -101,5 +103,28 @@ describe("receipt tools for claude.ai", () => {
       ["daily", 640, "ライフ", undefined],
       ["food", 380, "ライフ", undefined],
     ]);
+  });
+});
+
+describe("the account check on the receipt tools", () => {
+  it("stops every tool when the app is signed in to another account, without reading or writing", async () => {
+    for (const [name, input] of [
+      ["list_receipts_to_sort", {}],
+      ["get_receipt_photo", { record_id: W1 }],
+      ["apply_receipt", { record_id: W1, store: "ライフ", total: 1020, items, confirm: true }],
+      ["add_record", { store: "ライフ", total: 1020, items, confirm: true }],
+    ] as const) {
+      const res = await call(name, { ...input, account: "b@example.com" }, "a@example.com");
+      expect(res.isError).toBe(true);
+      expect(text(res)).toContain("アプリは b@example.com でログインしています");
+      expect(text(res)).toContain("https://claude.ai/settings/connectors");
+    }
+    expect(records).toHaveLength(1);
+    expect(records[0].needsReview).toBe(true);
+  });
+
+  it("works as usual on the same account", async () => {
+    const list = JSON.parse(text(await call("list_receipts_to_sort", { account: "A@example.com" }, "a@example.com")));
+    expect(list.records).toHaveLength(1);
   });
 });

@@ -18,6 +18,8 @@ describe("accountMismatch", () => {
   it("asks to reconnect with the app's account when another one is connected", () => {
     const message = accountMismatch(ctx("a@example.com"), "b@example.com");
     expect(message).toContain("家計簿コネクタは a@example.com でつながっていますが、アプリは b@example.com でログインしています");
+    expect(message).toContain("何も読み書きしていません");
+    expect(message).toContain("https://claude.ai/settings/connectors");
     expect(message).toContain("sign in as b@example.com");
   });
 });
