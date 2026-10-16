@@ -30,9 +30,11 @@ const draftOf = (id: string, change: Partial<CategoryDraft> = {}): CategoryDraft
 };
 
 describe("the app's own categories", () => {
-  it("list 15 expense and 4 income categories, with names in the display language", () => {
-    expect(categoriesOf("expense")).toHaveLength(15);
+  it("list 16 expense and 4 income categories, with names in the display language", () => {
+    expect(categoriesOf("expense")).toHaveLength(16);
     expect(getCategory("cosmetics").name).toBe("コスメ");
+    expect(getCategory("treats").name).toBe("嗜好品");
+    expect(ids(categoriesOf("expense")).slice(0, 2)).toEqual(["food", "treats"]);
     expect(ids(categoriesOf("income"))).toEqual(["salary", "bonus", "side", "income_other"]);
     expect(getCategory("food").name).toBe("食費");
     expect(getCategory("food").mark).toBe("食");
@@ -104,7 +106,7 @@ describe("hiding a category", () => {
   it("keeps a record's hidden category in its own select", () => {
     setCategories(hidden);
     expect(ids(withCurrent(categoriesOf("expense"), "clothes")).at(-1)).toBe("clothes");
-    expect(withCurrent(categoriesOf("expense"), "food")).toHaveLength(14);
+    expect(withCurrent(categoriesOf("expense"), "food")).toHaveLength(15);
   });
 
   it("drops its budget from the total", () => {
@@ -120,19 +122,19 @@ describe("hiding a category", () => {
 
 describe("the order", () => {
   it("moves a category up and down, and not past either end", () => {
-    let cs = reorderCategory(EMPTY_CATEGORY_SETTINGS, "transport", -1);
+    let cs = reorderCategory(EMPTY_CATEGORY_SETTINGS, "daily", -1);
     setCategories(cs);
-    expect(ids(categoriesOf("expense")).slice(0, 3)).toEqual(["food", "transport", "daily"]);
+    expect(ids(categoriesOf("expense")).slice(0, 3)).toEqual(["food", "daily", "treats"]);
     cs = reorderCategory(cs, "food", 1);
     setCategories(cs);
-    expect(ids(categoriesOf("expense")).slice(0, 3)).toEqual(["transport", "food", "daily"]);
-    expect(reorderCategory(cs, "transport", -1)).toBe(cs);
+    expect(ids(categoriesOf("expense")).slice(0, 3)).toEqual(["daily", "food", "treats"]);
+    expect(reorderCategory(cs, "daily", -1)).toBe(cs);
     expect(reorderCategory(cs, "other", 1)).toBe(cs);
   });
 
   it("puts categories missing from the saved order after the listed ones", () => {
     setCategories({ ...EMPTY_CATEGORY_SETTINGS, order: { expense: ["fun", "food"] } });
-    expect(ids(categoriesOf("expense")).slice(0, 3)).toEqual(["fun", "food", "daily"]);
+    expect(ids(categoriesOf("expense")).slice(0, 3)).toEqual(["fun", "food", "treats"]);
   });
 });
 

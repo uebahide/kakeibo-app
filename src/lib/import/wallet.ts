@@ -43,6 +43,8 @@ export function numberOf(text: string): number | null {
 
 /** Expense category a merchant name suggests, or null. Merchants seen before are matched in the database instead. */
 const MERCHANT_HINTS: [RegExp, string][] = [
+  // before transport, whose "bolt" would catch dohánybolt and borbolt
+  [/kakuyasu|yamaya|liquor|bottle\s*shop|wine\s*shop|borbolt|italbolt|dohánybolt|trafik/i, "treats"],
   [/netflix|spotify|youtube|disney|icloud|apple\.com|google\s*(one|storage)|amazon\s*prime|chatgpt|openai|anthropic|claude\.ai|adobe|dropbox/i, "subscription"],
   [/vodafone|telekom|yettel|docomo|softbank|rakuten\s*mobile|ahamo|povo/i, "phone"],
   [/uber\s*eats|wolt|foodora|foodpanda|demae|lidl|aldi|spar\b|tesco|auchan|penny|coop|cba\b|interspar|7-?eleven|seven-?eleven|lawson|family\s*mart|familymart|ministop|aeon|ito-?yokado|seiyu|mcdonald|burger\s*king|kfc|subway|starbucks|costa|cafe|café|coffee|kávé|bakery|pékség|bistro|restaurant|étterem|pizza|sushi|ramen|izakaya|matsuya|yoshinoya|sukiya|bolt\s*food/i, "food"],
