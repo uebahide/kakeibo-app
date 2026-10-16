@@ -26,12 +26,47 @@ test("the analysis screen draws its charts from sample data", async ({ page }) =
   await expect(page.getByText("まだ記録がありません")).toBeHidden();
   await nav(page).getByRole("button", { name: "分析", exact: true }).click();
 
+  await expect(page.getByText("2026年10月のまとめ")).toBeVisible();
+  await expect(page.getByText("前の月の同じ日まで比")).toBeVisible();
   await expect(page.getByText("2026年10月のカテゴリ別支出（固定費込み）")).toBeVisible();
   await expect(page.getByText("変動費の予算に対するペース")).toBeVisible();
   await expect(page.getByText("週ごとの変動費（8週間）")).toBeVisible();
-  await expect(page.getByText("収入と支出の推移（6か月）")).toBeVisible();
+  await expect(page.getByText("カテゴリの推移（6か月）")).toBeVisible();
+  await expect(page.getByText("収入・支出・貯金率（6か月）")).toBeVisible();
+  await expect(page.getByText("よく使うお店・メモ")).toBeVisible();
   await expect(page.getByText("曜日ごとの使い方")).toBeVisible();
   await expect(page.locator(".recharts-surface").first()).toBeVisible();
+});
+
+test("the analysis screen sums up a month, 3 months or the year", async ({ page }) => {
+  await openApp(page);
+  await addExpense(page, "1200", "食費", "スーパー");
+  await addExpense(page, "800", "食費", "スーパー");
+  await nav(page).getByRole("button", { name: "分析", exact: true }).click();
+
+  const summary = page.getByRole("definition").filter({ hasText: "¥2,000" }).first();
+  await expect(summary).toBeVisible();
+  await expect(page.getByText("2回")).toBeVisible();
+
+  const ranges = page.getByRole("radiogroup", { name: "表示する期間" });
+  await ranges.getByRole("radio", { name: "3か月" }).click();
+  await expect(page.getByText("2026年8月〜10月のまとめ")).toBeVisible();
+  await expect(page.getByText("変動費の予算に対するペース")).toBeHidden();
+  await ranges.getByRole("radio", { name: "年" }).click();
+  await expect(page.getByText("2026年のまとめ")).toBeVisible();
+  await expect(page.getByText("カテゴリの推移（12か月）")).toBeVisible();
+});
+
+test("a category row on the analysis screen opens its records", async ({ page }) => {
+  await openApp(page);
+  await addExpense(page, "800", "交通", "バス");
+  await addExpense(page, "1200", "食費", "スーパー");
+  await nav(page).getByRole("button", { name: "分析", exact: true }).click();
+
+  await page.getByRole("button", { name: /^交通/ }).click();
+  await expect(page.getByRole("button", { name: "交通", exact: true, pressed: true })).toBeVisible();
+  await expect(page.getByText("バス")).toBeVisible();
+  await expect(page.getByText("スーパー")).toBeHidden();
 });
 
 test("the month arrows move between months", async ({ page }) => {

@@ -15,16 +15,31 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { categoryColor, getCategory } from "@/lib/categories";
-import { addMonths, monthLabel, shiftDays, shortMonthLabel, today, weekdays } from "@/lib/date";
-import { periodDateLabel, periodDays, periodEnd } from "@/lib/period";
+import { useState } from "react";
+import {
+  RANGES,
+  REST,
+  categoryRows,
+  categoryTrend,
+  lastMonths,
+  monthlyFlow,
+  rangeMonths,
+  rangeSummary,
+  topPlaces,
+  topWithRest,
+  type CategoryRow,
+  type Range,
+} from "@/lib/analysis";
+import { categoryColor, getCategory, isFixedCategory } from "@/lib/categories";
+import { monthLabel, shiftDays, shortMonthLabel, today, weekdays } from "@/lib/date";
+import { periodDateLabel, periodDays, periodEnd, periodOf } from "@/lib/period";
 import { shortYen, yen } from "@/lib/format";
-import { cumulativeDaily, monthStats, variableBudget, weekBudget, weekdayAverages } from "@/lib/stats";
+import { cumulativeDaily, variableBudget, weekBudget, weekdayAverages } from "@/lib/stats";
 import { shortDate, weekRangeLabel, weekStartOf } from "@/lib/week";
 import { AiShortcut } from "./AiShortcut";
 import { useKakeibo } from "./KakeiboProvider";
 import { useLanguage, useT } from "./LanguageProvider";
-import { Card, CardTitle, EmptyState, cx } from "./ui";
+import { Card, CardTitle, EmptyState, Meter, Stamp, cx } from "./ui";
 
 const axisTick = { fill: "var(--muted)", fontSize: 11, fontFamily: "var(--font-num)" };
 const tooltipStyle = {
@@ -34,67 +49,200 @@ const tooltipStyle = {
 };
 
 export function AnalysisView() {
+  const { month } = useKakeibo();
+  const [range, setRange] = useState<Range>("month");
+  if (!month) return null;
   return (
     <div className="grid items-start gap-3.5 lg:grid-cols-2">
       <AiShortcut className="lg:hidden" />
-      <CategoryBreakdown />
-      <BudgetPace />
+      <Summary range={range} setRange={setRange} />
+      <CategoryBreakdown range={range} />
+      {range === "month" && <BudgetPace />}
       <WeeklyTrend />
-      <MonthlyTrend />
+      <CategoryTrend range={range} />
+      <MonthlyFlow range={range} />
+      <TopPlaces range={range} />
       <WeekdayHabits />
     </div>
   );
 }
 
-function CategoryBreakdown() {
+/** Number of months the trend charts show for a range. */
+const trendLength = (range: Range) => (range === "year" ? 12 : 6);
+
+/** "2026年10月", "2026年8月〜10月" or "2026年" for the range ending with `month`. */
+function useRangeLabel(range: Range) {
+  const { month, settings } = useKakeibo();
+  const t = useT();
+  const months = rangeMonths(month, range, settings.monthStartDay);
+  if (range === "month") return monthLabel(month);
+  if (range === "year") return t.analysis.yearLabel(month.slice(0, 4));
+  return t.analysis.quarterLabel(monthLabel(months[0]), months[0].slice(0, 4) === month.slice(0, 4) ? shortMonthLabel(month) : monthLabel(month));
+}
+
+const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : "±"}${yen(Math.abs(n))}`;
+const percent = (r: number) => `${Math.round(r * 100)}%`;
+
+function Summary({ range, setRange }: { range: Range; setRange: (r: Range) => void }) {
   const { transactions, settings, month } = useKakeibo();
   const t = useT();
-  const stats = monthStats(transactions, month, settings);
-  // Records of an unknown category count under the one they are shown as ("other").
-  const byId = new Map<string, number>();
-  for (const [id, value] of Object.entries(stats.byCategory)) byId.set(getCategory(id).id, (byId.get(getCategory(id).id) ?? 0) + value);
-  const items = [...byId]
-    .map(([id, value]) => ({ id, name: getCategory(id).name, value }))
-    .filter((x) => x.value > 0)
-    .sort((a, b) => b.value - a.value);
-  const total = items.reduce((s, x) => s + x.value, 0);
+  const label = useRangeLabel(range);
+  const s = rangeSummary(transactions, month, range, settings);
+  const changeRatio = s.change !== null && s.previous.expense ? s.change / s.previous.expense : null;
+  return (
+    <Card className="lg:col-span-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[13px] font-bold tracking-wide text-muted">{t.analysis.summaryTitle(label)}</h2>
+        <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup" aria-label={t.analysis.rangeLabel}>
+          {RANGES.map((r) => (
+            <button
+              key={r}
+              type="button"
+              role="radio"
+              aria-checked={range === r}
+              onClick={() => setRange(r)}
+              className={cx("min-h-9 rounded-lg px-3 text-[13px] font-bold", range === r ? "bg-surface text-ink shadow-sm" : "text-muted")}
+            >
+              {t.analysis.ranges[r]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <Tile label={t.analysis.spending} value={yen(s.current.expense)} note={`${t.analysis.income} ${yen(s.current.income)}`} />
+        <Tile
+          label={(s.partial ? t.analysis.vsPreviousSoFar : t.analysis.vsPrevious)[range]}
+          value={s.change === null ? "—" : signed(s.change)}
+          tone={s.change === null || s.change === 0 ? undefined : s.change > 0 ? "bad" : "good"}
+          note={changeRatio === null ? t.analysis.noPrevious : `${changeRatio > 0 ? "+" : ""}${percent(changeRatio)}`}
+        />
+        <Tile
+          label={s.budgetLeft !== null && s.budgetLeft < 0 ? t.analysis.budgetOver : t.analysis.budgetLeft}
+          value={s.budgetLeft === null ? "—" : yen(Math.abs(s.budgetLeft))}
+          tone={s.budgetLeft !== null && s.budgetLeft < 0 ? "bad" : undefined}
+          note={s.budgetLeft === null ? t.analysis.noBudget : t.analysis.ofBudget(yen(s.current.budget))}
+        />
+        <Tile
+          label={t.analysis.savingsRate}
+          value={s.savingsRate === null ? "—" : percent(s.savingsRate)}
+          tone={s.savingsRate !== null && s.savingsRate < 0 ? "bad" : undefined}
+          note={s.savingsRate === null ? t.analysis.noIncome : t.analysis.savingsRateNote}
+        />
+      </dl>
+    </Card>
+  );
+}
+
+function Tile({ label, value, note, tone }: { label: string; value: string; note: string; tone?: "good" | "bad" }) {
+  return (
+    <div className="min-w-0 rounded-xl bg-surface-2 px-3 py-2.5">
+      <dt className="truncate text-xs text-muted">{label}</dt>
+      <dd className={cx("num mt-0.5 truncate text-lg font-bold", tone === "good" && "text-good", tone === "bad" && "text-bad")}>{value}</dd>
+      <dd className="num truncate text-[11px] text-muted">{note}</dd>
+    </div>
+  );
+}
+
+/** Color of a slice or bar: the category's own, or a plain one for "the rest". */
+const sliceColor = (id: string) => (id === REST ? "var(--muted)" : categoryColor(id));
+
+function CategoryBreakdown({ range }: { range: Range }) {
+  const { transactions, settings, month, openHistory } = useKakeibo();
+  const t = useT();
+  const label = useRangeLabel(range);
+  const s = rangeSummary(transactions, month, range, settings);
+  const rows = categoryRows(s, settings);
+  const slices = topWithRest(s.current.byCategory).map((x) => ({ ...x, name: x.id === REST ? t.analysis.rest : getCategory(x.id).name }));
+  const total = slices.reduce((sum, x) => sum + x.value, 0);
+  // Categories with records in the month picked: their rows open the history filtered to them.
+  const recorded = new Set(
+    transactions.filter((tx) => tx.type !== "income" && periodOf(tx.date, settings.monthStartDay) === month).map((tx) => tx.category),
+  );
 
   return (
-    <Card>
-      <CardTitle>{t.analysis.byCategoryTitle(monthLabel(month))}</CardTitle>
-      {!items.length ? (
+    <Card className="lg:col-span-2">
+      <CardTitle>{t.analysis.byCategoryTitle(label)}</CardTitle>
+      {!rows.length ? (
         <EmptyState title={t.analysis.noExpenses} />
       ) : (
-        <div className="grid items-center gap-4 sm:grid-cols-[180px_1fr]">
-          <div className="relative mx-auto aspect-square w-full max-w-[200px]">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie data={items} dataKey="value" nameKey="name" innerRadius="64%" outerRadius="100%" paddingAngle={items.length > 1 ? 1 : 0} stroke="none" isAnimationActive={false}>
-                  {items.map((x) => (
-                    <Cell key={x.id} fill={categoryColor(x.id)} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v) => yen(Number(v))} {...tooltipStyle} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
-              <span className="text-[11px] text-muted">{t.analysis.totalSpent}</span>
-              <span className="num text-base font-bold">{yen(total)}</span>
+        <div className="grid items-start gap-4 lg:grid-cols-[220px_1fr]">
+          {total > 0 && (
+            <div>
+              <div className="relative mx-auto aspect-square w-full max-w-[200px]">
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={slices} dataKey="value" nameKey="name" innerRadius="64%" outerRadius="100%" paddingAngle={slices.length > 1 ? 1 : 0} stroke="none" isAnimationActive={false}>
+                      {slices.map((x) => (
+                        <Cell key={x.id} fill={sliceColor(x.id)} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v) => yen(Number(v))} {...tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
+                  <span className="text-[11px] text-muted">{t.analysis.totalSpent}</span>
+                  <span className="num text-base font-bold">{yen(total)}</span>
+                </div>
+              </div>
+              <ul className="mx-auto mt-3 grid max-w-[260px] gap-1 text-xs">
+                {slices.map((x) => (
+                  <li key={x.id} className="grid grid-cols-[10px_1fr_auto] items-center gap-2">
+                    <i className="size-2.5 rounded-[3px]" style={{ background: sliceColor(x.id) }} />
+                    <span className="truncate">{x.name}</span>
+                    <span className="num text-muted">{percent(x.value / total)}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
+          )}
+          <div className="min-w-0">
+            <h3 className="sr-only">{t.analysis.categoryTableTitle}</h3>
+            <ul className="grid">
+              {rows.map((row) => (
+                <li key={row.id} className="border-t border-line first:border-t-0">
+                  <CategoryLine row={row} onOpen={recorded.has(row.id) ? () => openHistory(row.id) : undefined} />
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-muted">{t.analysis.categoryTableNote}</p>
           </div>
-          <ul className="grid min-w-0 gap-1.5 text-[13px]">
-            {items.map((x) => (
-              <li key={x.id} className="grid grid-cols-[12px_1fr_auto_40px] items-center gap-2">
-                <i className="size-3 rounded-[3px]" style={{ background: categoryColor(x.id) }} />
-                <span className="truncate">{x.name}</span>
-                <span className="num">{yen(x.value)}</span>
-                <span className="num text-right text-xs text-muted">{Math.round((x.value / total) * 100)}%</span>
-              </li>
-            ))}
-          </ul>
         </div>
       )}
     </Card>
+  );
+}
+
+function CategoryLine({ row, onOpen }: { row: CategoryRow; onOpen?: () => void }) {
+  const t = useT();
+  const diff = row.spent - row.previous;
+  const ratio = row.budget ? row.budgeted / row.budget : 0;
+  const content = (
+    <>
+      <Stamp category={row.id} size="sm" />
+      <span className="min-w-0">
+        <span className="flex items-baseline justify-between gap-2 text-sm">
+          <span className="truncate">{getCategory(row.id).name}</span>
+          <span className="num flex-none font-bold">
+            {yen(row.spent)}
+            {row.budget > 0 && <span className="ml-1 text-xs font-normal text-muted">{t.analysis.ofBudget(yen(row.budget))}</span>}
+          </span>
+        </span>
+        {row.budget > 0 ? (
+          <Meter ratio={ratio} level={ratio > 1 ? "bad" : ratio > 0.85 ? "warn" : "good"} className="my-1" />
+        ) : (
+          <span className="block text-[11px] text-muted">{isFixedCategory(row.id) ? t.analysis.fixedCost : ""}</span>
+        )}
+        <span className={cx("num block text-[11px]", diff > 0 ? "text-bad" : diff < 0 ? "text-good" : "text-muted")}>{t.analysis.diffPrevious(signed(diff))}</span>
+      </span>
+    </>
+  );
+  const className = "grid w-full grid-cols-[auto_1fr] items-center gap-2.5 px-1 py-2 text-left";
+  return onOpen ? (
+    <button type="button" onClick={onOpen} className={cx(className, "hover:bg-surface-2")}>
+      {content}
+    </button>
+  ) : (
+    <div className={className}>{content}</div>
   );
 }
 
@@ -181,30 +329,113 @@ function WeeklyTrend() {
   );
 }
 
-function MonthlyTrend() {
+function CategoryTrend({ range }: { range: Range }) {
   const { transactions, settings, month } = useKakeibo();
   const t = useT();
-  const data = Array.from({ length: 6 }, (_, i) => {
-    const m = addMonths(month, i - 5);
-    const s = monthStats(transactions, m, settings);
-    return { label: shortMonthLabel(m), income: s.income, expense: s.expense };
-  });
+  const n = trendLength(range);
+  const trend = categoryTrend(transactions, lastMonths(month, n), settings);
+  const data = trend.rows.map((r) => ({ ...r, label: shortMonthLabel(r.month) }));
+  const name = (id: string) => (id === REST ? t.analysis.rest : getCategory(id).name);
   return (
     <Card>
-      <CardTitle>{t.analysis.trendTitle}</CardTitle>
-      <div className="h-52">
+      <CardTitle>{t.analysis.categoryTrendTitle(n)}</CardTitle>
+      {!trend.ids.length ? (
+        <EmptyState title={t.analysis.noExpenses} />
+      ) : (
+        <>
+          <div className="h-56">
+            <ResponsiveContainer>
+              <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="var(--line)" />
+                <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={shortYen} tick={axisTick} axisLine={false} tickLine={false} width={44} />
+                <Tooltip formatter={(v, id) => [yen(Number(v)), name(String(id))]} cursor={{ fill: "var(--surface-2)" }} {...tooltipStyle} />
+                {trend.ids.map((id, i) => (
+                  <Bar key={id} dataKey={id} stackId="all" fill={sliceColor(id)} maxBarSize={28} isAnimationActive={false} radius={i === trend.ids.length - 1 ? [3, 3, 0, 0] : 0} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <Legend items={trend.ids.map((id) => [sliceColor(id), name(id)] as const)} />
+        </>
+      )}
+    </Card>
+  );
+}
+
+function MonthlyFlow({ range }: { range: Range }) {
+  const { transactions, settings, month } = useKakeibo();
+  const t = useT();
+  const n = trendLength(range);
+  const data = monthlyFlow(transactions, lastMonths(month, n), settings).map((f) => ({
+    ...f,
+    label: shortMonthLabel(f.month),
+    rate: f.savingsRate === null ? undefined : Math.round(f.savingsRate * 100),
+  }));
+  return (
+    <Card>
+      <CardTitle>{t.analysis.flowTitle(n)}</CardTitle>
+      <div className="h-56">
         <ResponsiveContainer>
-          <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={2}>
+          <ComposedChart data={data} margin={{ top: 8, right: 0, left: 0, bottom: 0 }} barGap={2}>
             <CartesianGrid vertical={false} stroke="var(--line)" />
             <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={shortYen} tick={axisTick} axisLine={false} tickLine={false} width={44} />
-            <Tooltip formatter={(v, name) => [yen(Number(v)), name === "income" ? t.analysis.income : t.analysis.expense]} cursor={{ fill: "var(--surface-2)" }} {...tooltipStyle} />
-            <Bar dataKey="income" fill="var(--good)" radius={[3, 3, 0, 0]} maxBarSize={18} isAnimationActive={false} />
-            <Bar dataKey="expense" fill="var(--accent)" radius={[3, 3, 0, 0]} maxBarSize={18} isAnimationActive={false} />
-          </BarChart>
+            <YAxis yAxisId="money" tickFormatter={shortYen} tick={axisTick} axisLine={false} tickLine={false} width={44} />
+            <YAxis yAxisId="rate" orientation="right" tickFormatter={(v) => `${v}%`} tick={axisTick} axisLine={false} tickLine={false} width={40} />
+            <Tooltip
+              formatter={(v, name) =>
+                name === "rate" ? [`${v}%`, t.analysis.savingsRate] : [yen(Number(v)), name === "income" ? t.analysis.income : t.analysis.expense]
+              }
+              cursor={{ fill: "var(--surface-2)" }}
+              {...tooltipStyle}
+            />
+            <Bar yAxisId="money" dataKey="income" fill="var(--good)" radius={[3, 3, 0, 0]} maxBarSize={18} isAnimationActive={false} />
+            <Bar yAxisId="money" dataKey="expense" fill="var(--accent)" radius={[3, 3, 0, 0]} maxBarSize={18} isAnimationActive={false} />
+            <Line yAxisId="rate" dataKey="rate" stroke="var(--warn)" strokeWidth={2} dot={{ r: 3, fill: "var(--warn)", strokeWidth: 0 }} connectNulls isAnimationActive={false} />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <Legend items={[["var(--good)", t.analysis.income], ["var(--accent)", t.analysis.expense]]} />
+      <Legend
+        items={[
+          ["var(--good)", t.analysis.income],
+          ["var(--accent)", t.analysis.expense],
+          ["var(--warn)", t.analysis.savingsRate],
+        ]}
+      />
+    </Card>
+  );
+}
+
+function TopPlaces({ range }: { range: Range }) {
+  const { transactions, settings, month } = useKakeibo();
+  const t = useT();
+  const places = topPlaces(transactions, rangeMonths(month, range, settings.monthStartDay), settings);
+  const max = places[0]?.total ?? 0;
+  return (
+    <Card>
+      <CardTitle>{t.analysis.placesTitle}</CardTitle>
+      {!places.length ? (
+        <EmptyState title={t.analysis.placesEmpty} />
+      ) : (
+        <ol className="grid gap-2">
+          {places.map((p, i) => (
+            <li key={p.name} className="grid grid-cols-[16px_auto_1fr_auto] items-center gap-2 text-[13px]">
+              <span className="num text-right text-xs text-muted">{i + 1}</span>
+              <Stamp category={p.category} size="sm" />
+              <span className="min-w-0">
+                <span className="block truncate">{p.name}</span>
+                <span className="mt-0.5 block h-1.5 overflow-hidden rounded-full bg-surface-2">
+                  <span className="block h-full rounded-full bg-accent" style={{ width: `${(p.total / max) * 100}%` }} />
+                </span>
+              </span>
+              <span className="num text-right">
+                {yen(p.total)}
+                <span className="block text-[11px] text-muted">{t.analysis.placeCount(p.count)}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
     </Card>
   );
 }
