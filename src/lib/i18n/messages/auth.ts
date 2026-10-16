@@ -19,6 +19,7 @@ export const ja = {
   allowEffect: (client: string) => `許可すると、${client} はあなたの家計簿の集計を読み、AI分析を保存できるようになります。`,
   scopes: (list: string[]) => `要求されている権限：${list.join("、")}`,
   signedInAs: (email: string) => `ログイン中：${email}`,
+  otherAccount: "別のアカウントでログイン",
   allow: "許可する",
   deny: "やめる",
 };
@@ -44,6 +45,7 @@ export const en: typeof ja = {
   allowEffect: (client: string) => `If you allow it, ${client} can read your budget totals and save AI analyses.`,
   scopes: (list: string[]) => `Requested permissions: ${list.join(", ")}`,
   signedInAs: (email: string) => `Signed in as ${email}`,
+  otherAccount: "Sign in with another account",
   allow: "Allow",
   deny: "Cancel",
 };
