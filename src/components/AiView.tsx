@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { yen } from "@/lib/format";
 import { buildAiDigest } from "@/lib/stats";
 import { DICTS } from "@/lib/i18n/dict";
-import { createClient } from "@/lib/supabase/client";
 import type { Language } from "@/lib/i18n";
 import type { AiAnalysis, ChatTurn } from "@/lib/types";
+import { claudeUrl, useAccount } from "./claudeLink";
 import { useKakeibo } from "./KakeiboProvider";
 import { useLanguage, useT } from "./LanguageProvider";
 import { RevealSheet } from "./SavingsPrivacy";
@@ -14,28 +14,8 @@ import { Button, Card, CardTitle, EmptyState, Icons, buttonClass, cx } from "./u
 
 const MIN_RECORDS = 5;
 
-/**
- * Opens a new claude.ai chat with the analysis prompt filled in; Claude then uses the kakeibo connector (MCP).
- * The prompt names the account the app is signed in to, so the connector can refuse when it is signed in to another.
- */
-const claudeAnalysisUrl = (lang: Language, account: string | null) =>
-  "https://claude.ai/new?q=" + encodeURIComponent(DICTS[lang].ai.claudePrompt(account));
-
-/** Email of the account the app is signed in to (null in demo mode or until it is known). */
-function useAccount(signedIn: boolean): string | null {
-  const [account, setAccount] = useState<string | null>(null);
-  useEffect(() => {
-    if (!signedIn) return;
-    let live = true;
-    void createClient()
-      .auth.getUser()
-      .then(({ data }) => live && setAccount(data.user?.email ?? null));
-    return () => {
-      live = false;
-    };
-  }, [signedIn]);
-  return account;
-}
+/** Opens a new claude.ai chat with the analysis prompt filled in; Claude then uses the kakeibo connector (MCP). */
+const claudeAnalysisUrl = (lang: Language, account: string | null) => claudeUrl(DICTS[lang].ai.claudePrompt, DICTS[lang].common.claudeAccount(account));
 
 async function errorText(res: Response, fallback: string): Promise<string> {
   try {
