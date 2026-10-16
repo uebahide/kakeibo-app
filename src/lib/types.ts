@@ -84,6 +84,8 @@ export type Settings = {
   goal: SavingsGoal;
   /** read a receipt photo with Claude as soon as it is attached (off: only when "Read with Claude" is tapped) */
   autoReadReceipts: boolean;
+  /** the period (YYYY-MM) whose suggested budget was last used or turned down; "" when never */
+  budgetReviewed: string;
   /** days marked as "no spending" (YYYY-MM-DD) */
   noSpendDays: string[];
   /** latest analysis; source "claude" when Claude saved it over MCP (older entries have none) */

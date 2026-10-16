@@ -89,6 +89,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
   let hasCategoriesColumn = false;
   // And the auto_read_receipts column (migration 0013).
   let hasAutoReadColumn = false;
+  let hasBudgetReviewedColumn = false;
   // And the language column (migration 0007): null until known (no settings row was loaded yet).
   // Without the column the language is never sent and the choice lives only in this browser's
   // cookie, so picking a language can't break saving.
@@ -113,6 +114,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
       hasWeekStartColumn = Boolean(setRes.data && "week_start_day" in setRes.data);
       hasCategoriesColumn = Boolean(setRes.data && "categories" in setRes.data);
       hasAutoReadColumn = Boolean(setRes.data && "auto_read_receipts" in setRes.data);
+      hasBudgetReviewedColumn = Boolean(setRes.data && "budget_reviewed" in setRes.data);
       hasLanguageColumn = setRes.data ? "language" in setRes.data : null;
       const s = check(setRes) as {
         budgets: Settings["budgets"];
@@ -124,6 +126,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         categories?: unknown;
         language?: string | null;
         auto_read_receipts?: boolean | null;
+        budget_reviewed?: string | null;
         goal: Settings["goal"];
         no_spend_days: string[];
         last_ai: Settings["lastAi"];
@@ -142,6 +145,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
               language: normalizeLanguage(s.language),
               categories: normalizeCategories(s.categories),
               autoReadReceipts: Boolean(s.auto_read_receipts),
+              budgetReviewed: s.budget_reviewed ?? "",
               goal: normalizeGoal(s.goal),
               noSpendDays: s.no_spend_days ?? [],
               lastAi: s.last_ai ?? null,
@@ -190,6 +194,7 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         ...(hasWeekStartColumn || settings.weekStartDay !== 1 ? { week_start_day: settings.weekStartDay } : {}),
         ...(hasCategoriesColumn || !isDefaultCategories(settings.categories) ? { categories: settings.categories } : {}),
         ...(hasAutoReadColumn || settings.autoReadReceipts ? { auto_read_receipts: settings.autoReadReceipts } : {}),
+        ...(hasBudgetReviewedColumn || settings.budgetReviewed ? { budget_reviewed: settings.budgetReviewed || null } : {}),
         goal: settings.goal,
         no_spend_days: settings.noSpendDays,
         ...(settings.lastAi !== loadedLastAi ? { last_ai: settings.lastAi } : {}),

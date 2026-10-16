@@ -333,6 +333,7 @@ export const DEFAULT_SETTINGS: Settings = {
   categories: EMPTY_CATEGORY_SETTINGS,
   goal: { target: 0, saved: 0, monthly: {}, fixedMonthly: { amount: 0, from: "" } },
   autoReadReceipts: false,
+  budgetReviewed: "",
   noSpendDays: [],
   lastAi: null,
 };
