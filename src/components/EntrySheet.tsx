@@ -570,7 +570,7 @@ function SplitParts(props: {
               type="button"
               aria-label={t.entry.splitRemove(i + 2)}
               onClick={() => props.onRemove(i)}
-              className="grid size-9 place-items-center rounded-lg text-lg text-muted hover:bg-surface"
+              className="hit grid size-9 place-items-center rounded-lg text-lg text-muted hover:bg-surface"
             >
               ×
             </button>

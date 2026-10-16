@@ -152,6 +152,19 @@ function CategoryBreakdown({ range }: { range: Range }) {
   const label = useRangeLabel(range);
   const s = rangeSummary(transactions, month, range, settings);
   const rows = categoryRows(s, settings);
+  const [fixedOpen, setFixedOpen] = useState(false);
+  // Budgeted categories with nothing spent go on one line at the end, and fixed costs (the same
+  // every month) fold into one row, so the list stays short on a phone.
+  const unused = rows.filter((row) => row.spent === 0);
+  const used = rows.filter((row) => row.spent > 0);
+  const fixed = used.filter((row) => isFixedCategory(row.id));
+  const groupFixed = fixed.length > 1;
+  type Line = { kind: "row"; row: CategoryRow; spent: number } | { kind: "fixed"; rows: CategoryRow[]; spent: number };
+  const lines: Line[] = used
+    .filter((row) => !groupFixed || !isFixedCategory(row.id))
+    .map((row): Line => ({ kind: "row", row, spent: row.spent }));
+  if (groupFixed) lines.push({ kind: "fixed", rows: fixed, spent: fixed.reduce((sum, row) => sum + row.spent, 0) });
+  lines.sort((a, b) => b.spent - a.spent);
   const slices = topWithRest(s.current.byCategory).map((x) => ({ ...x, name: x.id === REST ? t.analysis.rest : getCategory(x.id).name }));
   const total = slices.reduce((sum, x) => sum + x.value, 0);
   // Categories with records in the month picked: their rows open the history filtered to them.
@@ -198,12 +211,33 @@ function CategoryBreakdown({ range }: { range: Range }) {
           <div className="min-w-0">
             <h3 className="sr-only">{t.analysis.categoryTableTitle}</h3>
             <ul className="grid">
-              {rows.map((row) => (
-                <li key={row.id} className="border-t border-line first:border-t-0">
-                  <CategoryLine row={row} onOpen={recorded.has(row.id) ? () => openHistory(row.id) : undefined} />
-                </li>
-              ))}
+              {lines.map((line) =>
+                line.kind === "fixed" ? (
+                  <li key="fixed" className="border-t border-line first:border-t-0">
+                    <FixedGroup rows={line.rows} open={fixedOpen} onToggle={() => setFixedOpen(!fixedOpen)} />
+                    {fixedOpen && (
+                      <ul className="ml-4 grid border-l border-line pl-2">
+                        {line.rows.map((row) => (
+                          <li key={row.id} className="border-t border-line first:border-t-0">
+                            <CategoryLine row={row} grouped onOpen={recorded.has(row.id) ? () => openHistory(row.id) : undefined} />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ) : (
+                  <li key={line.row.id} className="border-t border-line first:border-t-0">
+                    <CategoryLine row={line.row} onOpen={recorded.has(line.row.id) ? () => openHistory(line.row.id) : undefined} />
+                  </li>
+                ),
+              )}
             </ul>
+            {unused.length > 0 && (
+              <p className="num border-t border-line px-1 pt-2 text-xs text-muted">
+                {t.analysis.unused}
+                {unused.map((row) => `${getCategory(row.id).name} ${yen(row.budget)}`).join(t.common.sep)}
+              </p>
+            )}
             <p className="mt-2 text-xs text-muted">{t.analysis.categoryTableNote}</p>
           </div>
         </div>
@@ -212,7 +246,32 @@ function CategoryBreakdown({ range }: { range: Range }) {
   );
 }
 
-function CategoryLine({ row, onOpen }: { row: CategoryRow; onOpen?: () => void }) {
+/** The fixed-cost categories as one row; opens to show each of them. */
+function FixedGroup({ rows, open, onToggle }: { rows: CategoryRow[]; open: boolean; onToggle: () => void }) {
+  const t = useT();
+  const spent = rows.reduce((sum, row) => sum + row.spent, 0);
+  const diff = spent - rows.reduce((sum, row) => sum + row.previous, 0);
+  return (
+    <button type="button" aria-expanded={open} onClick={onToggle} className="grid min-h-11 w-full grid-cols-[auto_1fr] items-center gap-2.5 px-1 py-2 text-left hover:bg-surface-2">
+      <span aria-hidden className="grid size-7 flex-none place-items-center rounded-full bg-surface-2 text-[13px] font-bold text-muted">
+        {t.analysis.fixedCost.slice(0, 1)}
+      </span>
+      <span className="min-w-0">
+        <span className="flex items-baseline justify-between gap-2 text-sm">
+          <span className="truncate">
+            {t.analysis.fixedGroup(rows.length)}
+            <span className={cx("ml-1 inline-block text-xs text-muted transition-transform", open && "rotate-180")}>▾</span>
+          </span>
+          <span className="num flex-none font-bold">{yen(spent)}</span>
+        </span>
+        <span className="block truncate text-[11px] text-muted">{rows.map((row) => getCategory(row.id).name).join(t.common.sep)}</span>
+        {diff !== 0 && <span className={cx("num block text-[11px]", diff > 0 ? "text-bad" : "text-good")}>{t.analysis.diffPrevious(signed(diff))}</span>}
+      </span>
+    </button>
+  );
+}
+
+function CategoryLine({ row, onOpen, grouped = false }: { row: CategoryRow; onOpen?: () => void; grouped?: boolean }) {
   const t = useT();
   const diff = row.spent - row.previous;
   const ratio = row.budget ? row.budgeted / row.budget : 0;
@@ -230,13 +289,13 @@ function CategoryLine({ row, onOpen }: { row: CategoryRow; onOpen?: () => void }
         {row.budget > 0 ? (
           <Meter ratio={ratio} level={ratio > 1 ? "bad" : ratio > 0.85 ? "warn" : "good"} className="my-1" />
         ) : (
-          <span className="block text-[11px] text-muted">{isFixedCategory(row.id) ? t.analysis.fixedCost : ""}</span>
+          !grouped && isFixedCategory(row.id) && <span className="block text-[11px] text-muted">{t.analysis.fixedCost}</span>
         )}
-        <span className={cx("num block text-[11px]", diff > 0 ? "text-bad" : diff < 0 ? "text-good" : "text-muted")}>{t.analysis.diffPrevious(signed(diff))}</span>
+        {diff !== 0 && <span className={cx("num block text-[11px]", diff > 0 ? "text-bad" : "text-good")}>{t.analysis.diffPrevious(signed(diff))}</span>}
       </span>
     </>
   );
-  const className = "grid w-full grid-cols-[auto_1fr] items-center gap-2.5 px-1 py-2 text-left";
+  const className = "grid min-h-11 w-full grid-cols-[auto_1fr] items-center gap-2.5 px-1 py-2 text-left";
   return onOpen ? (
     <button type="button" onClick={onOpen} className={cx(className, "hover:bg-surface-2")}>
       {content}

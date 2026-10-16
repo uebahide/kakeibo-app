@@ -5,6 +5,9 @@ const ordinal = (n: number) => {
 };
 
 export const ja = {
+  sectionsLabel: "設定の項目",
+  sections: { budget: "予算・カテゴリ", display: "期間と表示", savings: "貯金", links: "連携・データ" },
+
   budgetTitle: "変動費の月の予算",
   budgetTotal: (amount: string) => `合計 ${amount}`,
   budgetHint:
@@ -60,6 +63,9 @@ export const ja = {
 };
 
 export const en: typeof ja = {
+  sectionsLabel: "Settings sections",
+  sections: { budget: "Budget & categories", display: "Periods & display", savings: "Savings", links: "Connections & data" },
+
   budgetTitle: "Monthly budget for variable costs",
   budgetTotal: (amount: string) => `Total ${amount}`,
   budgetHint:

@@ -42,14 +42,14 @@ function MonthNav() {
   const hidden = !month || view === "ai" || view === "settings";
   return (
     <div className={cx("flex items-center gap-0.5 rounded-full border border-line bg-surface p-0.5", hidden && "invisible")}>
-      <button type="button" aria-label={t.common.prevMonth} onClick={() => setMonth(addMonths(month, -1))} className="size-9 rounded-full text-lg text-muted hover:bg-surface-2">
+      <button type="button" aria-label={t.common.prevMonth} onClick={() => setMonth(addMonths(month, -1))} className="hit size-9 rounded-full text-lg text-muted hover:bg-surface-2">
         ‹
       </button>
       <span className="min-w-24 text-center text-sm leading-tight font-bold">
         {month && monthLabel(month)}
         {range && <span className="num block text-[10px] font-medium text-muted">{range}</span>}
       </span>
-      <button type="button" aria-label={t.common.nextMonth} onClick={() => setMonth(addMonths(month, 1))} className="size-9 rounded-full text-lg text-muted hover:bg-surface-2">
+      <button type="button" aria-label={t.common.nextMonth} onClick={() => setMonth(addMonths(month, 1))} className="hit size-9 rounded-full text-lg text-muted hover:bg-surface-2">
         ›
       </button>
     </div>
