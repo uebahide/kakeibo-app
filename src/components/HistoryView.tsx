@@ -19,10 +19,10 @@ const matches = (t: Transaction, filter: Filter) =>
   (filter === "income" ? t.type === "income" : filter === "outside" ? !!t.outsideBudget : t.type !== "income" && t.category === filter);
 
 export function HistoryView() {
-  const { transactions, settings, month, openEntry } = useKakeibo();
+  const { transactions, settings, month, openEntry, historyFilter } = useKakeibo();
   const t = useT();
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>(historyFilter);
   const q = query.trim().toLowerCase();
 
   const inMonth = transactions.filter((t) => periodOf(t.date, settings.monthStartDay) === month);

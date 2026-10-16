@@ -40,6 +40,10 @@ type Ctx = {
   setMonth: (m: string) => void;
   view: View;
   setView: (v: View) => void;
+  /** The filter the history opens with: "all", or a category id when another screen sent the user there. */
+  historyFilter: string;
+  /** Opens the history with its records filtered (a category id). */
+  openHistory: (filter: string) => void;
   /** `type` presets a new entry's type; ignored when editing. */
   entry: { open: boolean; editing: Transaction | null; type?: TxType };
   openEntry: (tx?: Transaction, type?: TxType) => void;
@@ -105,6 +109,7 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
   // Set after mount: the current date must not be read while prerendering.
   const [month, setMonth] = useState("");
   const [view, setViewState] = useState<View>("home");
+  const [historyFilter, setHistoryFilter] = useState("all");
   const [entry, setEntry] = useState<Ctx["entry"]>({ open: false, editing: null });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [savingsHidden, setSavingsHidden] = useState(false);
@@ -215,6 +220,13 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
 
   const setView = useCallback((v: View) => {
     setViewState(v);
+    setHistoryFilter("all");
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  const openHistory = useCallback((filter: string) => {
+    setViewState("history");
+    setHistoryFilter(filter);
     window.scrollTo({ top: 0 });
   }, []);
 
@@ -328,6 +340,8 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     setMonth,
     view,
     setView,
+    historyFilter,
+    openHistory,
     entry,
     openEntry: (tx, type) => setEntry({ open: true, editing: tx ?? null, type }),
     closeEntry: () => setEntry({ open: false, editing: null }),
