@@ -48,6 +48,7 @@ const BUILT_IN: BuiltIn[] = [
   { id: "fun", type: "expense", ja: "娯楽", mark: "娯", en: "Fun", hue: 290 },
   { id: "social", type: "expense", ja: "交際", mark: "際", en: "Social", hue: 330 },
   { id: "clothes", type: "expense", ja: "衣服", mark: "衣", en: "Clothes", hue: 170 },
+  { id: "cosmetics", type: "expense", ja: "コスメ", mark: "コ", en: "Cosmetics", hue: 345 },
   { id: "medical", type: "expense", ja: "医療", mark: "医", en: "Medical", hue: 150 },
   { id: "learning", type: "expense", ja: "学び", mark: "学", en: "Learning", hue: 265 },
   { id: "other", type: "expense", ja: "その他", mark: "他", en: "Other", hue: 220 },

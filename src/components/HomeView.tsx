@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { variableCategories } from "@/lib/categories";
+import { groupSplits } from "@/lib/split";
 import { TIME_ZONE_TAG, dayLabel, monthLabel, shortDayLabel, today } from "@/lib/date";
 import { currentPeriod } from "@/lib/period";
 import { fixedCostsFor } from "@/lib/fixed";
@@ -66,7 +67,7 @@ export function HomeView() {
   const fixed = fixedCostsFor(settings.fixedCosts, month).items;
   const incomeList = stats.list.filter((t) => t.type === "income");
   const unused = variableCategories().filter((c) => settings.budgets[c.id] && !stats.variableByCategory[c.id]);
-  const recent = transactions.slice(0, 5);
+  const recent = groupSplits(transactions).slice(0, 5);
   const target = settings.goal.target;
   const saved = totalSaved(settings);
 
@@ -286,7 +287,7 @@ export function HomeView() {
 
         <Card>
           <CardTitle action={<TextButton onClick={() => setView("history")}>{t.home.recent.seeAll}</TextButton>}>{t.home.recent.title}</CardTitle>
-          {recent.length ? recent.map((t) => <TxRow key={t.id} tx={t} onClick={() => openEntry(t)} />) : <EmptyState title={t.home.recent.empty} />}
+          {recent.length ? recent.map((e) => <TxRow key={e.tx.id} tx={e.tx} parts={e.parts} onClick={() => openEntry(e.tx)} />) : <EmptyState title={t.home.recent.empty} />}
         </Card>
 
         <AiShortcut className="lg:hidden" />

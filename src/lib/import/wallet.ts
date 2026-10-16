@@ -47,6 +47,7 @@ const MERCHANT_HINTS: [RegExp, string][] = [
   [/vodafone|telekom|yettel|docomo|softbank|rakuten\s*mobile|ahamo|povo/i, "phone"],
   [/uber\s*eats|wolt|foodora|foodpanda|demae|lidl|aldi|spar\b|tesco|auchan|penny|coop|cba\b|interspar|7-?eleven|seven-?eleven|lawson|family\s*mart|familymart|ministop|aeon|ito-?yokado|seiyu|mcdonald|burger\s*king|kfc|subway|starbucks|costa|cafe|café|coffee|kávé|bakery|pékség|bistro|restaurant|étterem|pizza|sushi|ramen|izakaya|matsuya|yoshinoya|sukiya|bolt\s*food/i, "food"],
   [/\bbkk\b|máv|mav\b|volán|volan|bolt|uber|taxi|főtaxi|suica|pasmo|icoca|\bjr\b|metro|railway|tokyu|keio|odakyu|shell|\bmol\b|omv|eneos|parking|parkol/i, "transport"],
+  [/sephora|douglas|notino|lush\b|l'occitane|kiehl|aesop|@cosme|cosme\s*kitchen|shiseido|kosé|kose\b|clinique|mac\s*cosmetics/i, "cosmetics"],
   [/\bdm\b|rossmann|müller|mueller|ikea|pepco|tedi|action\b|daiso|muji|matsukiyo|matsumoto\s*kiyoshi|welcia|sundrug|tsuruha|don\s*quijote|donki/i, "daily"],
   [/patika|gyógyszer|pharmacy|apotheke|clinic|klinika|hospital|kórház|dental|fogász/i, "medical"],
   [/zara|h&m|\bhm\b|uniqlo|\bgu\b|primark|c&a|reserved|deichmann|decathlon|mango|bershka|pull&bear/i, "clothes"],

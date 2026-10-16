@@ -4,6 +4,7 @@ import { useState } from "react";
 import { getCategory } from "@/lib/categories";
 import { dayLabel } from "@/lib/date";
 import { periodOf } from "@/lib/period";
+import { groupSplits } from "@/lib/split";
 import { yen } from "@/lib/format";
 import type { Transaction } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
@@ -37,7 +38,7 @@ export function HistoryView() {
   const active = chips.some((c) => c.id === filter) ? filter : "all";
 
   const list = inMonth.filter(
-    (tx) => matches(tx, active) && (!q || tx.memo.toLowerCase().includes(q) || getCategory(tx.category).name.toLowerCase().includes(q)),
+    (tx) => matches(tx, active) && (!q || tx.memo.toLowerCase().includes(q) || (tx.note ?? "").toLowerCase().includes(q) || getCategory(tx.category).name.toLowerCase().includes(q)),
   );
   const groups = new Map<string, Transaction[]>();
   for (const tx of list) groups.set(tx.date, [...(groups.get(tx.date) ?? []), tx]);
@@ -90,8 +91,8 @@ export function HistoryView() {
                 <span>{dayLabel(date)}</span>
                 {spent > 0 && <span className="num">{t.history.daySpent(yen(spent))}</span>}
               </div>
-              {items.map((tx) => (
-                <TxRow key={tx.id} tx={tx} showDate={false} onClick={() => openEntry(tx)} />
+              {groupSplits(items).map((e) => (
+                <TxRow key={e.tx.id} tx={e.tx} parts={e.parts} showDate={false} onClick={() => openEntry(e.tx)} />
               ))}
             </div>
           );
