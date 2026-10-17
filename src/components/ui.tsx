@@ -95,7 +95,20 @@ export function Meter({ ratio, level, className }: { ratio: number; level: PaceL
 }
 
 /** One record, or with `parts` the records one payment was split into (shown as one line with their total). */
-export function TxRow({ tx, parts = [tx], onClick, showDate = true }: { tx: Transaction; parts?: Transaction[]; onClick: () => void; showDate?: boolean }) {
+/** `divider: false` leaves out the line above (when a wrapper draws it, as a swipeable row does). */
+export function TxRow({
+  tx,
+  parts = [tx],
+  onClick,
+  showDate = true,
+  divider = true,
+}: {
+  tx: Transaction;
+  parts?: Transaction[];
+  onClick: () => void;
+  showDate?: boolean;
+  divider?: boolean;
+}) {
   const t = useT();
   const cat = getCategory(tx.category);
   const income = tx.type === "income";
@@ -105,7 +118,10 @@ export function TxRow({ tx, parts = [tx], onClick, showDate = true }: { tx: Tran
     <button
       type="button"
       onClick={onClick}
-      className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2.5 border-t border-line px-1 py-2.5 text-left first:border-t-0 hover:bg-surface-2"
+      className={cx(
+        "grid w-full grid-cols-[auto_1fr_auto] items-center gap-2.5 px-1 py-2.5 text-left hover:bg-surface-2",
+        divider && "border-t border-line first:border-t-0",
+      )}
     >
       <Stamp category={tx.category} size="sm" />
       <span className="min-w-0">

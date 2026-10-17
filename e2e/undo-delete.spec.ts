@@ -121,3 +121,37 @@ test("everything in Recently deleted can be deleted for good at once", async ({ 
   await page.getByRole("button", { name: "最近削除した記録" }).click();
   await expect(page.getByRole("dialog", { name: "最近削除した記録" })).toContainText("最近削除した記録はありません");
 });
+
+test("swiping a history row to the left shows a delete button", async ({ page }) => {
+  await openApp(page);
+  await openEntry(page);
+  const sheet = page.getByRole("dialog");
+  await sheet.getByLabel("金額").fill("800");
+  await sheet.getByPlaceholder("例：スーパー").fill("パン屋");
+  await sheet.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(sheet).toBeHidden();
+  await nav(page).getByRole("button", { name: "履歴", exact: true }).click();
+
+  const row = page.getByRole("button", { name: /パン屋/ });
+  const box = (await row.boundingBox())!;
+  const y = box.y + box.height / 2;
+  // A short swipe springs back; the record does not open either
+  await page.mouse.move(box.x + box.width - 20, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 40, y, { steps: 4 });
+  await page.mouse.up();
+  await expect(sheet).toBeHidden();
+  await expect(row).toHaveCSS("transform", "none");
+
+  await page.mouse.move(box.x + box.width - 20, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 140, y, { steps: 8 });
+  await page.mouse.up();
+  await expect(sheet).toBeHidden();
+  await page.getByRole("button", { name: "パン屋を削除" }).click();
+  await expect(page.getByRole("status")).toHaveText("削除しました");
+  await expect(row).toBeHidden();
+
+  await page.getByRole("button", { name: "元に戻す" }).click();
+  await expect(page.getByRole("button", { name: /パン屋/ })).toContainText("¥800");
+});
