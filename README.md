@@ -16,6 +16,7 @@
 - **貯金**：毎月の貯金額を入れると、その月の収支から差し引かれ、これまでの貯金に積み上がります。目標額は任意で、設定すると進み具合と到達見込みを表示。記録の連続日数、「今日は支出なし」、残り予算を貯金に回すボタンも。
 - **グラフ分析**：カテゴリ別の円グラフ、予算ペース、6か月の収支推移、曜日ごとの使い方。
 - **AI分析**：直近3か月の集計から家計スコア・傾向・節約アクションを出す分析と、家計の相談チャット（Claude API）。
+- **Claude による週のふりかえり**：毎週月曜に Claude が家計簿コネクタで先週の集計を読み、一言・使いすぎたカテゴリ・よかった点・今週の目安をまとめて保存します。週が変わってから3日間はホームにカードで出て（×で閉じられます）、AI分析の「週のふりかえり」で全文と過去の週を見られます。届かなかった週は「Claude でふりかえりを作る」で先週の分を作れます（`0016_weekly_reviews.sql` の実行が必要）。
 - **iPhoneの自動記入**：ウォレット（Apple Pay）でカードを使うと、ショートカットのオートメーションが支払いを送り、自動で記入します。以前に確定した店は同じカテゴリで、初めての店はカテゴリを推測して「要確認」として入り、ホームでワンタップで確定できます。
 - **日本語・英語**：設定の「言語」で表示を切り替えられます。未選択のときはブラウザの言語に従い、AI分析の答えも選んだ言語になります。
 
@@ -59,7 +60,7 @@ npm run test:e2e
 
 ## 本番の設定
 
-1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`、`0007_language.sql`、`0008_wallet_import.sql`、`0009_week_start.sql`、`0010_categories.sql`、`0011_split_payments.sql`、`0012_receipts.sql`、`0013_auto_read_receipts.sql`、`0014_budget_reviewed.sql`、`0015_deleted_records.sql`）に実行します。`0012_receipts.sql` はレシートの写真用のストレージ（非公開のバケット `receipts`）も作ります。
+1. [Supabase](https://supabase.com) でプロジェクトを作り、SQL エディタで `supabase/migrations/` の SQL を番号順（`0001_init.sql`、`0002_fixed_costs.sql`、`0003_outside_budget.sql`、`0004_month_start_day.sql`、`0005_currency.sql`、`0006_time_zone.sql`、`0007_language.sql`、`0008_wallet_import.sql`、`0009_week_start.sql`、`0010_categories.sql`、`0011_split_payments.sql`、`0012_receipts.sql`、`0013_auto_read_receipts.sql`、`0014_budget_reviewed.sql`、`0015_deleted_records.sql`、`0016_weekly_reviews.sql`）に実行します。`0012_receipts.sql` はレシートの写真用のストレージ（非公開のバケット `receipts`）も作ります。
 2. ログイン用のアカウントを Supabase で作ります。アプリには新規登録画面がないので、知らない人は登録できません。
    - Authentication → Users →「Add user」→「Create new user」で、メールアドレスとパスワードを入れ、「Auto Confirm User」にチェックを入れて作成
    - Authentication の設定で「Allow new users to sign up」をオフにしておくと、より安全です
@@ -76,7 +77,7 @@ npm run test:e2e
    - Authentication → OAuth Server で OAuth サーバーを有効にし、Authorization Path を `/oauth/consent`、Dynamic client registration をオンにする
    - Authentication → URL Configuration の Site URL をアプリの本番 URL にする
    - claude.ai の 設定 → コネクタ →「カスタムコネクタを追加」で `https://<本番のドメイン>/api/mcp` を登録し、表示される同意画面で「許可する」
-   - コネクタの道具：`get_monthly_digest`（集計）、`save_analysis`（分析の保存）、`list_receipts_to_sort`（整理待ちのレシート）、`get_receipt_photo`（レシートの写真）、`apply_receipt`（記録を内訳に分ける）、`add_record`（レシートから新しい記録）。書き込む道具は、まず `confirm: false` で内訳案を返し、ユーザーの OK のあと `confirm: true` で書き込みます
+   - コネクタの道具：`get_monthly_digest`（集計）、`save_analysis`（分析の保存）、`list_receipts_to_sort`（整理待ちのレシート）、`get_receipt_photo`（レシートの写真）、`apply_receipt`（記録を内訳に分ける）、`add_record`（レシートから新しい記録）、`get_weekly_digest`（終わった週の集計）、`save_weekly_review`（週のふりかえりの保存）。書き込む道具は、まず `confirm: false` で内訳案を返し、ユーザーの OK のあと `confirm: true` で書き込みます
 
 5. iPhoneの自動記入を使う場合は、アプリの 設定 →「iPhoneの自動記入」で連携キーを発行し、そこに出る手順どおりにショートカットの「取引」オートメーションを作ります。支払いは `POST /api/import/wallet` に `Authorization: Bearer <連携キー>` と JSON `{ "amount": "2 500 Ft", "merchant": "LIDL" }` で送られます（金額は文字のままでも数値でも可、通貨は文字から読み取ります）。
 

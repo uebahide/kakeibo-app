@@ -9,6 +9,7 @@ import { createSupabaseStore } from "@/lib/store/supabase";
 import { z } from "zod";
 import { accountInput as account, accountMismatch, supabaseFor } from "./auth";
 import { registerReceiptTools } from "./receipts";
+import { registerWeeklyTools } from "./weekly";
 
 /**
  * Same shape as the in-app analysis (AiAnalysis), so the AI analysis screen can show it as is.
@@ -101,4 +102,5 @@ export function registerTools(server: McpServer) {
   );
 
   registerReceiptTools(server);
+  registerWeeklyTools(server);
 }

@@ -1,5 +1,6 @@
 import type { TrashEntry } from "../trash";
 import type { NewTransaction, Settings, Transaction } from "../types";
+import type { WeeklyReview } from "../weeklyReview";
 
 /** Receipt photos, kept only when signed in. */
 export interface ReceiptStore {
@@ -39,6 +40,8 @@ export interface KakeiboStore {
   saveSettings(settings: Settings): Promise<void>;
   /** Latest saved analysis, which Claude may have written over MCP while the app was open. */
   loadLastAi?(): Promise<Settings["lastAi"]>;
+  /** Claude's weekly reviews, newest week first (empty before migration 0016). */
+  loadWeeklyReviews?(): Promise<WeeklyReview[]>;
   /** Receipt photos; missing in demo mode. */
   receipts?: ReceiptStore;
 }
