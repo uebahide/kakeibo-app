@@ -38,7 +38,7 @@ type BuiltIn = { id: string; type: TxType; ja: string; mark: string; en: string;
 
 const BUILT_IN: BuiltIn[] = [
   { id: "food", type: "expense", ja: "食費", mark: "食", en: "Food", hue: 12 },
-  { id: "treats", type: "expense", ja: "嗜好品", mark: "嗜", en: "Treats", hue: 70 },
+  { id: "treats", type: "expense", ja: "菓子・酒", mark: "菓", en: "Snacks & drinks", hue: 70 },
   { id: "daily", type: "expense", ja: "日用品", mark: "日", en: "Household", hue: 190 },
   { id: "transport", type: "expense", ja: "交通", mark: "交", en: "Transport", hue: 210 },
   { id: "housing", type: "expense", ja: "住居", mark: "住", en: "Housing", hue: 28, fixed: true },

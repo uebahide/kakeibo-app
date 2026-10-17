@@ -33,7 +33,7 @@ describe("the app's own categories", () => {
   it("list 16 expense and 4 income categories, with names in the display language", () => {
     expect(categoriesOf("expense")).toHaveLength(16);
     expect(getCategory("cosmetics").name).toBe("コスメ");
-    expect(getCategory("treats").name).toBe("嗜好品");
+    expect(getCategory("treats").name).toBe("菓子・酒");
     expect(ids(categoriesOf("expense")).slice(0, 2)).toEqual(["food", "treats"]);
     expect(ids(categoriesOf("income"))).toEqual(["salary", "bonus", "side", "income_other"]);
     expect(getCategory("food").name).toBe("食費");
