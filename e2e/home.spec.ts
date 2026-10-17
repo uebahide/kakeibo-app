@@ -18,7 +18,9 @@ test("the week card splits the budget over this week", async ({ page }) => {
   await addExpense(page, "1200");
   await expect(page.getByText("¥35,900", { exact: true })).toBeVisible();
   await expect(page.getByText("使った ¥1,200 / 今週の枠 ¥37,100")).toBeVisible();
-  await expect(page.getByRole("button", { name: "木 使った ¥1,200 / 枠 ¥5,300" })).toBeVisible();
+  // Today's bar has today's limit as its share, the same as the top card
+  await expect(page.getByText("/ 今日の枠 ¥9,275")).toBeVisible();
+  await expect(page.getByRole("button", { name: "木 使った ¥1,200 / 枠 ¥9,275" })).toBeVisible();
 });
 
 test("recording an expense lowers today's amount and shows in recent records", async ({ page }) => {
@@ -77,8 +79,8 @@ test("a day's bar opens what was spent that day", async ({ page, isMobile }) => 
   const popup = page.getByRole("dialog", { name: "10/15（木）" });
   await expect(popup).toBeVisible();
   await expect(popup.getByText("合計 ¥2,000")).toBeVisible();
-  await expect(popup.getByText("枠 ¥5,300")).toBeVisible();
-  await expect(popup.getByText("枠まで あと ¥3,300")).toBeVisible();
+  await expect(popup.getByText("枠 ¥9,275")).toBeVisible();
+  await expect(popup.getByText("枠まで あと ¥7,275")).toBeVisible();
   await expect(popup.getByText("ランチ")).toBeVisible();
   await expect(popup.getByText("バス")).toBeVisible();
 

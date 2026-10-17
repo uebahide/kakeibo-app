@@ -92,7 +92,7 @@ export function todayBudget(txs: Transaction[], settings: Settings): TodayBudget
 
 export type WeekDay = {
   date: string;
-  /** this day's share of the budget */
+  /** this day's share of the budget: for today and the days after it, the per-day share of what is left */
   allowance: number;
   /** budgeted spending on this day */
   spent: number;
@@ -142,18 +142,20 @@ export function weekBudget(txs: Transaction[], settings: Settings, start = weekS
   }
   const daysLeftAtStart = periodDays(startPeriod) - periodDayIndex(start, startPeriod, startDay) + 1;
   const firstRate = Math.max(0, budget - spentBefore) / daysLeftAtStart;
-  const days = dates.map((date) => {
+  const planned = dates.map((date) => {
     const period = periodOf(date, startDay);
     return { date, allowance: period === startPeriod ? firstRate : budget / periodDays(period), spent: spentOn.get(date) ?? 0 };
   });
-  const allowance = days.reduce((s, d) => s + d.allowance, 0);
-  const spent = days.reduce((s, d) => s + d.spent, 0);
+  const allowance = planned.reduce((s, d) => s + d.allowance, 0);
+  const spent = planned.reduce((s, d) => s + d.spent, 0);
   const t = today();
   const elapsed = dates.filter((d) => d <= t).length;
   const daysLeft = dates.filter((d) => d >= t).length;
   const left = allowance - spent;
   // Like today's limit, today's own spending stays out of the per-day share, so the two figures match.
   const perDayLeft = daysLeft ? Math.max(0, left + (spentOn.get(t) ?? 0)) / daysLeft : 0;
+  // In the current week, today and the days after it share what is left, so today's bar shows today's limit.
+  const days = elapsed && daysLeft ? planned.map((d) => (d.date >= t ? { ...d, allowance: perDayLeft } : d)) : planned;
   return { start, end, days, allowance, spent, extra, left, elapsed, perDayLeft };
 }
 
