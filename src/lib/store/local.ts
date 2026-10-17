@@ -6,12 +6,13 @@ import { dict } from "../i18n/dict";
 import { clampStartDay } from "../period";
 import { normalizeGoal } from "../savings";
 import { normalizeWeekStart } from "../week";
+import type { TrashEntry } from "../trash";
 import type { NewTransaction, Settings, Transaction } from "../types";
 import type { KakeiboStore } from "./types";
 
 const KEY = "kakeibo-app.v1";
 
-type Saved = { transactions: Transaction[]; settings: Settings };
+type Saved = { transactions: Transaction[]; settings: Settings; trash?: TrashEntry[] };
 
 function read(): Saved {
   try {
@@ -20,6 +21,7 @@ function read(): Saved {
       const saved = JSON.parse(raw) as Partial<Saved>;
       return {
         transactions: saved.transactions ?? [],
+        trash: saved.trash ?? [],
         settings: {
           ...DEFAULT_SETTINGS,
           ...saved.settings,
@@ -63,7 +65,8 @@ export function createLocalStore(): KakeiboStore {
   return {
     kind: "local",
     async load() {
-      return structuredClone(get());
+      const { transactions, settings } = get();
+      return structuredClone({ transactions, settings });
     },
     async addTransactions(items: NewTransaction[]) {
       const created = items.map((item) => ({
@@ -95,6 +98,31 @@ export function createLocalStore(): KakeiboStore {
       get().transactions.push(...restored);
       commit();
       return structuredClone(restored);
+    },
+    async trashTransactions(items) {
+      const ids = new Set(items.map((t) => t.id));
+      const entry: TrashEntry = { id: crypto.randomUUID(), deletedAt: new Date().toISOString(), records: structuredClone(items) };
+      const data = get();
+      data.transactions = data.transactions.filter((t) => !ids.has(t.id));
+      data.trash = [entry, ...(data.trash ?? [])];
+      commit();
+      return structuredClone(entry);
+    },
+    async loadTrash() {
+      return structuredClone(get().trash ?? []);
+    },
+    async restoreTrash(entry) {
+      const data = get();
+      const known = new Set(data.transactions.map((t) => t.id));
+      const restored = structuredClone(entry.records.filter((t) => !known.has(t.id)));
+      data.transactions.push(...restored);
+      data.trash = (data.trash ?? []).filter((e) => e.id !== entry.id);
+      commit();
+      return structuredClone(restored);
+    },
+    async dropTrash(id) {
+      get().trash = (get().trash ?? []).filter((e) => e.id !== id);
+      commit();
     },
     async deleteSamples() {
       get().transactions = get().transactions.filter((t) => !t.isSample);

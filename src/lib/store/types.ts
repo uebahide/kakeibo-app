@@ -1,3 +1,4 @@
+import type { TrashEntry } from "../trash";
 import type { NewTransaction, Settings, Transaction } from "../types";
 
 /** Receipt photos, kept only when signed in. */
@@ -19,6 +20,17 @@ export interface KakeiboStore {
   deleteTransaction(id: string): Promise<void>;
   /** Puts deleted records back as they were (same id and creation time), when a delete is undone. */
   restoreTransactions(items: Transaction[]): Promise<Transaction[]>;
+  /**
+   * Deletes records the user chose to delete and keeps them in "Recently deleted". Resolves null when
+   * there is no place to keep them (before migration 0015): the records are then deleted for good.
+   */
+  trashTransactions(items: Transaction[]): Promise<TrashEntry | null>;
+  /** Everything in "Recently deleted", expired entries included. */
+  loadTrash(): Promise<TrashEntry[]>;
+  /** Puts an entry's records back and takes it out of "Recently deleted". */
+  restoreTrash(entry: TrashEntry): Promise<Transaction[]>;
+  /** Takes an entry out of "Recently deleted" for good. */
+  dropTrash(id: string): Promise<void>;
   /** Records created after `since` (an ISO time), such as payments recorded from the iPhone while the app was open. */
   loadNewTransactions?(since: string): Promise<Transaction[]>;
   deleteSamples(): Promise<void>;

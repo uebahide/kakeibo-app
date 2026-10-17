@@ -53,3 +53,35 @@ test("Undo goes away with the next message, and the delete stays", async ({ page
   await expect(page.getByRole("button", { name: "元に戻す" })).toBeHidden();
   await expect(page.getByRole("button", { name: /パン屋/ })).toBeHidden();
 });
+
+test("a deleted record can be put back later from Recently deleted, in the history or the settings", async ({ page }) => {
+  await openApp(page);
+  await openEntry(page);
+  const sheet = page.getByRole("dialog");
+  await sheet.getByLabel("金額").fill("800");
+  await sheet.getByPlaceholder("例：スーパー").fill("パン屋");
+  await sheet.getByRole("button", { name: "保存", exact: true }).click();
+
+  await nav(page).getByRole("button", { name: "履歴", exact: true }).click();
+  await expect(page.getByRole("button", { name: /最近削除した記録/ })).toBeHidden();
+  await page.getByRole("button", { name: /パン屋/ }).click();
+  await sheet.getByRole("button", { name: "削除" }).click();
+  await sheet.getByRole("button", { name: "本当に削除" }).click();
+  await expect(page.getByRole("button", { name: /パン屋/ })).toBeHidden();
+
+  // Still there after a reload, long after "Undo" has gone
+  await page.reload();
+  await nav(page).getByRole("button", { name: "設定", exact: true }).click();
+  await expect(page.getByRole("button", { name: "最近削除した記録（1件）" })).toBeVisible();
+  await nav(page).getByRole("button", { name: "履歴", exact: true }).click();
+  await page.getByRole("button", { name: "最近削除した記録（1件）" }).click();
+  const trash = page.getByRole("dialog", { name: "最近削除した記録" });
+  await expect(trash).toContainText("パン屋");
+  await expect(trash).toContainText("あと30日");
+  await trash.getByRole("button", { name: "パン屋を戻す" }).click();
+  await expect(page.getByRole("status")).toHaveText("元に戻しました");
+  // Putting back the last one closes the list in the history
+  await expect(trash).toBeHidden();
+  await expect(page.getByRole("button", { name: /パン屋/ })).toContainText("¥800");
+  await expect(page.getByRole("button", { name: /最近削除した記録/ })).toBeHidden();
+});

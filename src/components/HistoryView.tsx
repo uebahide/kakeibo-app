@@ -9,6 +9,7 @@ import { yen } from "@/lib/format";
 import type { Transaction } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
 import { useT } from "./LanguageProvider";
+import { RecentlyDeletedButton } from "./RecentlyDeleted";
 import { Card, EmptyState, TxRow, cx } from "./ui";
 
 /** "all", "income", "outside", or a category id. */
@@ -19,7 +20,7 @@ const matches = (t: Transaction, filter: Filter) =>
   (filter === "income" ? t.type === "income" : filter === "outside" ? !!t.outsideBudget : t.type !== "income" && t.category === filter);
 
 export function HistoryView() {
-  const { transactions, settings, month, openEntry, historyFilter } = useKakeibo();
+  const { transactions, settings, month, openEntry, historyFilter, trash } = useKakeibo();
   const t = useT();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>(historyFilter);
@@ -97,6 +98,11 @@ export function HistoryView() {
             </div>
           );
         })
+      )}
+      {trash.length > 0 && (
+        <div className="mt-2 flex justify-center border-t border-line pt-2">
+          <RecentlyDeletedButton />
+        </div>
       )}
     </Card>
   );

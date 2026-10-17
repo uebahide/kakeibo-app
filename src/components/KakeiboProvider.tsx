@@ -9,6 +9,7 @@ import { currentPeriod } from "@/lib/period";
 import { createLocalStore } from "@/lib/store/local";
 import { createSupabaseStore } from "@/lib/store/supabase";
 import type { KakeiboStore, ReceiptStore } from "@/lib/store/types";
+import { photosOf, sortTrash, type TrashEntry } from "@/lib/trash";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/client";
 import type { NewTransaction, Settings, Transaction, TxType } from "@/lib/types";
@@ -51,8 +52,12 @@ type Ctx = {
   addTransactions: (items: NewTransaction[]) => Promise<Transaction[]>;
   updateTransaction: (id: string, item: NewTransaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
-  /** Deletes records the user chose to delete (a payment and its parts) and offers to undo it for a few seconds. Their receipt photo is deleted only once it can no longer be undone. */
+  /** Deletes records the user chose to delete (a payment and its parts) into "Recently deleted", and offers to undo it for a few seconds. */
   deleteRecords: (items: Transaction[]) => Promise<void>;
+  /** "Recently deleted": what was deleted in the last TRASH_DAYS days, newest first. */
+  trash: TrashEntry[];
+  /** Puts a recently deleted payment back. */
+  restoreTrash: (entry: TrashEntry) => Promise<void>;
   deleteSamples: () => Promise<void>;
   /** Deletes a category the user added; its records and fixed costs move to `moveTo`. */
   deleteCategory: (id: string, moveTo: string) => Promise<void>;
@@ -123,7 +128,7 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
   const [entry, setEntry] = useState<Ctx["entry"]>({ open: false, editing: null });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastAction, setToastAction] = useState<ToastAction | null>(null);
-  // What to do once the last delete can no longer be undone (delete its receipt photo).
+  // What to do once the last delete can no longer be undone (delete its receipt photo, when there is no "Recently deleted").
   const undoExpired = useRef<(() => void) | null>(null);
   const [savingsHidden, setSavingsHidden] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -293,21 +298,53 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     [store],
   );
 
+  // "Recently deleted": loaded once the records are in; entries past TRASH_DAYS go for good, with their photos.
+  const [trash, setTrash] = useState<TrashEntry[]>([]);
+  const dropPhotos = useCallback(
+    (records: Transaction[]) => {
+      for (const id of photosOf(records)) void store.receipts?.remove(id).catch(() => {});
+    },
+    [store],
+  );
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    store
+      .loadTrash()
+      .then(async (entries) => {
+        const { kept, expired } = sortTrash(entries);
+        if (!cancelled) setTrash(kept);
+        for (const e of expired) {
+          await store.dropTrash(e.id);
+          dropPhotos(e.records);
+        }
+      })
+      .catch(() => {
+        // offline: the list stays empty until the next load
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, store, dropPhotos]);
+
+  const restoreTrash = useCallback(
+    async (entry: TrashEntry) => {
+      const restored = await store.restoreTrash(entry);
+      setTrash((prev) => prev.filter((e) => e.id !== entry.id));
+      setTransactions((prev) => {
+        const known = new Set(prev.map((t) => t.id));
+        return [...prev, ...restored.filter((t) => !known.has(t.id))].sort(byNewest);
+      });
+    },
+    [store],
+  );
+
   const deleteRecords = useCallback(
     async (items: Transaction[]) => {
-      const gone = new Set<string>();
-      try {
-        for (const p of items) {
-          await store.deleteTransaction(p.id);
-          gone.add(p.id);
-        }
-      } finally {
-        if (gone.size) setTransactions((prev) => prev.filter((t) => !gone.has(t.id)));
-      }
-      const photos = [...new Set(items.flatMap((p) => (p.receiptId ? [p.receiptId] : [])))];
-      const dropPhotos = () => {
-        for (const id of photos) void store.receipts?.remove(id).catch(() => {});
-      };
+      const entry = await store.trashTransactions(items);
+      const gone = new Set(items.map((p) => p.id));
+      setTransactions((prev) => prev.filter((t) => !gone.has(t.id)));
+      if (entry) setTrash((prev) => [entry, ...prev]);
       let undone = false;
       toast(dict().entry.deleted, {
         label: dict().entry.undo,
@@ -315,25 +352,27 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
           if (undone) return;
           undone = true;
           undoExpired.current = null;
-          store
-            .restoreTransactions(items)
-            .then((restored) => {
-              setTransactions((prev) => {
-                const known = new Set(prev.map((t) => t.id));
-                return [...prev, ...restored.filter((t) => !known.has(t.id))].sort(byNewest);
-              });
-              toast(dict().entry.restored);
-            })
+          (entry
+            ? restoreTrash(entry)
+            : store.restoreTransactions(items).then((restored) =>
+                setTransactions((prev) => {
+                  const known = new Set(prev.map((t) => t.id));
+                  return [...prev, ...restored.filter((t) => !known.has(t.id))].sort(byNewest);
+                }),
+              )
+          )
+            .then(() => toast(dict().entry.restored))
             .catch(() => {
-              dropPhotos();
+              if (!entry) dropPhotos(items);
               toast(dict().entry.restoreFailed);
             });
         },
       });
-      // set after toast(), which makes any earlier delete final first
-      undoExpired.current = dropPhotos;
+      // Without "Recently deleted" (before migration 0015) the photo goes once "Undo" is gone.
+      // Set after toast(), which makes any earlier delete final first.
+      if (!entry) undoExpired.current = () => dropPhotos(items);
     },
-    [store, toast],
+    [store, toast, restoreTrash, dropPhotos],
   );
 
   /** Apply a settings change right away, then save in order (one write at a time). */
@@ -430,6 +469,8 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     updateTransaction,
     deleteTransaction,
     deleteRecords,
+    trash,
+    restoreTrash,
     deleteSamples,
     deleteCategory,
     updateSettings,

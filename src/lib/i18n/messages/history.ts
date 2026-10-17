@@ -10,6 +10,13 @@ export const ja = {
   emptyTitle: "この月の記録はありません",
   emptyBody: "「記入」から追加できます",
   daySpent: (amount: string) => `支出 ${amount}`,
+  recentlyDeleted: "最近削除した記録",
+  recentlyDeletedCount: (n: number) => `最近削除した記録${n ? `（${n}件）` : ""}`,
+  trashHint: (days: number) => `削除してから${days}日間は、ここから元に戻せます。それを過ぎると自動で消えます。`,
+  trashEmpty: "最近削除した記録はありません",
+  restore: "戻す",
+  restoreLabel: (name: string) => `${name}を戻す`,
+  daysLeft: (n: number) => `あと${n}日`,
 };
 
 export const en: typeof ja = {
@@ -23,4 +30,11 @@ export const en: typeof ja = {
   emptyTitle: "No records this month",
   emptyBody: "Tap “Add” to record one",
   daySpent: (amount: string) => `Spent ${amount}`,
+  recentlyDeleted: "Recently deleted",
+  recentlyDeletedCount: (n: number) => `Recently deleted${n ? ` (${n})` : ""}`,
+  trashHint: (days: number) => `Deleted records can be put back from here for ${days} days. After that they are gone for good.`,
+  trashEmpty: "Nothing was deleted recently",
+  restore: "Restore",
+  restoreLabel: (name: string) => `Restore ${name}`,
+  daysLeft: (n: number) => `${n} ${n === 1 ? "day" : "days"} left`,
 };
