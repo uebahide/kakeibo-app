@@ -7,24 +7,32 @@ import { yen } from "@/lib/format";
 import { daysLeft, TRASH_DAYS, type TrashEntry } from "@/lib/trash";
 import { useKakeibo } from "./KakeiboProvider";
 import { useT } from "./LanguageProvider";
-import { Button, EmptyState, Sheet, Stamp, TextButton, cx } from "./ui";
+import { Button, EmptyState, Icons, Sheet, Stamp, cx } from "./ui";
 
-/** Opens "Recently deleted". `always`: shown even when nothing was deleted (in settings). */
-export function RecentlyDeletedButton({ always = false, className }: { always?: boolean; className?: string }) {
+/**
+ * Opens "Recently deleted": a labelled button (in settings, shown even when nothing was deleted), or
+ * with `icon` a trash icon with the count next to the history's search (only when something was deleted).
+ */
+export function RecentlyDeletedButton({ icon = false }: { icon?: boolean }) {
   const { trash } = useKakeibo();
   const t = useT();
   const [open, setOpen] = useState(false);
-  if (!trash.length && !always) return null;
+  if (!trash.length && icon) return null;
   return (
     <>
-      {always ? (
-        <Button className={className} onClick={() => setOpen(true)}>
-          {t.history.recentlyDeletedCount(trash.length)}
-        </Button>
+      {icon ? (
+        <button
+          type="button"
+          aria-label={t.history.recentlyDeletedCount(trash.length)}
+          title={t.history.recentlyDeleted}
+          onClick={() => setOpen(true)}
+          className="relative flex min-h-11 flex-none items-center justify-center rounded-xl border border-line bg-bg px-3 text-muted hover:bg-surface-2 [&_svg]:size-5"
+        >
+          {Icons.trash}
+          <span className="num absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-accent px-1 text-center text-[11px] leading-5 font-bold text-accent-ink">{trash.length}</span>
+        </button>
       ) : (
-        <TextButton className={className} onClick={() => setOpen(true)}>
-          {t.history.recentlyDeletedCount(trash.length)}
-        </TextButton>
+        <Button onClick={() => setOpen(true)}>{t.history.recentlyDeletedCount(trash.length)}</Button>
       )}
       {open && <RecentlyDeletedSheet onClose={() => setOpen(false)} />}
     </>

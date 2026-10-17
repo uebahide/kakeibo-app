@@ -212,7 +212,7 @@ export function SettingsView() {
               >
                 {t.settings.deleteSamples(sampleCount)}
               </Button>
-              <RecentlyDeletedButton always />
+              <RecentlyDeletedButton />
             </div>
           </Card>
 

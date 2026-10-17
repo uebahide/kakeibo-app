@@ -20,7 +20,7 @@ const matches = (t: Transaction, filter: Filter) =>
   (filter === "income" ? t.type === "income" : filter === "outside" ? !!t.outsideBudget : t.type !== "income" && t.category === filter);
 
 export function HistoryView() {
-  const { transactions, settings, month, openEntry, historyFilter, trash } = useKakeibo();
+  const { transactions, settings, month, openEntry, historyFilter } = useKakeibo();
   const t = useT();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>(historyFilter);
@@ -48,14 +48,17 @@ export function HistoryView() {
 
   return (
     <Card>
-      <input
-        id="history-search"
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t.history.searchPlaceholder}
-        className="w-full rounded-xl border border-line bg-bg px-3 py-2"
-      />
+      <div className="flex gap-2">
+        <input
+          id="history-search"
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t.history.searchPlaceholder}
+          className="w-full min-w-0 rounded-xl border border-line bg-bg px-3 py-2"
+        />
+        <RecentlyDeletedButton icon />
+      </div>
       {chips.length > 1 && (
         <div className="no-scrollbar -mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 pb-1" role="group" aria-label={t.history.filters}>
           {chips.map((c) => (
@@ -98,11 +101,6 @@ export function HistoryView() {
             </div>
           );
         })
-      )}
-      {trash.length > 0 && (
-        <div className="mt-2 flex justify-center border-t border-line pt-2">
-          <RecentlyDeletedButton />
-        </div>
       )}
     </Card>
   );
