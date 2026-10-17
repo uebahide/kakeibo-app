@@ -42,7 +42,9 @@ describe("weekBudget", () => {
     expect(w.end).toBe("2026-10-18");
     expect(w.allowance).toBeCloseTo(7 * 1550);
     expect(w.elapsed).toBe(4);
-    expect(w.days.map((d) => d.allowance)).toEqual(Array(7).fill(1550));
+    // Mon–Wed keep their share; what they left over is split over Thursday to Sunday
+    expect(w.days.map((d) => d.allowance)).toEqual([1550, 1550, 1550, 2712.5, 2712.5, 2712.5, 2712.5]);
+    expect(w.days[3].allowance).toBe(w.perDayLeft);
   });
 
   it("leaves out what was spent before the week, and counts the week's own spending", () => {
@@ -78,9 +80,8 @@ describe("weekBudget", () => {
   });
 
   it("takes the days after payday from the next period's budget", () => {
-    setToday("2026-10-28");
-    const w = weekBudget([tx("2026-10-02", 13000)], settings);
-    expect(w.start).toBe("2026-10-26");
+    setToday("2026-10-21");
+    const w = weekBudget([tx("2026-10-02", 13000)], settings, "2026-10-26");
     // Oct 26–31: (31000 - 13000) / 6 days; Nov 1: 31000 / 30 days
     expect(w.days[0].allowance).toBeCloseTo(3000);
     expect(w.days[6].allowance).toBeCloseTo(31000 / 30);
