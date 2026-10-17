@@ -64,3 +64,25 @@ test("a split asks for every part's amount and keeps the parts under the total",
   await expect(page.getByRole("status")).toHaveText("内訳の合計が金額を超えています");
   await expect(sheet).toBeVisible();
 });
+
+test("a payment kept in one category can have a note too, which stays when it is split", async ({ page }) => {
+  await openApp(page);
+  await openEntry(page);
+  const sheet = page.getByRole("dialog");
+  await sheet.getByLabel("金額").fill("680");
+  await sheet.getByRole("button", { name: "日用品", exact: true }).click();
+  await sheet.getByPlaceholder("例：スーパー").fill("ドラッグストア");
+  await sheet.getByLabel("説明", { exact: true }).fill("シャンプー");
+  await sheet.getByRole("button", { name: "保存", exact: true }).click();
+
+  await nav(page).getByRole("button", { name: "履歴", exact: true }).click();
+  const row = page.getByRole("button", { name: /ドラッグストア/ });
+  await expect(row).toContainText("日用品（シャンプー）");
+
+  // The note is kept on editing; splitting moves it to the first part
+  await row.click();
+  await expect(sheet.getByLabel("説明", { exact: true })).toHaveValue("シャンプー");
+  await sheet.getByRole("button", { name: "＋ 複数のカテゴリに分ける" }).click();
+  await expect(sheet.getByLabel("説明", { exact: true })).toBeHidden();
+  await expect(sheet.getByLabel("内訳1の説明")).toHaveValue("シャンプー");
+});

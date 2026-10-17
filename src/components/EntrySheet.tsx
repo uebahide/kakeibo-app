@@ -35,7 +35,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
   const [parts, setParts] = useState<Part[]>(() =>
     group.slice(1).map((p) => ({ id: p.id, category: p.category, amount: p.amount.toLocaleString("ja-JP"), note: p.note ?? "" })),
   );
-  // The note on the part in the category picked above (only kept when the payment is split).
+  // The note on the record in the category picked above (what was bought; split or not).
   const [mainNote, setMainNote] = useState(editing?.note ?? "");
   const startDay = settings.monthStartDay;
   const [date, setDate] = useState(editing?.date ?? (month === currentPeriod(startDay) ? today() : periodStart(month, startDay)));
@@ -173,7 +173,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
       // (reusing the records an edited split payment already has).
       setType("expense");
       setCategory(proposed[0].category);
-      setMainNote(proposed.length > 1 ? proposed[0].note : "");
+      setMainNote(proposed[0].note);
       setParts((before) => proposed.slice(1).map((p, i) => ({ id: before[i]?.id, category: p.category, amount: p.amount.toLocaleString("ja-JP"), note: p.note })));
     }
     if (!latest.current.memo.trim() && reading.store) setMemo(reading.store.slice(0, 60));
@@ -230,7 +230,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
     };
     // Each record with the id it already has (none for a new one).
     const withNote = (item: NewTransaction, note: string): NewTransaction =>
-      splitId && note.trim() ? { ...item, note: note.trim().slice(0, 40) } : item;
+      note.trim() ? { ...item, note: note.trim().slice(0, 40) } : item;
     const items: [string | undefined, NewTransaction][] = [
       [editing?.id, withNote(base, mainNote)],
       ...parts.map((p): [string | undefined, NewTransaction] => [p.id, withNote({ ...base, category: p.category, amount: parseAmount(p.amount) }, p.note)]),
@@ -478,6 +478,22 @@ function EntryForm({ onClose }: { onClose: () => void }) {
             </datalist>
           </label>
         </div>
+        {/* a split payment has this note on its first part, in the split section */}
+        {!parts.length && (
+          <label className="block">
+            <span className="mt-2.5 mb-1 block text-[11px] tracking-wide text-muted">{t.entry.note}</span>
+            <input
+              id="entry-note"
+              value={mainNote}
+              maxLength={40}
+              onChange={(e) => setMainNote(e.target.value)}
+              onKeyDown={onEnter}
+              autoComplete="off"
+              placeholder={t.entry.splitNotePlaceholder}
+              className="w-full rounded-xl border border-line bg-bg px-3 py-2"
+            />
+          </label>
+        )}
 
         <div className="mt-3.5 flex gap-2 [&>button]:flex-1 [&>button]:py-3">
           {editing ? (
