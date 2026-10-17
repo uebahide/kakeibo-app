@@ -33,7 +33,7 @@ test("the analysis screen draws its charts from sample data", async ({ page }) =
   await expect(page.getByText("週ごとの変動費（8週間）")).toBeVisible();
   await expect(page.getByText("カテゴリの推移（6か月）")).toBeVisible();
   await expect(page.getByText("収入・支出・貯金率（6か月）")).toBeVisible();
-  await expect(page.getByText("よく使うお店・メモ")).toBeVisible();
+  await expect(page.getByText("よく使うお店・件名")).toBeVisible();
   await expect(page.getByText("曜日ごとの使い方")).toBeVisible();
   await expect(page.locator(".recharts-surface").first()).toBeVisible();
 });

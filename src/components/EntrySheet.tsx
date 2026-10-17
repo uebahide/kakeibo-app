@@ -489,7 +489,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
               onChange={(e) => setMainNote(e.target.value)}
               onKeyDown={onEnter}
               autoComplete="off"
-              placeholder={t.entry.splitNotePlaceholder}
+              placeholder={t.entry.notePlaceholder}
               className="w-full rounded-xl border border-line bg-bg px-3 py-2"
             />
           </label>

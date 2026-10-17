@@ -1,5 +1,5 @@
 export const ja = {
-  searchPlaceholder: "メモやカテゴリで探す",
+  searchPlaceholder: "お店・品目・カテゴリで探す",
   filters: "絞り込み",
   all: "すべて",
   income: "収入",
@@ -13,7 +13,7 @@ export const ja = {
 };
 
 export const en: typeof ja = {
-  searchPlaceholder: "Search memos and categories",
+  searchPlaceholder: "Search shops, items and categories",
   filters: "Filters",
   all: "All",
   income: "Income",
