@@ -10,6 +10,7 @@ import { normalizeGoal } from "../savings";
 import { normalizeWeekStart } from "../week";
 import type { TrashEntry } from "../trash";
 import type { NewTransaction, Settings, Transaction } from "../types";
+import { WEEKLY_REVIEWS, type WeeklyReview } from "../weeklyReview";
 import type { KakeiboStore } from "./types";
 
 type TxRow = {
@@ -292,6 +293,12 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
         check(await supabase.storage.from(RECEIPT_BUCKET).remove([row.path]));
         check(await supabase.from("receipts").delete().eq("id", id));
       },
+    },
+    async loadWeeklyReviews() {
+      const res = await supabase.from("weekly_reviews").select("review").order("week_start", { ascending: false }).limit(WEEKLY_REVIEWS);
+      // before migration 0016
+      if (res.error) return [];
+      return (res.data as { review: WeeklyReview }[]).map((r) => r.review);
     },
     async loadLastAi() {
       const row = check(await supabase.from("user_settings").select("last_ai").maybeSingle()) as {

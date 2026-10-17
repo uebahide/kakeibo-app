@@ -13,6 +13,7 @@ import { photosOf, sortTrash, type TrashEntry } from "@/lib/trash";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/client";
 import type { NewTransaction, Settings, Transaction, TxType } from "@/lib/types";
+import type { WeeklyReview } from "@/lib/weeklyReview";
 import { changeLanguage, useLanguage } from "./LanguageProvider";
 
 function withoutSampleFixedCosts(fixedCosts: Settings["fixedCosts"]): Settings["fixedCosts"] {
@@ -61,6 +62,8 @@ type Ctx = {
   /** Deletes everything in "Recently deleted" for good, with the receipt photos. */
   emptyTrash: () => Promise<void>;
   deleteSamples: () => Promise<void>;
+  /** Claude's weekly reviews, newest week first. */
+  weeklyReviews: WeeklyReview[];
   /** Deletes a category the user added; its records and fixed costs move to `moveTo`. */
   deleteCategory: (id: string, moveTo: string) => Promise<void>;
   updateSettings: (change: (s: Settings) => Settings) => Promise<void>;
@@ -300,6 +303,29 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     [store],
   );
 
+  // Claude saves weekly reviews over MCP on a schedule, so load them once ready and again whenever the app comes back to the front.
+  const [weeklyReviews, setWeeklyReviews] = useState<WeeklyReview[]>([]);
+  // Demo mode makes its review from the sample records, so load again when they come or go.
+  const demoSamples = store.kind === "local" && transactions.some((t) => t.isSample);
+  useEffect(() => {
+    if (!ready || !store.loadWeeklyReviews) return;
+    const loadWeeklyReviews = store.loadWeeklyReviews;
+    let cancelled = false;
+    const load = () =>
+      loadWeeklyReviews()
+        .then((reviews) => !cancelled && setWeeklyReviews(reviews))
+        .catch(() => {
+          // offline: keep showing what we have
+        });
+    const onVisible = () => document.visibilityState === "visible" && void load();
+    void load();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [ready, store, demoSamples]);
+
   // "Recently deleted": loaded once the records are in; entries past TRASH_DAYS go for good, with their photos.
   const [trash, setTrash] = useState<TrashEntry[]>([]);
   const dropPhotos = useCallback(
@@ -487,6 +513,7 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     restoreTrash,
     emptyTrash,
     deleteSamples,
+    weeklyReviews,
     deleteCategory,
     updateSettings,
     toast,

@@ -20,6 +20,7 @@ import { SwipeTxRow } from "./SwipeTxRow";
 import { useT } from "./LanguageProvider";
 import { WalletReviewCard } from "./WalletImport";
 import { WeekCard } from "./WeekCard";
+import { WeeklyReviewHome } from "./WeeklyReview";
 import { Button, Card, CardTitle, EmptyState, Icons, Meter, PACE_BADGE, Pill, Sheet, Stamp, TextButton, TxRow, cx } from "./ui";
 
 export function useSeedSamples() {
@@ -217,6 +218,8 @@ export function HomeView() {
             {askReveal && <RevealSheet onClose={() => setAskReveal(false)} onRevealed={() => setBreakdownOpen(true)} />}
           </div>
         </section>
+
+        {isCurrent && <WeeklyReviewHome />}
 
         {isCurrent && budget > 0 && <WeekCard />}
 

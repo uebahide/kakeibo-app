@@ -8,6 +8,7 @@ import { normalizeGoal } from "../savings";
 import { normalizeWeekStart } from "../week";
 import type { TrashEntry } from "../trash";
 import type { NewTransaction, Settings, Transaction } from "../types";
+import { sampleReview } from "../weeklyReview";
 import type { KakeiboStore } from "./types";
 
 const KEY = "kakeibo-app.v1";
@@ -131,6 +132,11 @@ export function createLocalStore(): KakeiboStore {
     async moveCategory(from, to) {
       for (const t of get().transactions) if (t.category === from) t.category = to;
       commit();
+    },
+    async loadWeeklyReviews() {
+      // Demo mode has no Claude connector: show what a review looks like while the sample records are in.
+      const { transactions, settings } = get();
+      return transactions.some((t) => t.isSample) ? [sampleReview(transactions, settings)] : [];
     },
     async saveSettings(settings) {
       get().settings = structuredClone(settings);

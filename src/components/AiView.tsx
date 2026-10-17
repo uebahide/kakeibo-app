@@ -8,6 +8,7 @@ import type { Language } from "@/lib/i18n";
 import type { AiAnalysis, ChatTurn } from "@/lib/types";
 import { claudeUrl, useAccount } from "./claudeLink";
 import { useKakeibo } from "./KakeiboProvider";
+import { WeeklyReviewSection } from "./WeeklyReview";
 import { useLanguage, useT } from "./LanguageProvider";
 import { RevealSheet } from "./SavingsPrivacy";
 import { Button, Card, CardTitle, EmptyState, Icons, buttonClass, cx } from "./ui";
@@ -32,7 +33,10 @@ export function AiView() {
   if (savingsHidden) return <Locked />;
   return (
     <div className="grid items-start gap-3.5 lg:grid-cols-[1.15fr_1fr]">
-      <Analysis />
+      <div className="grid gap-3.5">
+        <WeeklyReviewSection />
+        <Analysis />
+      </div>
       <Chat />
     </div>
   );
