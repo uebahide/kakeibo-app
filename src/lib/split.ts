@@ -55,7 +55,8 @@ export function splitWrites(group: Transaction[], parts: PartInput[], base: NewT
     const item: NewTransaction = { ...base, category: p.category, amount: p.amount };
     delete item.splitId;
     delete item.note;
-    return splitId ? { ...item, splitId, ...(p.note.trim() ? { note: p.note.trim().slice(0, 40) } : {}) } : item;
+    const note = p.note.trim() ? { note: p.note.trim().slice(0, 40) } : {};
+    return splitId ? { ...item, splitId, ...note } : { ...item, ...note };
   });
   return {
     updates: items.slice(0, group.length).map((item, i) => ({ id: group[i].id, item })),

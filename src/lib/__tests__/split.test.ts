@@ -69,7 +69,7 @@ describe("saving a payment as parts", () => {
 
   it("delete the records a payment no longer needs; one part is an ordinary record", () => {
     const w = splitWrites([food, daily], [{ category: "food", amount: 5000, note: "牛乳" }], base);
-    expect(w.updates).toEqual([{ id: "a", item: { ...base, category: "food", amount: 5000 } }]);
+    expect(w.updates).toEqual([{ id: "a", item: { ...base, category: "food", amount: 5000, note: "牛乳" } }]);
     expect(w.adds).toEqual([]);
     expect(w.deletes).toEqual(["b"]);
   });

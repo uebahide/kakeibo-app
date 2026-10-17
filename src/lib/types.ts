@@ -22,7 +22,7 @@ export type Transaction = {
   needsReview?: boolean;
   /** shared by the records one payment was split into (one per category) */
   splitId?: string;
-  /** a short note on one part of a split payment (e.g. シャンプー) */
+  /** a short note on what was bought (e.g. シャンプー); each part of a split payment has its own */
   note?: string;
   /** the receipt photo of the payment (shared by all parts of a split payment) */
   receiptId?: string;
