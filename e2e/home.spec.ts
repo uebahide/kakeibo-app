@@ -1,10 +1,10 @@
 import { addExpense, expect, openApp, openEntry, test } from "./fixtures";
 
-test("an empty app explains how to start and splits the budget over the days left", async ({ page }) => {
+test("an empty app explains how to start and splits the week over the days left", async ({ page }) => {
   await openApp(page);
   await expect(page.getByText("まだ記録がありません")).toBeVisible();
-  // ¥106,000 budget over the 17 days left in October
-  await expect(page.getByText("¥6,235", { exact: true })).toBeVisible();
+  // the week's ¥37,100 over the 4 days left in it, the same as the week card's per-day share
+  await expect(page.getByText("¥9,275", { exact: true })).toBeVisible();
   await expect(page.getByText("ゆとりあり").first()).toBeVisible();
 });
 
@@ -26,14 +26,14 @@ test("recording an expense lowers today's amount and shows in recent records", a
   await addExpense(page, "1200", "食費", "ランチ");
 
   await expect(page.getByRole("status")).toHaveText("食費 ¥1,200 を記録しました");
-  await expect(page.getByText("¥5,035", { exact: true })).toBeVisible();
+  await expect(page.getByText("¥8,075", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "今日の出費 ¥1,200 ›" })).toBeVisible();
   await expect(page.getByText("¥104,800", { exact: true })).toBeVisible();
   await expect(page.getByText("ランチ").first()).toBeVisible();
 
   // Demo mode keeps records in the browser
   await page.reload();
-  await expect(page.getByText("¥5,035", { exact: true })).toBeVisible();
+  await expect(page.getByText("¥8,075", { exact: true })).toBeVisible();
 });
 
 test("an expense outside the budget leaves today's amount alone", async ({ page }) => {
@@ -45,7 +45,7 @@ test("an expense outside the budget leaves today's amount alone", async ({ page 
   await sheet.getByRole("radio", { name: /予算外/ }).click();
   await sheet.getByRole("button", { name: "保存", exact: true }).click();
 
-  await expect(page.getByText("¥6,235", { exact: true })).toBeVisible();
+  await expect(page.getByText("¥9,275", { exact: true })).toBeVisible();
   await expect(page.getByText("¥106,000", { exact: true })).toBeVisible();
 });
 

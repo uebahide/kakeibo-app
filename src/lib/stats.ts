@@ -64,38 +64,29 @@ export type TodayBudget = {
   spent: number;
   /** spending outside the budget recorded today */
   extra: number;
-  /** today's share of the budget: what is left apart from today's spending, split over the days left */
+  /** today's share of the week: what is left of it apart from today's spending, split over the week's days left */
   limit: number;
   /** what can still be spent today (negative when over) */
   left: number;
-  /** per-day share from tomorrow on, after today's spending */
+  /** per-day share from tomorrow on, after today's spending (next week's, on the week's last day) */
   perDayFromTomorrow: number;
 };
 
 /**
- * Today's slice of the variable budget for the current period. The limit leaves out today's own
- * spending, so it stays put through the day instead of shrinking with every purchase. Expenses
- * already recorded for later days are held back from it.
+ * Today's slice of the current week's allowance, so it matches the week card's per-day figure.
+ * The limit leaves out today's own spending, so it stays put through the day instead of shrinking
+ * with every purchase. Expenses already recorded for later days of the week are held back from it.
  */
-export function todayBudget(txs: Transaction[], month: string, settings: Settings): TodayBudget {
-  const startDay = settings.monthStartDay;
+export function todayBudget(txs: Transaction[], settings: Settings): TodayBudget {
   const t = today();
-  const daysLeft = periodDays(month) - periodDayIndex(t, month, startDay) + 1;
-  const list: Transaction[] = [];
-  let others = 0;
-  let spent = 0;
-  let extra = 0;
-  for (const tx of txs) {
-    if (tx.type === "income" || periodOf(tx.date, startDay) !== month) continue;
-    if (tx.date === t) {
-      list.push(tx);
-      if (tx.outsideBudget) extra += tx.amount;
-      else spent += tx.amount;
-    } else if (!tx.outsideBudget) others += tx.amount;
-  }
-  const remaining = variableBudget(settings) - others;
-  const limit = Math.max(0, remaining / daysLeft);
-  const perDayFromTomorrow = daysLeft > 1 ? Math.max(0, (remaining - spent) / (daysLeft - 1)) : 0;
+  const list = txs.filter((tx) => tx.type !== "income" && tx.date === t);
+  const extra = list.filter((tx) => tx.outsideBudget).reduce((s, tx) => s + tx.amount, 0);
+  const week = weekBudget(txs, settings);
+  const spent = week.days.find((d) => d.date === t)?.spent ?? 0;
+  const daysLeft = 7 - week.elapsed + 1;
+  const limit = Math.max(0, week.left + spent) / daysLeft;
+  const perDayFromTomorrow =
+    daysLeft > 1 ? Math.max(0, week.left) / (daysLeft - 1) : weekBudget(txs, settings, shiftDays(week.start, 7)).allowance / 7;
   return { list, spent, extra, limit, left: limit - spent, perDayFromTomorrow };
 }
 
@@ -122,7 +113,7 @@ export type WeekBudget = {
   left: number;
   /** days of the week up to and including today: 0 for a week ahead, 7 for one that is over */
   elapsed: number;
-  /** per-day share of what is left, over the days left including today (0 when none are left) */
+  /** per-day share of what is left apart from today's spending, over the days left including today (0 when none are left) */
   perDayLeft: number;
 };
 
@@ -161,7 +152,9 @@ export function weekBudget(txs: Transaction[], settings: Settings, start = weekS
   const elapsed = dates.filter((d) => d <= t).length;
   const daysLeft = dates.filter((d) => d >= t).length;
   const left = allowance - spent;
-  return { start, end, days, allowance, spent, extra, left, elapsed, perDayLeft: daysLeft ? Math.max(0, left) / daysLeft : 0 };
+  // Like today's limit, today's own spending stays out of the per-day share, so the two figures match.
+  const perDayLeft = daysLeft ? Math.max(0, left + (spentOn.get(t) ?? 0)) / daysLeft : 0;
+  return { start, end, days, allowance, spent, extra, left, elapsed, perDayLeft };
 }
 
 export type PaceLevel = "good" | "warn" | "bad";
