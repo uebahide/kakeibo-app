@@ -9,7 +9,9 @@ import { yen } from "@/lib/format";
 import type { Transaction } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
 import { useT } from "./LanguageProvider";
-import { Card, EmptyState, TxRow, cx } from "./ui";
+import { RecentlyDeletedButton } from "./RecentlyDeleted";
+import { SwipeTxRow } from "./SwipeTxRow";
+import { Card, EmptyState, cx } from "./ui";
 
 /** "all", "income", "outside", or a category id. */
 type Filter = string;
@@ -19,10 +21,12 @@ const matches = (t: Transaction, filter: Filter) =>
   (filter === "income" ? t.type === "income" : filter === "outside" ? !!t.outsideBudget : t.type !== "income" && t.category === filter);
 
 export function HistoryView() {
-  const { transactions, settings, month, openEntry, historyFilter } = useKakeibo();
+  const { transactions, settings, month, historyFilter } = useKakeibo();
   const t = useT();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>(historyFilter);
+  // The row swiped open to show its delete button (one at a time).
+  const [swiped, setSwiped] = useState<string | null>(null);
   const q = query.trim().toLowerCase();
 
   const inMonth = transactions.filter((t) => periodOf(t.date, settings.monthStartDay) === month);
@@ -47,14 +51,17 @@ export function HistoryView() {
 
   return (
     <Card>
-      <input
-        id="history-search"
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t.history.searchPlaceholder}
-        className="w-full rounded-xl border border-line bg-bg px-3 py-2"
-      />
+      <div className="flex gap-2">
+        <input
+          id="history-search"
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t.history.searchPlaceholder}
+          className="w-full min-w-0 rounded-xl border border-line bg-bg px-3 py-2"
+        />
+        <RecentlyDeletedButton icon />
+      </div>
       {chips.length > 1 && (
         <div className="no-scrollbar -mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 pb-1" role="group" aria-label={t.history.filters}>
           {chips.map((c) => (
@@ -92,7 +99,13 @@ export function HistoryView() {
                 {spent > 0 && <span className="num">{t.history.daySpent(yen(spent))}</span>}
               </div>
               {groupSplits(items).map((e) => (
-                <TxRow key={e.tx.id} tx={e.tx} parts={e.parts} showDate={false} onClick={() => openEntry(e.tx)} />
+                <SwipeTxRow
+                  key={e.tx.id}
+                  entry={e}
+                  showDate={false}
+                  open={swiped === e.tx.id}
+                  onOpen={(open) => setSwiped(open ? e.tx.id : null)}
+                />
               ))}
             </div>
           );
@@ -101,3 +114,4 @@ export function HistoryView() {
     </Card>
   );
 }
+

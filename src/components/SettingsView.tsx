@@ -14,6 +14,7 @@ import { CategoriesCard } from "./CategoriesCard";
 import { useSeedSamples } from "./HomeView";
 import { useKakeibo } from "./KakeiboProvider";
 import { changeLanguage, useLanguage, useT } from "./LanguageProvider";
+import { RecentlyDeletedButton } from "./RecentlyDeleted";
 import { SecretModeSetting } from "./SavingsPrivacy";
 import { SavingsSettings } from "./SavingsSettings";
 import { Button, Card, CardTitle, Stamp, cx } from "./ui";
@@ -211,6 +212,7 @@ export function SettingsView() {
               >
                 {t.settings.deleteSamples(sampleCount)}
               </Button>
+              <RecentlyDeletedButton />
             </div>
           </Card>
 

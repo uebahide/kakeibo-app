@@ -95,7 +95,20 @@ export function Meter({ ratio, level, className }: { ratio: number; level: PaceL
 }
 
 /** One record, or with `parts` the records one payment was split into (shown as one line with their total). */
-export function TxRow({ tx, parts = [tx], onClick, showDate = true }: { tx: Transaction; parts?: Transaction[]; onClick: () => void; showDate?: boolean }) {
+/** `divider: false` leaves out the line above (when a wrapper draws it, as a swipeable row does). */
+export function TxRow({
+  tx,
+  parts = [tx],
+  onClick,
+  showDate = true,
+  divider = true,
+}: {
+  tx: Transaction;
+  parts?: Transaction[];
+  onClick: () => void;
+  showDate?: boolean;
+  divider?: boolean;
+}) {
   const t = useT();
   const cat = getCategory(tx.category);
   const income = tx.type === "income";
@@ -105,7 +118,10 @@ export function TxRow({ tx, parts = [tx], onClick, showDate = true }: { tx: Tran
     <button
       type="button"
       onClick={onClick}
-      className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2.5 border-t border-line px-1 py-2.5 text-left first:border-t-0 hover:bg-surface-2"
+      className={cx(
+        "grid w-full grid-cols-[auto_1fr_auto] items-center gap-2.5 px-1 py-2.5 text-left hover:bg-surface-2",
+        divider && "border-t border-line first:border-t-0",
+      )}
     >
       <Stamp category={tx.category} size="sm" />
       <span className="min-w-0">
@@ -190,5 +206,6 @@ export const Icons = {
   settings: <svg {...iconProps}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>,
   eye: <svg {...iconProps}><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>,
   eyeOff: <svg {...iconProps}><path d="M10.7 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-2.2 3.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" /></svg>,
+  trash: <svg {...iconProps}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13M9 7V4h6v3" /></svg>,
   plus: <svg {...iconProps} strokeWidth={2.4}><path d="M12 5v14M5 12h14" /></svg>,
 };

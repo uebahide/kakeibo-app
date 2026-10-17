@@ -38,6 +38,9 @@ export const ja = {
   saveFailed: "保存できませんでした。もう一度お試しください",
   deleted: "削除しました",
   deleteFailed: "削除できませんでした",
+  undo: "元に戻す",
+  restored: "元に戻しました",
+  restoreFailed: "元に戻せませんでした",
 };
 
 export const en: typeof ja = {
@@ -80,4 +83,7 @@ export const en: typeof ja = {
   saveFailed: "Couldn't save. Please try again",
   deleted: "Deleted",
   deleteFailed: "Couldn't delete",
+  undo: "Undo",
+  restored: "Restored",
+  restoreFailed: "Couldn't restore",
 };

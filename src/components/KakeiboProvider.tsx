@@ -9,6 +9,7 @@ import { currentPeriod } from "@/lib/period";
 import { createLocalStore } from "@/lib/store/local";
 import { createSupabaseStore } from "@/lib/store/supabase";
 import type { KakeiboStore, ReceiptStore } from "@/lib/store/types";
+import { photosOf, sortTrash, type TrashEntry } from "@/lib/trash";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/client";
 import type { NewTransaction, Settings, Transaction, TxType } from "@/lib/types";
@@ -51,20 +52,36 @@ type Ctx = {
   addTransactions: (items: NewTransaction[]) => Promise<Transaction[]>;
   updateTransaction: (id: string, item: NewTransaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  /** Deletes records the user chose to delete (a payment and its parts) into "Recently deleted", and offers to undo it for a few seconds. */
+  deleteRecords: (items: Transaction[]) => Promise<void>;
+  /** "Recently deleted": what was deleted in the last TRASH_DAYS days, newest first. */
+  trash: TrashEntry[];
+  /** Puts a recently deleted payment back. */
+  restoreTrash: (entry: TrashEntry) => Promise<void>;
+  /** Deletes everything in "Recently deleted" for good, with the receipt photos. */
+  emptyTrash: () => Promise<void>;
   deleteSamples: () => Promise<void>;
   /** Deletes a category the user added; its records and fixed costs move to `moveTo`. */
   deleteCategory: (id: string, moveTo: string) => Promise<void>;
   updateSettings: (change: (s: Settings) => Settings) => Promise<void>;
-  toast: (msg: string) => void;
+  toast: (msg: string, action?: ToastAction) => void;
   /** Load every record again when the app comes back to the front (Claude may change records in claude.ai meanwhile). */
   reloadOnReturn: () => void;
   toastMessage: string | null;
+  /** A button shown in the toast, such as "Undo". */
+  toastAction: ToastAction | null;
   /** Savings amounts masked as ***** on this device (a screen-privacy aid, like hiding a balance). */
   savingsHidden: boolean;
   hideSavings: () => void;
   /** Show savings again. Signed in, this checks the login password; resolves false if it is wrong. */
   revealSavings: (password: string) => Promise<boolean>;
 };
+
+export type ToastAction = { label: string; run: () => void };
+
+/** How long a toast with a button (such as "Undo") stays; a plain message goes sooner. */
+export const ACTION_TOAST_MS = 6000;
+const TOAST_MS = 2400;
 
 const HIDE_KEY = "kakeibo-app.hideSavings";
 
@@ -112,6 +129,9 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
   const [historyFilter, setHistoryFilter] = useState("all");
   const [entry, setEntry] = useState<Ctx["entry"]>({ open: false, editing: null });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastAction, setToastAction] = useState<ToastAction | null>(null);
+  // What to do once the last delete can no longer be undone (delete its receipt photo, when there is no "Recently deleted").
+  const undoExpired = useRef<(() => void) | null>(null);
   const [savingsHidden, setSavingsHidden] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const settingsRef = useRef(settings);
@@ -212,11 +232,36 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [ready, store]);
 
-  const toast = useCallback((msg: string) => {
-    setToastMessage(msg);
-    clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToastMessage(null), 2400);
+  const finishUndo = useCallback(() => {
+    const expired = undoExpired.current;
+    undoExpired.current = null;
+    expired?.();
   }, []);
+
+  // Any new toast replaces the "Undo" button, so the delete it offered to undo becomes final.
+  const toast = useCallback(
+    (msg: string, action?: ToastAction) => {
+      finishUndo();
+      setToastMessage(msg);
+      setToastAction(action ?? null);
+      clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(
+        () => {
+          setToastMessage(null);
+          setToastAction(null);
+          finishUndo();
+        },
+        action ? ACTION_TOAST_MS : TOAST_MS,
+      );
+    },
+    [finishUndo],
+  );
+
+  // Leaving the app while "Undo" is still shown makes the delete final.
+  useEffect(() => {
+    window.addEventListener("pagehide", finishUndo);
+    return () => window.removeEventListener("pagehide", finishUndo);
+  }, [finishUndo]);
 
   const setView = useCallback((v: View) => {
     setViewState(v);
@@ -253,6 +298,95 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
       setTransactions((prev) => prev.filter((t) => t.id !== id));
     },
     [store],
+  );
+
+  // "Recently deleted": loaded once the records are in; entries past TRASH_DAYS go for good, with their photos.
+  const [trash, setTrash] = useState<TrashEntry[]>([]);
+  const dropPhotos = useCallback(
+    (records: Transaction[]) => {
+      for (const id of photosOf(records)) void store.receipts?.remove(id).catch(() => {});
+    },
+    [store],
+  );
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    store
+      .loadTrash()
+      .then(async (entries) => {
+        const { kept, expired } = sortTrash(entries);
+        if (!cancelled) setTrash(kept);
+        for (const e of expired) {
+          await store.dropTrash(e.id);
+          dropPhotos(e.records);
+        }
+      })
+      .catch(() => {
+        // offline: the list stays empty until the next load
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, store, dropPhotos]);
+
+  const restoreTrash = useCallback(
+    async (entry: TrashEntry) => {
+      const restored = await store.restoreTrash(entry);
+      setTrash((prev) => prev.filter((e) => e.id !== entry.id));
+      setTransactions((prev) => {
+        const known = new Set(prev.map((t) => t.id));
+        return [...prev, ...restored.filter((t) => !known.has(t.id))].sort(byNewest);
+      });
+    },
+    [store],
+  );
+
+  const trashRef = useRef(trash);
+  useEffect(() => {
+    trashRef.current = trash;
+  }, [trash]);
+  const emptyTrash = useCallback(async () => {
+    for (const e of trashRef.current) {
+      await store.dropTrash(e.id);
+      setTrash((prev) => prev.filter((x) => x.id !== e.id));
+      dropPhotos(e.records);
+    }
+  }, [store, dropPhotos]);
+
+  const deleteRecords = useCallback(
+    async (items: Transaction[]) => {
+      const entry = await store.trashTransactions(items);
+      const gone = new Set(items.map((p) => p.id));
+      setTransactions((prev) => prev.filter((t) => !gone.has(t.id)));
+      if (entry) setTrash((prev) => [entry, ...prev]);
+      let undone = false;
+      toast(dict().entry.deleted, {
+        label: dict().entry.undo,
+        run: () => {
+          if (undone) return;
+          undone = true;
+          undoExpired.current = null;
+          (entry
+            ? restoreTrash(entry)
+            : store.restoreTransactions(items).then((restored) =>
+                setTransactions((prev) => {
+                  const known = new Set(prev.map((t) => t.id));
+                  return [...prev, ...restored.filter((t) => !known.has(t.id))].sort(byNewest);
+                }),
+              )
+          )
+            .then(() => toast(dict().entry.restored))
+            .catch(() => {
+              if (!entry) dropPhotos(items);
+              toast(dict().entry.restoreFailed);
+            });
+        },
+      });
+      // Without "Recently deleted" (before migration 0015) the photo goes once "Undo" is gone.
+      // Set after toast(), which makes any earlier delete final first.
+      if (!entry) undoExpired.current = () => dropPhotos(items);
+    },
+    [store, toast, restoreTrash, dropPhotos],
   );
 
   /** Apply a settings change right away, then save in order (one write at a time). */
@@ -348,12 +482,17 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     addTransactions,
     updateTransaction,
     deleteTransaction,
+    deleteRecords,
+    trash,
+    restoreTrash,
+    emptyTrash,
     deleteSamples,
     deleteCategory,
     updateSettings,
     toast,
     reloadOnReturn,
     toastMessage,
+    toastAction,
     savingsHidden,
     hideSavings,
     revealSavings,

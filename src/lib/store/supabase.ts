@@ -8,6 +8,7 @@ import { clampStartDay } from "../period";
 import { RECEIPT_BUCKET } from "../receipt";
 import { normalizeGoal } from "../savings";
 import { normalizeWeekStart } from "../week";
+import type { TrashEntry } from "../trash";
 import type { NewTransaction, Settings, Transaction } from "../types";
 import type { KakeiboStore } from "./types";
 
@@ -94,9 +95,23 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
   // Without the column the language is never sent and the choice lives only in this browser's
   // cookie, so picking a language can't break saving.
   let hasLanguageColumn: boolean | null = null;
+  // And the deleted_records table (migration 0015): false once a query on it fails.
+  let hasTrashTable = true;
   // Claude saves analyses straight to last_ai over MCP. Only send last_ai when the app itself
   // changed it, so saving some other setting never overwrites a newer analysis with a stale copy.
   let loadedLastAi: Settings["lastAi"] = null;
+  /** Puts records back with their own ids and creation times. */
+  async function restoreTransactions(items: Transaction[]): Promise<Transaction[]> {
+    const rows = items.map((t) => ({
+      // needs_review only when set, so a restore works before migration 0008 like a normal save
+      ...toRow({ ...t, needsReview: t.needsReview || undefined }),
+      ...(t.source ? { source: t.source } : {}),
+      id: t.id,
+      created_at: t.createdAt,
+    }));
+    return (check(await supabase.from("transactions").insert(rows).select(TX_COLUMNS)) as TxRow[]).map(fromRow);
+  }
+
   return {
     kind: "supabase",
     async load() {
@@ -172,6 +187,45 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
     },
     async deleteTransaction(id) {
       check(await supabase.from("transactions").delete().eq("id", id));
+    },
+    restoreTransactions,
+    async trashTransactions(items) {
+      const ids = items.map((t) => t.id);
+      let entry: TrashEntry | null = null;
+      if (hasTrashTable) {
+        const res = await supabase.from("deleted_records").insert({ records: items }).select("id, deleted_at").single();
+        if (res.error) hasTrashTable = false;
+        else entry = { id: res.data.id, deletedAt: res.data.deleted_at, records: items };
+      }
+      const del = await supabase.from("transactions").delete().in("id", ids);
+      if (del.error) {
+        if (entry) await supabase.from("deleted_records").delete().eq("id", entry.id);
+        throw new Error(del.error.message);
+      }
+      return entry;
+    },
+    async loadTrash() {
+      if (!hasTrashTable) return [];
+      const res = await supabase.from("deleted_records").select("id, deleted_at, records").order("deleted_at", { ascending: false });
+      if (res.error) {
+        // before migration 0015
+        hasTrashTable = false;
+        return [];
+      }
+      return (res.data as { id: string; deleted_at: string; records: Transaction[] }[]).map((r) => ({ id: r.id, deletedAt: r.deleted_at, records: r.records }));
+    },
+    async restoreTrash(entry) {
+      // records already back (a restore whose second step failed) are left as they are
+      const ids = entry.records.map((t) => t.id);
+      const existing = check(await supabase.from("transactions").select("id").in("id", ids)) as { id: string }[];
+      const known = new Set(existing.map((r) => r.id));
+      const missing = entry.records.filter((t) => !known.has(t.id));
+      const restored = missing.length ? await restoreTransactions(missing) : [];
+      check(await supabase.from("deleted_records").delete().eq("id", entry.id));
+      return restored;
+    },
+    async dropTrash(id) {
+      check(await supabase.from("deleted_records").delete().eq("id", id));
     },
     async deleteSamples() {
       check(await supabase.from("transactions").delete().eq("is_sample", true));
