@@ -9,15 +9,11 @@ import { useKakeibo } from "./KakeiboProvider";
 import { useT } from "./LanguageProvider";
 import { Button, EmptyState, Icons, Sheet, Stamp, cx } from "./ui";
 
-/**
- * Opens "Recently deleted": a labelled button (in settings, shown even when nothing was deleted), or
- * with `icon` a trash icon with the count next to the history's search (only when something was deleted).
- */
+/** Opens "Recently deleted": a labelled button (in settings), or with `icon` a trash icon with the count (next to the history's search). */
 export function RecentlyDeletedButton({ icon = false }: { icon?: boolean }) {
   const { trash } = useKakeibo();
   const t = useT();
   const [open, setOpen] = useState(false);
-  if (!trash.length && icon) return null;
   return (
     <>
       {icon ? (
@@ -29,7 +25,9 @@ export function RecentlyDeletedButton({ icon = false }: { icon?: boolean }) {
           className="relative flex min-h-11 flex-none items-center justify-center rounded-xl border border-line bg-bg px-3 text-muted hover:bg-surface-2 [&_svg]:size-5"
         >
           {Icons.trash}
-          <span className="num absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-accent px-1 text-center text-[11px] leading-5 font-bold text-accent-ink">{trash.length}</span>
+          {trash.length > 0 && (
+            <span className="num absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-accent px-1 text-center text-[11px] leading-5 font-bold text-accent-ink">{trash.length}</span>
+          )}
         </button>
       ) : (
         <Button onClick={() => setOpen(true)}>{t.history.recentlyDeletedCount(trash.length)}</Button>
@@ -44,8 +42,16 @@ function RecentlyDeletedSheet({ onClose }: { onClose: () => void }) {
   const t = useT();
   return (
     <Sheet title={t.history.recentlyDeleted} onClose={onClose}>
-      <p className="mb-1 text-xs text-muted">{t.history.trashHint(TRASH_DAYS)}</p>
-      {trash.length ? trash.map((e) => <TrashRow key={e.id} entry={e} />) : <EmptyState title={t.history.trashEmpty} />}
+      {trash.length ? (
+        <>
+          <p className="mb-1 text-xs text-muted">{t.history.trashHint(TRASH_DAYS)}</p>
+          {trash.map((e) => (
+            <TrashRow key={e.id} entry={e} />
+          ))}
+        </>
+      ) : (
+        <EmptyState title={t.history.trashEmpty} />
+      )}
     </Sheet>
   );
 }
