@@ -10,6 +10,8 @@ export const ja = {
   outsideBudget: (amount: string) => `予算外 ${amount}`,
   overspentTitle: "使いすぎたカテゴリ",
   categoryOver: (spent: string, allowance: string) => `${spent} / 目安 ${allowance}`,
+  /** a category without a budget, against its average of the 4 weeks before */
+  categoryAboveUsual: (spent: string, average: string) => `${spent} / いつも ${average}（4週平均）`,
   goodTitle: "よかった点",
   tipsTitle: "今週は",
   nextWeek: (allowance: string, perDay: string) => `今週使える額 ${allowance}（1日 ${perDay}）`,
@@ -42,6 +44,7 @@ export const en: typeof ja = {
   outsideBudget: (amount: string) => `${amount} outside the budget`,
   overspentTitle: "Over their share",
   categoryOver: (spent: string, allowance: string) => `${spent} of ${allowance}`,
+  categoryAboveUsual: (spent: string, average: string) => `${spent}, usually ${average} (4-week average)`,
   goodTitle: "What went well",
   tipsTitle: "This week",
   nextWeek: (allowance: string, perDay: string) => `${allowance} to spend this week (${perDay} a day)`,

@@ -7,8 +7,12 @@ import { monthStats, variableBudget, weekBudget } from "./stats";
 import type { Settings, Transaction } from "./types";
 import { weekDates, weekStartOf } from "./week";
 
-/** A category Claude names as overspent, with the week's figures filled in from the digest. */
-export type WeeklyReviewCategory = { category: string; spent: number; allowance: number; note: string };
+/**
+ * A category Claude names as overspent, with the week's figures filled in from the digest. `allowance` is
+ * what it is measured against: its budget's share for the week, or (basis "average", a category without a
+ * budget) its average over the weeks before. Reviews saved before `basis` existed are all "budget".
+ */
+export type WeeklyReviewCategory = { category: string; spent: number; allowance: number; note: string; basis?: "budget" | "average" };
 
 /** What Claude writes about a week (save_weekly_review), in the digest's language. */
 export type WeeklyReviewText = {
@@ -38,6 +42,9 @@ export const REVIEW_HOME_DAYS = 3;
 
 /** How many past weeks the digest compares the week with. */
 const PAST_WEEKS = 4;
+
+/** A category without a budget counts as overspent when its week is this much above its average of the weeks before. */
+export const ABOVE_USUAL = 1.2;
 
 /** First day of the last week that is over (the week before the current one). */
 export const lastWeekStart = (settings: Settings) => shiftDays(weekStartOf(today(), settings.weekStartDay), -7);
@@ -81,12 +88,17 @@ export function buildWeeklyDigest(txs: Transaction[], settings: Settings, start 
   const byCategory = [...ids]
     .map((id) => {
       const budget = isFixedCategory(id) ? 0 : (settings.budgets[id] ?? 0);
+      const allowance = budget > 0 ? Math.round(categoryAllowance(budget, start, startDay)) : null;
+      const average = Math.round(pastSpent.reduce((s, m) => s + (m.get(id) ?? 0), 0) / PAST_WEEKS);
+      const value = spent.get(id) ?? 0;
       return {
         category: getCategory(id).name,
-        spent: spent.get(id) ?? 0,
+        spent: value,
         /** null when the category has no budget (or is a fixed cost) */
-        allowance: budget > 0 ? Math.round(categoryAllowance(budget, start, startDay)) : null,
-        averageOfPastWeeks: Math.round(pastSpent.reduce((s, m) => s + (m.get(id) ?? 0), 0) / PAST_WEEKS),
+        allowance,
+        averageOfPastWeeks: average,
+        /** over its allowance, or, without a budget, well above its average of the weeks before */
+        over: allowance !== null ? value > allowance : average > 0 && value > average * ABOVE_USUAL,
       };
     })
     .filter((c) => c.spent > 0 || c.allowance)
@@ -144,6 +156,10 @@ export function buildWeeklyDigest(txs: Transaction[], settings: Settings, start 
 
 export type WeeklyDigest = ReturnType<typeof buildWeeklyDigest>;
 
+/** What a category's week is measured against: its budget's share, or its usual week when it has no budget. */
+const measure = (c: WeeklyDigest["byCategory"][number]): Omit<WeeklyReviewCategory, "category" | "note"> =>
+  c.allowance !== null ? { spent: c.spent, allowance: c.allowance, basis: "budget" } : { spent: c.spent, allowance: c.averageOfPastWeeks, basis: "average" };
+
 /** Fills in each overspent category's figures from the digest; returns the names it doesn't know. */
 export function withFigures(text: Omit<WeeklyReviewText, "overspent"> & { overspent: { category: string; note: string }[] }, digest: WeeklyDigest) {
   const unknown: string[] = [];
@@ -151,7 +167,7 @@ export function withFigures(text: Omit<WeeklyReviewText, "overspent"> & { oversp
   for (const o of text.overspent) {
     const c = digest.byCategory.find((b) => b.category === o.category.trim());
     if (!c) unknown.push(o.category);
-    else overspent.push({ category: c.category, spent: c.spent, allowance: c.allowance ?? 0, note: o.note });
+    else overspent.push({ category: c.category, note: o.note, ...measure(c) });
   }
   return { text: { ...text, overspent }, unknown };
 }
@@ -172,12 +188,12 @@ export function reviewFrom(digest: WeeklyDigest, text: WeeklyReviewText, source:
 export function sampleReview(txs: Transaction[], settings: Settings): WeeklyReview {
   const digest = buildWeeklyDigest(txs, settings);
   const s = dict().weekly.sample;
-  const over = digest.byCategory.filter((c) => c.allowance !== null && c.spent > c.allowance).slice(0, 2);
+  const over = digest.byCategory.filter((c) => c.over).slice(0, 2);
   return reviewFrom(
     digest,
     {
       headline: over.length ? s.headlineOver(over[0].category) : s.headline,
-      overspent: over.map((c, i) => ({ category: c.category, spent: c.spent, allowance: c.allowance ?? 0, note: s.notes[i] })),
+      overspent: over.map((c, i) => ({ category: c.category, note: s.notes[i], ...measure(c) })),
       good: [s.good],
       tips: [s.tip],
       cheer: s.cheer,
