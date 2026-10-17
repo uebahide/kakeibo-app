@@ -61,7 +61,7 @@ export function HomeView() {
   const step = budget ? paceStep(stats.variable, budget, fraction) : -1;
   const isCurrent = month === currentPeriod(startDay);
   const left = budget - stats.variable;
-  const todayData = todayBudget(transactions, month, settings);
+  const todayData = todayBudget(transactions, settings);
   // Today's share leads the card while there is budget left to split; otherwise the month's figure does.
   const showToday = isCurrent && budget > 0 && left > 0;
   const saving = monthSavings(settings, month);

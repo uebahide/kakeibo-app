@@ -63,8 +63,8 @@ describe("weekBudget", () => {
     expect(w.spent).toBe(800);
     expect(w.extra).toBe(4000);
     expect(w.left).toBeCloseTo(6550);
-    // left over Thursday to Sunday
-    expect(w.perDayLeft).toBeCloseTo(6550 / 4);
+    // left over Thursday to Sunday, today's own spending aside
+    expect(w.perDayLeft).toBeCloseTo((6550 + 300) / 4);
     expect(w.days.find((d) => d.date === "2026-10-13")?.spent).toBe(500);
   });
 

@@ -9,6 +9,7 @@ import {
   recordStreak,
   todayBudget,
   variableBudget,
+  weekBudget,
   weekdayAverages,
 } from "@/lib/stats";
 import { fixedCost, setToday, settingsWith, tx } from "./helpers";
@@ -57,36 +58,50 @@ describe("variableBudget", () => {
 });
 
 describe("todayBudget", () => {
-  it("splits what is left over the days left, leaving out today's own spending", () => {
-    setToday("2026-10-11"); // day 11 of 31: 21 days left including today
-    const txs = [tx("2026-10-01", 10000), tx("2026-10-11", 400), tx("2026-10-11", 3000, { outsideBudget: true })];
-    const b = todayBudget(txs, "2026-10", settingsWith({}, { food: 31000 }));
-    expect(b.limit).toBe(1000); // (31000 - 10000) / 21
-    expect(b.spent).toBe(400);
+  // Thursday; the week is Oct 12–18 and 20 days of October were left on the 12th
+  const settings = settingsWith({}, { food: 30000 });
+
+  it("splits what is left of the week over its days left, leaving out today's own spending", () => {
+    setToday("2026-10-15");
+    const txs = [
+      tx("2026-10-01", 10000), // before the week: (30000 - 10000) / 20 = 1000 a day, 7000 for the week
+      tx("2026-10-13", 2200),
+      tx("2026-10-15", 600),
+      tx("2026-10-15", 3000, { outsideBudget: true }),
+    ];
+    const b = todayBudget(txs, settings);
+    expect(b.limit).toBe(1200); // (7000 - 2200) / 4
+    expect(b.spent).toBe(600);
     expect(b.extra).toBe(3000);
     expect(b.left).toBe(600);
     expect(b.list).toHaveLength(2);
-    expect(b.perDayFromTomorrow).toBe(1030); // (21000 - 400) / 20
+    expect(b.perDayFromTomorrow).toBe(1400); // (4800 - 600) / 3
   });
 
-  it("holds back expenses already recorded for later days", () => {
-    setToday("2026-10-11");
-    const b = todayBudget([tx("2026-10-20", 10500)], "2026-10", settingsWith({}, { food: 31500 }));
-    expect(b.limit).toBe(1000); // (31500 - 10500) / 21
+  it("matches the week card's per-day share", () => {
+    setToday("2026-10-15");
+    const txs = [tx("2026-10-01", 10000), tx("2026-10-13", 2200), tx("2026-10-15", 600)];
+    expect(todayBudget(txs, settings).limit).toBeCloseTo(weekBudget(txs, settings).perDayLeft);
+  });
+
+  it("holds back expenses already recorded for later days of the week only", () => {
+    setToday("2026-10-15");
+    expect(todayBudget([tx("2026-10-01", 10000), tx("2026-10-17", 2000)], settings).limit).toBe(1250); // (7000 - 2000) / 4
+    expect(todayBudget([tx("2026-10-01", 10000), tx("2026-10-25", 2000)], settings).limit).toBe(1750);
   });
 
   it("never goes below zero", () => {
-    setToday("2026-10-11");
-    const b = todayBudget([tx("2026-10-01", 50000)], "2026-10", settingsWith({}, { food: 31000 }));
+    setToday("2026-10-15");
+    const b = todayBudget([tx("2026-10-01", 40000)], settings);
     expect(b.limit).toBe(0);
     expect(b.perDayFromTomorrow).toBe(0);
   });
 
-  it("has nothing for tomorrow on the period's last day", () => {
-    setToday("2026-10-31");
-    const b = todayBudget([], "2026-10", settingsWith({}, { food: 31000 }));
-    expect(b.limit).toBe(31000);
-    expect(b.perDayFromTomorrow).toBe(0);
+  it("takes tomorrow's share from next week on the week's last day", () => {
+    setToday("2026-10-18");
+    const b = todayBudget([], settingsWith({}, { food: 26000 }));
+    expect(b.limit).toBe(9100); // 1300 a day, all 7 days left for Sunday
+    expect(b.perDayFromTomorrow).toBe(2000); // 26000 / 13 days left on the 19th
   });
 });
 

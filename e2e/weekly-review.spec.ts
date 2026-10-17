@@ -22,7 +22,8 @@ test("last week's review shows on the home screen in the new week's first days, 
   await card.getByRole("button", { name: "閉じる" }).click();
   await expect(card).toBeHidden();
   await page.reload();
-  await expect(page.getByText("今日使える額")).toBeVisible();
+  // The random sample records can put today over its limit, which swaps the card's label.
+  await expect(page.getByText(/^(今日使える額|今日の枠をオーバー)$/)).toBeVisible();
   await expect(page.getByText("先週のふりかえり")).toBeHidden();
 });
 
