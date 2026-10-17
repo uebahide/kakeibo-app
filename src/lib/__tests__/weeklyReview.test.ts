@@ -48,10 +48,22 @@ describe("buildWeeklyDigest", () => {
   it("compares each category with its budget's share and the weeks before", () => {
     setToday("2026-10-15");
     const d = buildWeeklyDigest(txs, settings);
-    expect(d.byCategory[0]).toEqual({ category: food(), spent: 8000, allowance: 7000, averageOfPastWeeks: 250 });
+    expect(d.byCategory[0]).toEqual({ category: food(), spent: 8000, allowance: 7000, averageOfPastWeeks: 250, over: true });
     // a budget with no spending is still listed; spending outside the budget is not
     expect(d.byCategory.map((c) => c.category)).toEqual([food(), getCategory("daily").name]);
-    expect(d.byCategory[1]).toMatchObject({ spent: 0, allowance: 1400 });
+    expect(d.byCategory[1]).toMatchObject({ spent: 0, allowance: 1400, over: false });
+  });
+
+  it("counts a category without a budget as over when it is well above its usual week", () => {
+    setToday("2026-10-15");
+    // 4 weeks before of 1000 each: an average of 1000
+    const before = ["2026-09-07", "2026-09-14", "2026-09-21", "2026-09-28"].map((d) => tx(d, 1000, { category: "fun" }));
+    const over = buildWeeklyDigest([...before, tx("2026-10-06", 1300, { category: "fun" })], settings).byCategory.find((c) => c.category === getCategory("fun").name);
+    expect(over).toEqual({ category: getCategory("fun").name, spent: 1300, allowance: null, averageOfPastWeeks: 1000, over: true });
+    const usual = buildWeeklyDigest([...before, tx("2026-10-06", 1200, { category: "fun" })], settings).byCategory.find((c) => c.category === getCategory("fun").name);
+    expect(usual?.over).toBe(false);
+    // nothing to compare with
+    expect(buildWeeklyDigest([tx("2026-10-06", 5000, { category: "fun" })], settings).byCategory[0].over).toBe(false);
   });
 
   it("lists where the money went, outside the budget included", () => {
@@ -91,8 +103,15 @@ describe("saving a review", () => {
     const d = buildWeeklyDigest([tx("2026-10-06", 9000)], settings);
     const ok = withFigures({ ...text, overspent: [{ category: ` ${food()} `, note: "n" }] }, d);
     expect(ok.unknown).toEqual([]);
-    expect(ok.text.overspent).toEqual([{ category: food(), spent: 9000, allowance: 7000, note: "n" }]);
+    expect(ok.text.overspent).toEqual([{ category: food(), spent: 9000, allowance: 7000, note: "n", basis: "budget" }]);
     expect(withFigures({ ...text, overspent: [{ category: "旅行", note: "n" }] }, d).unknown).toEqual(["旅行"]);
+  });
+
+  it("measures a category without a budget against its usual week", () => {
+    setToday("2026-10-15");
+    const d = buildWeeklyDigest([tx("2026-09-30", 4000, { category: "fun" }), tx("2026-10-06", 3000, { category: "fun" })], settings);
+    const fun = getCategory("fun").name;
+    expect(withFigures({ ...text, overspent: [{ category: fun, note: "n" }] }, d).text.overspent).toEqual([{ category: fun, spent: 3000, allowance: 1000, note: "n", basis: "average" }]);
   });
 
   it("keeps the week's totals and the next week's allowance", () => {

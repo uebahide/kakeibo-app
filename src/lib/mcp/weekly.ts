@@ -14,11 +14,11 @@ import { accountInput as account, accountMismatch, supabaseFor } from "./auth";
 
 const WEEKLY_NOTE =
   "金額の単位は currency。week は振り返る週（start〜end、weekStartsOn 始まり）で、allowance はその週に使えた額、spent は予算内の支出、outsideBudget は予算外の支出。" +
-  "byCategory はカテゴリごとの予算内の支出で、allowance は月の予算をその週の日数分に割った目安（予算がなければ null）、averageOfPastWeeks はその前の4週の平均。" +
+  "byCategory はカテゴリごとの予算内の支出で、allowance は月の予算をその週の日数分に割った目安（予算がなければ null）、averageOfPastWeeks はその前の4週の平均。over は使いすぎかどうか（予算があれば allowance を超えた、予算がなければ前の4週の平均の1.2倍を超えた）。" +
   "topItems はその週のお店・メモごとの合計、pastWeeks はその前の4週、nextWeek は次の週（先週を振り返るときは今週）の使える額と1日あたり、month は今月の予算と支出。" +
   "カテゴリ名と曜日は language の言語（ja＝日本語、en＝英語）。文章は language の言語で書く。" +
   " Amounts are in `currency`. `week` is the week to review (`start` to `end`, starting on `weekStartsOn`): `allowance` is what it could spend, `spent` the budgeted spending, `outsideBudget` spending outside the budget." +
-  " `byCategory` is budgeted spending per category; its `allowance` is the monthly budget's share for those 7 days (null without a budget), `averageOfPastWeeks` the average of the 4 weeks before." +
+  " `byCategory` is budgeted spending per category; its `allowance` is the monthly budget's share for those 7 days (null without a budget), `averageOfPastWeeks` the average of the 4 weeks before. `over` marks overspending: above `allowance`, or without a budget, more than 1.2 times `averageOfPastWeeks`." +
   " `topItems` totals the week by shop or memo, `pastWeeks` are the 4 weeks before, `nextWeek` is the following week (the current one, when reviewing last week) with its allowance and per-day share, `month` the current month's budget and spending." +
   " Category and weekday names are in `language` (ja = Japanese, en = English); write in that language.";
 
@@ -38,7 +38,7 @@ const ReviewSchema = {
       }),
     )
     .max(3)
-    .describe("allowance を超えたカテゴリ（多い順、最大3つ）。なければ空 / Categories over their allowance, largest first, up to 3; empty if none"),
+    .describe("byCategory で over が true のカテゴリ（多い順、最大3つ）。なければ空 / Categories whose `over` is true in byCategory, largest first, up to 3; empty if none"),
   good: z.array(z.string().min(1).max(200)).min(1).max(2).describe("よかった点 1〜2つ（各50字以内）/ 1-2 things that went well (100 English characters or fewer each)"),
   tips: z
     .array(z.string().min(1).max(200))
@@ -91,7 +91,7 @@ export function registerWeeklyTools(server: McpServer) {
       title: "週のふりかえりを家計簿に保存",
       description:
         "週のふりかえりを家計簿アプリ（ホームと「AI分析」画面）に保存する。同じ週のふりかえりは上書きされる。" +
-        "get_weekly_digest の数字にもとづいて書いてから呼ぶ。週の合計と使いすぎたカテゴリの金額はアプリが集計から入れる。" +
+        "get_weekly_digest の数字にもとづいて書いてから呼ぶ。週の合計と使いすぎたカテゴリの金額（予算の目安、予算がなければ前の4週の平均）はアプリが集計から入れる。" +
         "文章はダイジェストの language の言語で書く。" +
         " Saves a weekly review to the Kakeibo app (home and AI analysis screens), replacing one for the same week. Write it from get_weekly_digest first;" +
         " the app fills in the week's totals and the overspent categories' amounts. Write every text in the digest's `language`.",

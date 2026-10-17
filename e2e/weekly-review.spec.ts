@@ -22,7 +22,8 @@ test("last week's review shows on the home screen in the new week's first days, 
   await card.getByRole("button", { name: "閉じる" }).click();
   await expect(card).toBeHidden();
   await page.reload();
-  await expect(page.getByText("今日使える額")).toBeVisible();
+  // The sample records are random, so today may be over its share: wait for the week card instead.
+  await expect(page.getByText("10/12〜10/18")).toBeVisible();
   await expect(page.getByText("先週のふりかえり")).toBeHidden();
 });
 

@@ -133,7 +133,7 @@ function ReviewBody({ review, compact = false }: { review: WeeklyReview; compact
               <li key={o.category} className="rounded-xl bg-warn-soft px-3 py-2">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <b>{o.category}</b>
-                  <span className="num text-xs">{t.categoryOver(yen(o.spent), yen(o.allowance))}</span>
+                  <span className="num text-xs">{(o.basis === "average" ? t.categoryAboveUsual : t.categoryOver)(yen(o.spent), yen(o.allowance))}</span>
                 </div>
                 {!compact && <p className="text-sm">{o.note}</p>}
               </li>
