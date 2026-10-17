@@ -173,6 +173,16 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
     async deleteTransaction(id) {
       check(await supabase.from("transactions").delete().eq("id", id));
     },
+    async restoreTransactions(items) {
+      const rows = items.map((t) => ({
+        // needs_review only when set, so a restore works before migration 0008 like a normal save
+        ...toRow({ ...t, needsReview: t.needsReview || undefined }),
+        ...(t.source ? { source: t.source } : {}),
+        id: t.id,
+        created_at: t.createdAt,
+      }));
+      return (check(await supabase.from("transactions").insert(rows).select(TX_COLUMNS)) as TxRow[]).map(fromRow);
+    },
     async deleteSamples() {
       check(await supabase.from("transactions").delete().eq("is_sample", true));
     },

@@ -23,7 +23,7 @@ export function EntrySheet() {
 }
 
 function EntryForm({ onClose }: { onClose: () => void }) {
-  const { entry, transactions, settings, month, setMonth, addTransactions, updateTransaction, deleteTransaction, toast, receipts, canReadReceipts } = useKakeibo();
+  const { entry, transactions, settings, month, setMonth, addTransactions, updateTransaction, deleteTransaction, deleteRecords, toast, receipts, canReadReceipts } = useKakeibo();
   // A split payment is edited as a whole: its first part is the one shown, the others are its extra parts.
   const [group] = useState(() => (entry.editing ? splitParts(transactions, entry.editing) : []));
   const editing = group[0] ?? null;
@@ -285,10 +285,9 @@ function EntryForm({ onClose }: { onClose: () => void }) {
     }
     setBusy(true);
     try {
-      for (const p of group) await deleteTransaction(p.id);
+      // the saved photo goes with the records, and only once "Undo" is gone
+      await deleteRecords(group);
       dropUnsaved();
-      if (savedReceipt) dropReceipt(savedReceipt);
-      toast(t.entry.deleted);
       onClose();
     } catch {
       toast(t.entry.deleteFailed);

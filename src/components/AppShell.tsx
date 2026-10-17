@@ -57,7 +57,7 @@ function MonthNav() {
 }
 
 export function AppShell() {
-  const { view, setView, openEntry, entry, ready, loadError, storeKind, toastMessage } = useKakeibo();
+  const { view, setView, openEntry, entry, ready, loadError, storeKind, toastMessage, toastAction } = useKakeibo();
   const Current = VIEWS[view];
   const t = useT();
 
@@ -152,8 +152,14 @@ export function AppShell() {
       <EntrySheet />
 
       {toastMessage && (
-        <div role="status" className="fixed bottom-24 left-1/2 z-[60] -translate-x-1/2 whitespace-nowrap rounded-full bg-ink px-4 py-2 text-[13px] text-bg lg:bottom-8">
-          {toastMessage}
+        <div className="fixed bottom-24 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-ink px-4 py-2 text-[13px] text-bg lg:bottom-8">
+          <span role="status">{toastMessage}</span>
+          {toastAction && (
+            // the button reaches past the pill so it is 44px tall to tap
+            <button type="button" onClick={toastAction.run} className="-my-3 -mr-2 min-h-11 rounded-full px-3 font-bold underline underline-offset-2">
+              {toastAction.label}
+            </button>
+          )}
         </div>
       )}
     </div>

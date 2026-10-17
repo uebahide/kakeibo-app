@@ -90,6 +90,12 @@ export function createLocalStore(): KakeiboStore {
       get().transactions = get().transactions.filter((t) => t.id !== id);
       commit();
     },
+    async restoreTransactions(items) {
+      const restored = structuredClone(items);
+      get().transactions.push(...restored);
+      commit();
+      return structuredClone(restored);
+    },
     async deleteSamples() {
       get().transactions = get().transactions.filter((t) => !t.isSample);
       commit();

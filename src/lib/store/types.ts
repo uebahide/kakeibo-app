@@ -17,6 +17,8 @@ export interface KakeiboStore {
   addTransactions(items: NewTransaction[]): Promise<Transaction[]>;
   updateTransaction(id: string, item: NewTransaction): Promise<Transaction>;
   deleteTransaction(id: string): Promise<void>;
+  /** Puts deleted records back as they were (same id and creation time), when a delete is undone. */
+  restoreTransactions(items: Transaction[]): Promise<Transaction[]>;
   /** Records created after `since` (an ISO time), such as payments recorded from the iPhone while the app was open. */
   loadNewTransactions?(since: string): Promise<Transaction[]>;
   deleteSamples(): Promise<void>;
