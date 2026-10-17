@@ -38,8 +38,10 @@ export function RecentlyDeletedButton({ icon = false }: { icon?: boolean }) {
 }
 
 function RecentlyDeletedSheet({ onClose }: { onClose: () => void }) {
-  const { trash } = useKakeibo();
+  const { trash, emptyTrash, toast } = useKakeibo();
   const t = useT();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
   return (
     <Sheet title={t.history.recentlyDeleted} onClose={onClose}>
       {trash.length ? (
@@ -48,6 +50,30 @@ function RecentlyDeletedSheet({ onClose }: { onClose: () => void }) {
           {trash.map((e) => (
             <TrashRow key={e.id} entry={e} />
           ))}
+          <div className="mt-2 flex justify-end border-t border-line pt-3">
+            <Button
+              variant="danger"
+              disabled={busy}
+              onClick={async () => {
+                if (!confirming) {
+                  setConfirming(true);
+                  return;
+                }
+                setBusy(true);
+                try {
+                  await emptyTrash();
+                  toast(t.history.trashEmptied);
+                } catch {
+                  toast(t.history.emptyTrashFailed);
+                } finally {
+                  setBusy(false);
+                  setConfirming(false);
+                }
+              }}
+            >
+              {confirming ? t.history.confirmEmptyTrash : t.history.emptyTrash}
+            </Button>
+          </div>
         </>
       ) : (
         <EmptyState title={t.history.trashEmpty} />

@@ -17,6 +17,10 @@ export const ja = {
   restore: "戻す",
   restoreLabel: (name: string) => `${name}を戻す`,
   daysLeft: (n: number) => `あと${n}日`,
+  emptyTrash: "すべて完全に削除",
+  confirmEmptyTrash: "本当にすべて完全に削除",
+  trashEmptied: "完全に削除しました",
+  emptyTrashFailed: "完全に削除できませんでした",
 };
 
 export const en: typeof ja = {
@@ -37,4 +41,8 @@ export const en: typeof ja = {
   restore: "Restore",
   restoreLabel: (name: string) => `Restore ${name}`,
   daysLeft: (n: number) => `${n} ${n === 1 ? "day" : "days"} left`,
+  emptyTrash: "Delete all for good",
+  confirmEmptyTrash: "Really delete all for good?",
+  trashEmptied: "Deleted for good",
+  emptyTrashFailed: "Couldn't delete for good",
 };

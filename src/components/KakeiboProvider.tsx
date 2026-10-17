@@ -58,6 +58,8 @@ type Ctx = {
   trash: TrashEntry[];
   /** Puts a recently deleted payment back. */
   restoreTrash: (entry: TrashEntry) => Promise<void>;
+  /** Deletes everything in "Recently deleted" for good, with the receipt photos. */
+  emptyTrash: () => Promise<void>;
   deleteSamples: () => Promise<void>;
   /** Deletes a category the user added; its records and fixed costs move to `moveTo`. */
   deleteCategory: (id: string, moveTo: string) => Promise<void>;
@@ -339,6 +341,18 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     [store],
   );
 
+  const trashRef = useRef(trash);
+  useEffect(() => {
+    trashRef.current = trash;
+  }, [trash]);
+  const emptyTrash = useCallback(async () => {
+    for (const e of trashRef.current) {
+      await store.dropTrash(e.id);
+      setTrash((prev) => prev.filter((x) => x.id !== e.id));
+      dropPhotos(e.records);
+    }
+  }, [store, dropPhotos]);
+
   const deleteRecords = useCallback(
     async (items: Transaction[]) => {
       const entry = await store.trashTransactions(items);
@@ -471,6 +485,7 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     deleteRecords,
     trash,
     restoreTrash,
+    emptyTrash,
     deleteSamples,
     deleteCategory,
     updateSettings,
