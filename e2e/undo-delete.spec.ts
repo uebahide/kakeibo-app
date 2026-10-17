@@ -155,3 +155,26 @@ test("swiping a history row to the left shows a delete button", async ({ page })
   await page.getByRole("button", { name: "元に戻す" }).click();
   await expect(page.getByRole("button", { name: /パン屋/ })).toContainText("¥800");
 });
+
+test("a recent record on the home screen can be swiped away too", async ({ page }) => {
+  await openApp(page);
+  await openEntry(page);
+  const sheet = page.getByRole("dialog");
+  await sheet.getByLabel("金額").fill("800");
+  await sheet.getByPlaceholder("例：スーパー").fill("パン屋");
+  await sheet.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(sheet).toBeHidden();
+
+  const row = page.getByRole("button", { name: /パン屋/ });
+  await row.scrollIntoViewIfNeeded();
+  const box = (await row.boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width - 20, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 140, y, { steps: 8 });
+  await page.mouse.up();
+  await expect(sheet).toBeHidden();
+  await page.getByRole("button", { name: "パン屋を削除" }).click();
+  await expect(page.getByRole("status")).toHaveText("削除しました");
+  await expect(row).toBeHidden();
+});

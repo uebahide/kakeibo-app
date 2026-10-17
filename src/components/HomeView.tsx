@@ -16,6 +16,7 @@ import { FixedCostsCard } from "./FixedCostsCard";
 import { RevealSheet, SAVINGS_MASK, SavingsEye } from "./SavingsPrivacy";
 import { GoalRing, goalEta } from "./SavingsSettings";
 import { useKakeibo } from "./KakeiboProvider";
+import { SwipeTxRow } from "./SwipeTxRow";
 import { useT } from "./LanguageProvider";
 import { WalletReviewCard } from "./WalletImport";
 import { WeekCard } from "./WeekCard";
@@ -43,6 +44,8 @@ type Panel = "today" | "income" | "fixed" | "saving" | "extra";
 
 export function HomeView() {
   const { transactions, settings, month, setView, openEntry, savingsHidden } = useKakeibo();
+  // The recent record swiped open to show its delete button.
+  const [swiped, setSwiped] = useState<string | null>(null);
   const seed = useSeedSamples();
   const t = useT();
   const h = t.home.hero;
@@ -289,7 +292,11 @@ export function HomeView() {
 
         <Card>
           <CardTitle action={<TextButton onClick={() => setView("history")}>{t.home.recent.seeAll}</TextButton>}>{t.home.recent.title}</CardTitle>
-          {recent.length ? recent.map((e) => <TxRow key={e.tx.id} tx={e.tx} parts={e.parts} onClick={() => openEntry(e.tx)} />) : <EmptyState title={t.home.recent.empty} />}
+          {recent.length ? (
+            recent.map((e) => <SwipeTxRow key={e.tx.id} entry={e} open={swiped === e.tx.id} onOpen={(open) => setSwiped(open ? e.tx.id : null)} />)
+          ) : (
+            <EmptyState title={t.home.recent.empty} />
+          )}
         </Card>
 
         <AiShortcut className="lg:hidden" />
