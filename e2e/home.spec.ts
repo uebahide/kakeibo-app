@@ -59,6 +59,21 @@ test("saving without an amount asks for one", async ({ page }) => {
   await expect(page.getByRole("dialog")).toBeVisible();
 });
 
+test("a long description in a day's popup is cut short so the amount stays inside", async ({ page, isMobile }) => {
+  await openApp(page);
+  await addExpense(page, "404", "食費", "SPAR Partner (Szliven-Market Kft.) Budapest Bartók Béla út");
+
+  const thursday = page.getByRole("button", { name: /^木 使った/ });
+  if (isMobile) await thursday.tap();
+  else await thursday.hover();
+  const popup = page.getByRole("dialog", { name: "10/15（木）" });
+  const amount = popup.getByRole("listitem").getByText("¥404", { exact: true });
+  await expect(amount).toBeVisible();
+  const box = (await popup.boundingBox())!;
+  const amountBox = (await amount.boundingBox())!;
+  expect(amountBox.x + amountBox.width).toBeLessThanOrEqual(box.x + box.width);
+});
+
 test("the N key opens the entry sheet on a computer", async ({ page, isMobile }) => {
   test.skip(isMobile, "phones have no keyboard shortcut");
   await openApp(page);

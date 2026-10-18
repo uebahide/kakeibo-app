@@ -136,7 +136,8 @@ function DayDetails({ day, future, records, align }: { day: WeekDay; future: boo
           <div className={cx("num text-xs", diff < 0 ? "text-bad" : "text-muted")}>{diff < 0 ? w.dayOver(yen(-diff)) : w.dayUnder(yen(diff))}</div>
           {extra > 0 && <div className="num text-xs text-muted">{w.extra(yen(extra))}</div>}
           {records.length ? (
-            <ul className="mt-2 grid gap-1 border-t border-line pt-2 text-xs">
+            // grid-cols-1 caps the column at the popup's width; an auto column would widen to a long description and push the amounts out.
+            <ul className="mt-2 grid grid-cols-1 gap-1 border-t border-line pt-2 text-xs">
               {records.slice(0, POPUP_ITEMS).map((r) => (
                 <li key={r.id} className="flex items-baseline justify-between gap-2">
                   <span className="min-w-0 truncate">
