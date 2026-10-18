@@ -31,7 +31,7 @@ const Reading = {
   items: z
     .array(
       z.object({
-        name: z.string().max(60).describe("短い品目名 / Short item name"),
+        name: z.string().max(200).describe("品目名。印字のまま省略しない（「…」を付けない）/ Item name as printed, in full (no \"…\")"),
         amount: z.number().int().describe("その行の金額（値引きはマイナス）/ The line's amount (negative for a discount)"),
         category: z.string().max(40).describe("カテゴリ id / Category id"),
       }),
