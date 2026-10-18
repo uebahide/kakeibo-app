@@ -12,12 +12,14 @@ import { quickPicks } from "@/lib/stats";
 import type { NewTransaction, Transaction, TxType } from "@/lib/types";
 import { useKakeibo } from "./KakeiboProvider";
 import { useLanguage, useT } from "./LanguageProvider";
+import { EntryDetail } from "./EntryDetail";
 import { ReceiptPhoto } from "./ReceiptPhoto";
 import { Button, Stamp, cx } from "./ui";
 
 export function EntrySheet() {
-  const { entry, closeEntry } = useKakeibo();
+  const { entry, closeEntry, editEntry } = useKakeibo();
   if (!entry.open) return null;
+  if (entry.editing && entry.viewing) return <EntryDetail key={entry.editing.id} id={entry.editing.id} onClose={closeEntry} onEdit={editEntry} />;
   // Re-mount per opening so the form starts from the right values.
   return <EntryForm key={entry.editing?.id ?? "new"} onClose={closeEntry} />;
 }

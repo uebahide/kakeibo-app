@@ -46,9 +46,11 @@ type Ctx = {
   historyFilter: string;
   /** Opens the history with its records filtered (a category id). */
   openHistory: (filter: string) => void;
-  /** `type` presets a new entry's type; ignored when editing. */
-  entry: { open: boolean; editing: Transaction | null; type?: TxType };
+  /** `type` presets a new entry's type; ignored when editing. `viewing`: a record is shown, not yet edited. */
+  entry: { open: boolean; editing: Transaction | null; type?: TxType; viewing?: boolean };
+  /** With a record, opens its details first; "Edit" there (editEntry) opens the form. */
   openEntry: (tx?: Transaction, type?: TxType) => void;
+  editEntry: () => void;
   closeEntry: () => void;
   addTransactions: (items: NewTransaction[]) => Promise<Transaction[]>;
   updateTransaction: (id: string, item: NewTransaction) => Promise<void>;
@@ -503,7 +505,8 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     historyFilter,
     openHistory,
     entry,
-    openEntry: (tx, type) => setEntry({ open: true, editing: tx ?? null, type }),
+    openEntry: (tx, type) => setEntry({ open: true, editing: tx ?? null, type, viewing: Boolean(tx) }),
+    editEntry: () => setEntry((e) => ({ ...e, viewing: false })),
     closeEntry: () => setEntry({ open: false, editing: null }),
     addTransactions,
     updateTransaction,

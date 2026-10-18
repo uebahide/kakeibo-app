@@ -33,6 +33,10 @@ test("one payment can be split over categories, shown and edited as one", async 
 
   // Editing opens the whole payment; removing the part puts it all back in food
   await row.click();
+  // The details list every part
+  await expect(sheet).toContainText("−¥5,000");
+  await expect(sheet.getByRole("region", { name: "内訳" })).toContainText("シャンプー");
+  await sheet.getByRole("button", { name: "編集する" }).click();
   await expect(sheet.getByLabel("金額", { exact: true })).toHaveValue("5,000");
   await sheet.getByRole("button", { name: "内訳2を外す" }).click();
   await sheet.getByRole("button", { name: "更新する" }).click();
@@ -42,6 +46,7 @@ test("one payment can be split over categories, shown and edited as one", async 
 
   // Deleting a split payment deletes every part
   await page.getByRole("button", { name: /スーパー/ }).click();
+  await sheet.getByRole("button", { name: "編集する" }).click();
   await sheet.getByRole("button", { name: "＋ 複数のカテゴリに分ける" }).click();
   await sheet.getByLabel("内訳2の金額").fill("1000");
   await sheet.getByRole("button", { name: "更新する" }).click();
@@ -81,6 +86,7 @@ test("a payment kept in one category can have a note too, which stays when it is
 
   // The note is kept on editing; splitting moves it to the first part
   await row.click();
+  await sheet.getByRole("button", { name: "編集する" }).click();
   await expect(sheet.getByLabel("品目", { exact: true })).toHaveValue("シャンプー");
   await sheet.getByRole("button", { name: "＋ 複数のカテゴリに分ける" }).click();
   await expect(sheet.getByLabel("品目", { exact: true })).toBeHidden();
