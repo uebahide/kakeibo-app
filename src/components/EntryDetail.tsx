@@ -73,8 +73,8 @@ export function EntryDetail({ id, onClose, onEdit }: { id: string; onClose: () =
       <div className="flex items-center gap-3 pt-2 pb-3">
         <Stamp category={main.category} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-bold">{main.memo || cat.name}</p>
-          <p className="truncate text-xs text-muted">{income ? `${t.entry.income}${t.common.sep}${cat.name}` : categories}</p>
+          <p className="text-base font-bold break-words">{main.memo || cat.name}</p>
+          <p className="text-xs text-muted break-words">{income ? `${t.entry.income}${t.common.sep}${cat.name}` : categories}</p>
         </div>
       </div>
       <p className={cx("num border-b-2 border-accent pb-1 text-[40px] leading-tight font-bold", income && "text-good")}>
@@ -106,10 +106,10 @@ export function EntryDetail({ id, onClose, onEdit }: { id: string; onClose: () =
             <div key={p.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-2.5 border-t border-line py-2 text-sm first-of-type:border-t-0">
               <Stamp category={p.category} size="sm" />
               <span className="min-w-0">
-                <span className="block truncate">{getCategory(p.category).name}</span>
-                {p.note && <span className="block truncate text-[11px] text-muted">{p.note}</span>}
+                <span className="block break-words">{getCategory(p.category).name}</span>
+                {p.note && <span className="block text-xs break-words text-muted">{p.note}</span>}
               </span>
-              <span className="num font-semibold">{yen(p.amount)}</span>
+              <span className="num font-semibold whitespace-nowrap">{yen(p.amount)}</span>
             </div>
           ))}
         </section>
