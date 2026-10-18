@@ -74,6 +74,12 @@ describe("saving a payment as parts", () => {
     expect(w.deletes).toEqual(["b"]);
   });
 
+  it("keep a long note from a receipt in full", () => {
+    const note = "北海道産牛乳1000ml・国産小麦の食パン6枚切・たまご10個パック・ギリシャヨーグルトプレーン";
+    const w = splitWrites([], [{ category: "food", amount: 1200, note }], base);
+    expect(w.adds[0].note).toBe(note);
+  });
+
   it("give a new payment split into parts a new split id", () => {
     const w = splitWrites([], [
       { category: "food", amount: 690, note: "牛乳・食パン" },

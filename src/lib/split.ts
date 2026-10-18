@@ -41,6 +41,9 @@ export function groupSplits(list: Transaction[]): Entry[] {
 /** A new id shared by the records of a split payment. */
 export const newSplitId = () => crypto.randomUUID();
 
+/** Longest note a record keeps: room for every item name of a long receipt, cut only as a safeguard. */
+export const NOTE_MAX = 500;
+
 /** One part of a payment to save: its category, amount and note. */
 export type PartInput = { category: string; amount: number; note: string };
 
@@ -55,7 +58,7 @@ export function splitWrites(group: Transaction[], parts: PartInput[], base: NewT
     const item: NewTransaction = { ...base, category: p.category, amount: p.amount };
     delete item.splitId;
     delete item.note;
-    const note = p.note.trim() ? { note: p.note.trim().slice(0, 40) } : {};
+    const note = p.note.trim() ? { note: p.note.trim().slice(0, NOTE_MAX) } : {};
     return splitId ? { ...item, splitId, ...note } : { ...item, ...note };
   });
   return {

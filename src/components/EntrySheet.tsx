@@ -5,7 +5,7 @@ import { FALLBACK_CATEGORY, categoriesOf, getCategory, withCurrent } from "@/lib
 import { today } from "@/lib/date";
 import { currentPeriod, periodOf, periodStart } from "@/lib/period";
 import { currencySymbol, formatAmountInput, parseAmount, yen } from "@/lib/format";
-import { newSplitId, splitParts } from "@/lib/split";
+import { NOTE_MAX, newSplitId, splitParts } from "@/lib/split";
 import { shrinkPhoto } from "@/lib/photo";
 import { receiptParts, type ReceiptReading } from "@/lib/receipt";
 import { quickPicks } from "@/lib/stats";
@@ -232,7 +232,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
     };
     // Each record with the id it already has (none for a new one).
     const withNote = (item: NewTransaction, note: string): NewTransaction =>
-      note.trim() ? { ...item, note: note.trim().slice(0, 40) } : item;
+      note.trim() ? { ...item, note: note.trim().slice(0, NOTE_MAX) } : item;
     const items: [string | undefined, NewTransaction][] = [
       [editing?.id, withNote(base, mainNote)],
       ...parts.map((p): [string | undefined, NewTransaction] => [p.id, withNote({ ...base, category: p.category, amount: parseAmount(p.amount) }, p.note)]),
@@ -486,7 +486,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
             <input
               id="entry-note"
               value={mainNote}
-              maxLength={40}
+              maxLength={NOTE_MAX}
               onChange={(e) => setMainNote(e.target.value)}
               onKeyDown={onEnter}
               autoComplete="off"
@@ -554,7 +554,7 @@ function SplitParts(props: {
       <input
         aria-label={t.entry.splitNote(1)}
         value={props.mainNote}
-        maxLength={40}
+        maxLength={NOTE_MAX}
         onChange={(e) => props.onMainNote(e.target.value)}
         placeholder={t.entry.splitNotePlaceholder}
         className={noteField}
@@ -595,7 +595,7 @@ function SplitParts(props: {
           <input
             aria-label={t.entry.splitNote(i + 2)}
             value={p.note}
-            maxLength={40}
+            maxLength={NOTE_MAX}
             onChange={(e) => props.onChange(i, { note: e.target.value })}
             placeholder={t.entry.splitNotePlaceholder}
             className={noteField}
