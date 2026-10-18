@@ -117,20 +117,22 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
 
   /**
    * Every record, newest first. The API returns at most a set number of rows per request (1000 by
-   * default), so read page after page until one comes back empty.
+   * default), so read page after page until one comes back empty. Each page starts after the last
+   * record read (not at an offset), so a record added or deleted meanwhile (a Wallet payment) can't
+   * shift the pages and repeat or skip one.
    */
   async function loadAllTransactions(): Promise<TxRow[]> {
     const rows: TxRow[] = [];
     for (;;) {
-      const page = check(
-        await supabase
-          .from("transactions")
-          .select(TX_COLUMNS)
-          // id breaks ties so no record falls between two pages
-          .order("date", { ascending: false })
-          .order("id")
-          .range(rows.length, rows.length + PAGE_SIZE - 1),
-      ) as TxRow[];
+      const last = rows.at(-1);
+      let query = supabase
+        .from("transactions")
+        .select(TX_COLUMNS)
+        // id breaks ties so the order is the same on every request
+        .order("date", { ascending: false })
+        .order("id");
+      if (last) query = query.or(`date.lt.${last.date},and(date.eq.${last.date},id.gt.${last.id})`);
+      const page = check(await query.limit(PAGE_SIZE)) as TxRow[];
       if (!page.length) return rows;
       rows.push(...page);
     }

@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseStore } from "@/lib/store/supabase";
 
 /** A Supabase client holding `count` records that, like the real API, returns at most `maxRows` rows per request. */
-function fakeClient(count: number, maxRows: number) {
+function fakeClient(count: number, maxRows: number, addWhileLoading = false) {
   const rows = Array.from({ length: count }, (_, i) => ({
     id: `r${String(i).padStart(5, "0")}`,
     // a few records per day, so many share a date and the tie-break by id matters
@@ -20,12 +20,21 @@ function fakeClient(count: number, maxRows: number) {
   const client = {
     from(table: string) {
       if (table === "user_settings") return { select: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) };
+      let after: { date: string; id: string } | null = null;
       const query = {
         select: () => query,
         order: () => query,
-        range: async (from: number, to: number) => {
+        or: (filter: string) => {
+          const [, date, , id] = filter.match(/^date\.lt\.([\d-]+),and\(date\.eq\.([\d-]+),id\.gt\.(\w+)\)$/)!;
+          after = { date, id };
+          return query;
+        },
+        limit: async (n: number) => {
           requests++;
-          return { data: sorted.slice(from, Math.min(to + 1, from + maxRows)), error: null };
+          const rest = after ? sorted.filter((r) => r.date < after!.date || (r.date === after!.date && r.id > after!.id)) : sorted;
+          // a record added while loading, dated today: it comes first, ahead of every page
+          if (requests === 2 && addWhileLoading) sorted.unshift({ ...sorted[0], id: "new", date: "2026-12-31" });
+          return { data: rest.slice(0, Math.min(n, maxRows)), error: null };
         },
       };
       return query;
@@ -48,6 +57,13 @@ describe("loading the signed-in user's records", () => {
     const { transactions } = await createSupabaseStore(client).load();
     expect(transactions).toHaveLength(1234);
     expect(transactions[0].date >= transactions.at(-1)!.date).toBe(true);
+  });
+
+  it("neither repeats nor skips a record when one is added while loading", async () => {
+    const { client } = fakeClient(2500, 1000, true);
+    const { transactions } = await createSupabaseStore(client).load();
+    expect(transactions).toHaveLength(2500);
+    expect(new Set(transactions.map((t) => t.id)).size).toBe(2500);
   });
 
   it("loads an empty household", async () => {
