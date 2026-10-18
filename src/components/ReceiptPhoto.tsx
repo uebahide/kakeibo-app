@@ -84,10 +84,10 @@ export function ReceiptPhoto(props: {
   );
 }
 
-function PhotoViewer({ src, onClose }: { src: string; onClose: () => void }) {
+export function PhotoViewer({ src, onClose }: { src: string; onClose: () => void }) {
   const t = useT().receipt;
   useEffect(() => {
-    // Escape closes the photo, not the entry sheet behind it.
+    // Escape closes the photo, not the sheet behind it.
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       e.stopImmediatePropagation();

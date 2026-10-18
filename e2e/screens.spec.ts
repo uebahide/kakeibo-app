@@ -5,14 +5,20 @@ test("history lists records and lets one be edited and deleted", async ({ page }
   await addExpense(page, "800", "交通", "バス");
   await nav(page).getByRole("button", { name: "履歴", exact: true }).click();
 
+  // Tapping a record shows its details first; "Edit" opens the form
   await page.getByText("バス").click();
-  const sheet = page.getByRole("dialog");
-  await expect(sheet.getByText("記録を編集")).toBeVisible();
-  await sheet.getByLabel("金額").fill("900");
-  await sheet.getByRole("button", { name: "更新する" }).click();
+  const sheet = page.getByRole("dialog", { name: "記録の詳細" });
+  await expect(sheet).toContainText("−¥800");
+  await expect(sheet).toContainText("交通");
+  await expect(sheet.getByLabel("金額")).toBeHidden();
+  await sheet.getByRole("button", { name: "編集する" }).click();
+  await expect(page.getByRole("dialog").getByText("記録を編集")).toBeVisible();
+  await page.getByRole("dialog").getByLabel("金額").fill("900");
+  await page.getByRole("dialog").getByRole("button", { name: "更新する" }).click();
   await expect(page.getByRole("status")).toHaveText("更新しました");
   await expect(page.getByText("¥900").first()).toBeVisible();
 
+  // The details can delete the record too
   await page.getByText("バス").click();
   await sheet.getByRole("button", { name: "削除" }).click();
   await sheet.getByRole("button", { name: "本当に削除" }).click();

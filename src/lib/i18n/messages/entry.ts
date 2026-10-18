@@ -1,5 +1,10 @@
 export const ja = {
   editTitle: "記録を編集",
+  detailTitle: "記録の詳細",
+  edit: "編集する",
+  budget: "予算",
+  fromWallet: "iPhoneから自動で記入",
+  reviewNote: "まだ確定していない記録です。「編集する」から内容を確かめて確定してください。",
   expense: "支出",
   income: "収入",
   amount: "金額",
@@ -45,6 +50,11 @@ export const ja = {
 
 export const en: typeof ja = {
   editTitle: "Edit record",
+  detailTitle: "Record details",
+  edit: "Edit",
+  budget: "Budget",
+  fromWallet: "Recorded from your iPhone",
+  reviewNote: "This record isn't confirmed yet. Tap Edit to check it and confirm.",
   expense: "Expense",
   income: "Income",
   amount: "Amount",
