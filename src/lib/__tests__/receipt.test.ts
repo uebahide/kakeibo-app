@@ -65,12 +65,11 @@ describe("receipt readings", () => {
     expect(receiptParts(reading([{ name: "値引", amount: -50, category: "food" }], 0))).toEqual([]);
   });
 
-  it("keep notes within 40 characters and list each item name once", () => {
+  it("keep every item name in full and list each once", () => {
     expect(joinNames(["牛乳", "牛乳", "パン"])).toBe("牛乳・パン");
-    const long = joinNames(Array.from({ length: 12 }, (_, i) => `品目${i + 1}`));
-    expect(long.length).toBeLessThanOrEqual(40);
-    expect(long.endsWith("…")).toBe(true);
-    expect(joinNames(["あ".repeat(50)])).toBe(`${"あ".repeat(39)}…`);
+    const names = Array.from({ length: 12 }, (_, i) => `品目${i + 1}`);
+    expect(joinNames(names)).toBe(names.join("・"));
+    expect(joinNames(["あ".repeat(50)])).toBe("あ".repeat(50));
   });
 
   it("checked from the server keep only the user's categories", () => {

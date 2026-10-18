@@ -18,9 +18,6 @@ export type ReceiptReading = {
 /** One part of the split payment proposed from a receipt. */
 export type ReceiptPart = { category: string; amount: number; note: string };
 
-/** Longest note one part may carry (as in the entry sheet). */
-export const NOTE_MAX = 40;
-
 /**
  * Turns a reading into the parts of a split payment: one per category, largest first, with the item
  * names as the note. Discounts come off the item above them, and tax added on top (or any rounding
@@ -64,16 +61,9 @@ export function receiptParts(reading: ReceiptReading): ReceiptPart[] {
 
 const largest = (parts: ReceiptPart[]) => parts.reduce((a, b) => (b.amount > a.amount ? b : a));
 
-/** Item names joined into a note of at most NOTE_MAX characters ("牛乳・パン・卵…"). */
+/** Item names joined into a note ("牛乳・パン・卵"), each once and in full; the screens shorten it where space is tight. */
 export function joinNames(names: string[]): string {
-  const unique = [...new Set(names.filter(Boolean))];
-  let note = "";
-  for (const name of unique) {
-    const next = note ? `${note}・${name}` : name;
-    if (next.length > NOTE_MAX) return note ? `${note.slice(0, NOTE_MAX - 1)}…` : `${name.slice(0, NOTE_MAX - 1)}…`;
-    note = next;
-  }
-  return note;
+  return [...new Set(names.filter(Boolean))].join("・");
 }
 
 /**
