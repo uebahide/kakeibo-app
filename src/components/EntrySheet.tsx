@@ -232,7 +232,7 @@ function EntryForm({ onClose }: { onClose: () => void }) {
     };
     // Each record with the id it already has (none for a new one).
     const withNote = (item: NewTransaction, note: string): NewTransaction =>
-      note.trim() ? { ...item, note: note.trim().slice(0, NOTE_MAX) } : item;
+      note.trim() ? { ...item, note: note.trim() } : item;
     const items: [string | undefined, NewTransaction][] = [
       [editing?.id, withNote(base, mainNote)],
       ...parts.map((p): [string | undefined, NewTransaction] => [p.id, withNote({ ...base, category: p.category, amount: parseAmount(p.amount) }, p.note)]),

@@ -78,6 +78,9 @@ describe("saving a payment as parts", () => {
     const note = "北海道産牛乳1000ml・国産小麦の食パン6枚切・たまご10個パック・ギリシャヨーグルトプレーン";
     const w = splitWrites([], [{ category: "food", amount: 1200, note }], base);
     expect(w.adds[0].note).toBe(note);
+    const many = Array.from({ length: 60 }, (_, i) => `国産品目その${i + 1}`).join("・");
+    expect(many.length).toBeGreaterThan(500);
+    expect(splitWrites([], [{ category: "food", amount: 9000, note: many }], base).adds[0].note).toBe(many);
   });
 
   it("give a new payment split into parts a new split id", () => {
