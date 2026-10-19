@@ -16,8 +16,11 @@ export interface DeviceStorage {
   removeItem(key: string): void;
 }
 
+// Both are kept per account (`.<user id>`), so another account signing in on this device never sees or sends them.
 const QUEUE_KEY = "kakeibo-app.pending";
 const SNAPSHOT_KEY = "kakeibo-app.snapshot";
+/** The account that last loaded its records on this device: used while offline, when the server can't say. */
+const ACCOUNT_KEY = "kakeibo-app.account";
 
 function browserStorage(): DeviceStorage | null {
   try {
@@ -44,13 +47,22 @@ function write(storage: DeviceStorage | null, key: string, value: unknown) {
   }
 }
 
-/** Forgets the data kept for opening the app offline (on sign out). Records still waiting to be sent stay. */
-export function clearSnapshot(storage: DeviceStorage | null = browserStorage()) {
+function remove(storage: DeviceStorage | null, key: string) {
   try {
-    storage?.removeItem(SNAPSHOT_KEY);
+    storage?.removeItem(key);
   } catch {
     // storage blocked: nothing was kept
   }
+}
+
+/**
+ * Forgets the data kept for opening the app offline (on sign out). Records still waiting to be sent stay,
+ * under their own account, and go out the next time that account loads its records here.
+ */
+export function clearSnapshot(storage: DeviceStorage | null = browserStorage()) {
+  const account = read<string>(storage, ACCOUNT_KEY);
+  if (account) remove(storage, `${SNAPSHOT_KEY}.${account}`);
+  remove(storage, ACCOUNT_KEY);
 }
 
 /**
@@ -62,15 +74,14 @@ export function clearSnapshot(storage: DeviceStorage | null = browserStorage()) 
  * Changing a record already on the server still needs the connection.
  */
 export function withOfflineQueue(inner: KakeiboStore, storage: DeviceStorage | null = browserStorage()): KakeiboStore {
-  const queue = () => read<Transaction[]>(storage, QUEUE_KEY) ?? [];
+  // known once a load got through (or, offline, from the last one that did); nothing is kept without it
+  let account: string | null = null;
+  const queueKey = () => `${QUEUE_KEY}.${account}`;
+  const queue = () => (account ? (read<Transaction[]>(storage, queueKey()) ?? []) : []);
   const setQueue = (items: Transaction[]) => {
-    if (items.length) write(storage, QUEUE_KEY, items);
-    else
-      try {
-        storage?.removeItem(QUEUE_KEY);
-      } catch {
-        // storage blocked
-      }
+    if (!account) return;
+    if (items.length) write(storage, queueKey(), items);
+    else remove(storage, queueKey());
   };
   const queued = (id: string) => queue().some((t) => t.id === id);
   const keep = (items: Transaction[]) => {
@@ -80,6 +91,11 @@ export function withOfflineQueue(inner: KakeiboStore, storage: DeviceStorage | n
   // true while showing the snapshot: the next sync loads everything from the server first
   let fromDevice = false;
   let syncing: ReturnType<NonNullable<KakeiboStore["sync"]>> | null = null;
+  /** Waits for a send in flight, so a change to a waiting record is not lost when the send finishes. */
+  const settled = () => syncing?.then(
+    () => undefined,
+    () => undefined,
+  );
 
   /** Adds the records still waiting to what the server sent (the ones it already has are left out). */
   const withQueue = (transactions: Transaction[]) => {
@@ -89,12 +105,13 @@ export function withOfflineQueue(inner: KakeiboStore, storage: DeviceStorage | n
 
   async function sync() {
     const loaded = fromDevice ? await inner.load() : undefined;
-    fromDevice = false;
     const waiting = queue();
     const sent = waiting.length && inner.sendQueued ? await inner.sendQueued(waiting) : [];
     // only drop what was sent: a record kept while sending waits for the next sync
     const sentIds = new Set(sent.map((t) => t.id));
     setQueue(queue().filter((t) => !sentIds.has(t.id)));
+    // only once everything went through: a sync cut short loads everything again next time
+    fromDevice = false;
     if (!loaded) return sent.length ? { sent } : null;
     const others = loaded.transactions.filter((t) => !sentIds.has(t.id));
     return { sent, loaded: { transactions: withQueue([...others, ...sent]), settings: loaded.settings } };
@@ -105,10 +122,14 @@ export function withOfflineQueue(inner: KakeiboStore, storage: DeviceStorage | n
     async load() {
       try {
         const data = await inner.load();
+        account = (await inner.accountId?.()) ?? null;
+        write(storage, ACCOUNT_KEY, account);
         fromDevice = false;
         return { ...data, transactions: withQueue(data.transactions) };
       } catch (e) {
-        const snapshot = isOffline(e) ? read<{ transactions: Transaction[]; settings: Settings }>(storage, SNAPSHOT_KEY) : null;
+        if (!isOffline(e)) throw e;
+        account = read<string>(storage, ACCOUNT_KEY);
+        const snapshot = account ? read<{ transactions: Transaction[]; settings: Settings }>(storage, `${SNAPSHOT_KEY}.${account}`) : null;
         if (!snapshot) throw e;
         fromDevice = true;
         return { transactions: withQueue(snapshot.transactions), settings: snapshot.settings, fromDevice: true };
@@ -118,7 +139,7 @@ export function withOfflineQueue(inner: KakeiboStore, storage: DeviceStorage | n
       try {
         return await inner.addTransactions(items);
       } catch (e) {
-        if (!isOffline(e)) throw e;
+        if (!isOffline(e) || !account) throw e;
         const now = new Date().toISOString();
         const created = items.map((item): Transaction => ({ ...item, id: crypto.randomUUID(), createdAt: now, pending: true }));
         keep(created);
@@ -126,6 +147,7 @@ export function withOfflineQueue(inner: KakeiboStore, storage: DeviceStorage | n
       }
     },
     async updateTransaction(id, item) {
+      await settled();
       const waiting = queue().find((t) => t.id === id);
       if (!waiting) return inner.updateTransaction(id, item);
       const updated: Transaction = { ...item, id, createdAt: waiting.createdAt, pending: true };
@@ -133,10 +155,12 @@ export function withOfflineQueue(inner: KakeiboStore, storage: DeviceStorage | n
       return updated;
     },
     async deleteTransaction(id) {
+      await settled();
       if (!queued(id)) return inner.deleteTransaction(id);
       setQueue(queue().filter((t) => t.id !== id));
     },
     async trashTransactions(items) {
+      await settled();
       if (!items.every((t) => queued(t.id))) return inner.trashTransactions(items);
       // never sent, so there is nothing to keep in "Recently deleted"; Undo puts them back in the queue
       const ids = new Set(items.map((t) => t.id));
@@ -144,6 +168,7 @@ export function withOfflineQueue(inner: KakeiboStore, storage: DeviceStorage | n
       return null;
     },
     async restoreTransactions(items) {
+      await settled();
       if (!items.every((t) => t.pending)) return inner.restoreTransactions(items);
       keep(items);
       return items;
@@ -160,7 +185,7 @@ export function withOfflineQueue(inner: KakeiboStore, storage: DeviceStorage | n
       return syncing;
     },
     saveSnapshot(data) {
-      write(storage, SNAPSHOT_KEY, { transactions: data.transactions.filter((t) => !t.pending), settings: data.settings });
+      if (account) write(storage, `${SNAPSHOT_KEY}.${account}`, { transactions: data.transactions.filter((t) => !t.pending), settings: data.settings });
     },
   };
 }

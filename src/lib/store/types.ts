@@ -43,6 +43,8 @@ export interface KakeiboStore {
   loadLastAi?(): Promise<Settings["lastAi"]>;
   /** Claude's weekly reviews, newest week first (empty before migration 0016). */
   loadWeeklyReviews?(): Promise<WeeklyReview[]>;
+  /** The signed-in account's id, read without the network; records kept on the device belong to it. */
+  accountId?(): Promise<string | null>;
   /** Sends records kept on the device while offline, with their own ids; returns them as saved (skipping none already there). */
   sendQueued?(items: Transaction[]): Promise<Transaction[]>;
   /**

@@ -251,6 +251,11 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
       check(await supabase.from("deleted_records").delete().eq("id", entry.id));
       return restored;
     },
+    async accountId() {
+      // the session kept in this browser; called right after a load got through, so it is fresh
+      const { data } = await supabase.auth.getSession();
+      return data.session?.user.id ?? null;
+    },
     async sendQueued(items) {
       // a record whose earlier send got through without an answer is already there
       const ids = items.map((t) => t.id);
