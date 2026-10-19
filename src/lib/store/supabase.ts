@@ -32,6 +32,8 @@ type TxRow = {
 
 // "*" so the app still loads before the outside_budget column (migration 0003) exists
 const TX_COLUMNS = "*";
+/** Records asked for per request; the API may return fewer (its own row limit), which the next page picks up. */
+const PAGE_SIZE = 1000;
 
 const fromRow = (r: TxRow): Transaction => ({
   id: r.id,
@@ -113,15 +115,37 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
     return (check(await supabase.from("transactions").insert(rows).select(TX_COLUMNS)) as TxRow[]).map(fromRow);
   }
 
+  /**
+   * Every record, newest first. The API returns at most a set number of rows per request (1000 by
+   * default), so read page after page until one comes back empty. Each page starts after the last
+   * record read (not at an offset), so a record added or deleted meanwhile (a Wallet payment) can't
+   * shift the pages and repeat or skip one.
+   */
+  async function loadAllTransactions(): Promise<TxRow[]> {
+    const rows: TxRow[] = [];
+    for (;;) {
+      const last = rows.at(-1);
+      let query = supabase
+        .from("transactions")
+        .select(TX_COLUMNS)
+        // id breaks ties so the order is the same on every request
+        .order("date", { ascending: false })
+        .order("id");
+      if (last) query = query.or(`date.lt.${last.date},and(date.eq.${last.date},id.gt.${last.id})`);
+      const page = check(await query.limit(PAGE_SIZE)) as TxRow[];
+      if (!page.length) return rows;
+      rows.push(...page);
+    }
+  }
+
   return {
     kind: "supabase",
     async load() {
-      const [txRes, setRes] = await Promise.all([
-        supabase.from("transactions").select(TX_COLUMNS).order("date", { ascending: false }).limit(10000),
+      const [rows, setRes] = await Promise.all([
+        loadAllTransactions(),
         // "*" so the app still loads before the fixed_costs column (migration 0002) exists
         supabase.from("user_settings").select("*").maybeSingle(),
       ]);
-      const rows = check(txRes) as TxRow[];
       hasSplitColumn = rows.some((r) => "split_id" in r);
       hasReceiptColumn = rows.some((r) => "receipt_id" in r);
       hasStartDayColumn = Boolean(setRes.data && "month_start_day" in setRes.data);
