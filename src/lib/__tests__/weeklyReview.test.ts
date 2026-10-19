@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getCategory } from "@/lib/categories";
 import { setLanguage } from "@/lib/i18n";
-import { buildWeeklyDigest, lastWeekStart, reviewFrom, sampleReview, showOnHome, withFigures } from "@/lib/weeklyReview";
+import { askOnHome, buildWeeklyDigest, lastWeekStart, reviewFrom, sampleReview, showOnHome, withFigures } from "@/lib/weeklyReview";
 import { setToday, settingsWith, tx } from "./helpers";
 
 const settings = settingsWith({}, { food: 31000, daily: 6200 });
@@ -140,6 +140,25 @@ describe("showOnHome", () => {
     setToday("2026-10-12");
     expect(showOnHome(review("2026-09-28"), settings)).toBe(false);
     expect(showOnHome(undefined, settings)).toBe(false);
+  });
+});
+
+describe("askOnHome", () => {
+  const review = (weekStart: string) => ({ ...reviewFrom(buildWeeklyDigest([], settings, weekStart), { ...text, overspent: [] }, "claude"), weekStart });
+
+  it("offers to write last week's review in the new week's first 3 days while there is none", () => {
+    setToday("2026-10-12");
+    expect(askOnHome([], settings)).toBe(true);
+    expect(askOnHome([review("2026-09-28")], settings)).toBe(true);
+    setToday("2026-10-14");
+    expect(askOnHome([], settings)).toBe(true);
+    setToday("2026-10-15");
+    expect(askOnHome([], settings)).toBe(false);
+  });
+
+  it("stops once last week's review is saved", () => {
+    setToday("2026-10-12");
+    expect(askOnHome([review("2026-10-05"), review("2026-09-28")], settings)).toBe(false);
   });
 });
 
