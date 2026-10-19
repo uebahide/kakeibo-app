@@ -57,7 +57,8 @@ function MonthNav() {
 }
 
 export function AppShell() {
-  const { view, setView, openEntry, entry, ready, loadError, storeKind, toastMessage, toastAction } = useKakeibo();
+  const { view, setView, openEntry, entry, ready, loadError, showingSaved, storeKind, transactions, toastMessage, toastAction } = useKakeibo();
+  const pendingCount = transactions.filter((tx) => tx.pending).length;
   const Current = VIEWS[view];
   const t = useT();
 
@@ -120,6 +121,11 @@ export function AppShell() {
           </div>
         </header>
         <SecretModeBanner />
+        {(pendingCount > 0 || showingSaved) && (
+          <p role="status" className="mb-3 rounded-xl bg-warn-soft px-3 py-2 text-xs font-bold text-warn">
+            {pendingCount > 0 ? t.common.pendingBanner(pendingCount) : t.common.showingSaved}
+          </p>
+        )}
         {loadError ? (
           <Card>
             <EmptyState title={t.common.loadFailed}>{loadError}</EmptyState>

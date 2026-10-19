@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { OfflineError } from "@/lib/store/offline";
 import { createSupabaseStore } from "@/lib/store/supabase";
 
 /** A Supabase client holding `count` records that, like the real API, returns at most `maxRows` rows per request. */
@@ -69,5 +70,17 @@ describe("loading the signed-in user's records", () => {
   it("loads an empty household", async () => {
     const { client } = fakeClient(0, 1000);
     expect((await createSupabaseStore(client).load()).transactions).toEqual([]);
+  });
+
+  it("tells a request that never got an answer from one the server turned down", async () => {
+    const failing = (status: number) =>
+      ({
+        from: () => {
+          const query = { select: () => query, order: () => query, maybeSingle: async () => ({ data: null, error: null }), limit: async () => ({ data: null, error: { message: "x" }, status }) };
+          return query;
+        },
+      }) as unknown as SupabaseClient;
+    await expect(createSupabaseStore(failing(0)).load()).rejects.toBeInstanceOf(OfflineError);
+    await expect(createSupabaseStore(failing(401)).load()).rejects.not.toBeInstanceOf(OfflineError);
   });
 });

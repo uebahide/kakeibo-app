@@ -8,6 +8,7 @@ import { LANGUAGES, type Language } from "@/lib/i18n";
 import { DICTS } from "@/lib/i18n/dict";
 import { clampStartDay, currentPeriod, periodRangeLabel } from "@/lib/period";
 import { variableBudget } from "@/lib/stats";
+import { clearSnapshot } from "@/lib/store/offline";
 import { createClient } from "@/lib/supabase/client";
 import { BudgetSuggestButton } from "./BudgetSuggest";
 import { CategoriesCard } from "./CategoriesCard";
@@ -223,6 +224,7 @@ export function SettingsView() {
                 onClick={async () => {
                   // Only this browser: other devices and the claude.ai connector stay signed in.
                   await createClient().auth.signOut({ scope: "local" });
+                  clearSnapshot();
                   router.replace("/login");
                   router.refresh();
                 }}

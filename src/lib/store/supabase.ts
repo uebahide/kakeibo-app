@@ -11,6 +11,7 @@ import { normalizeWeekStart } from "../week";
 import type { TrashEntry } from "../trash";
 import type { NewTransaction, Settings, Transaction } from "../types";
 import { WEEKLY_REVIEWS, type WeeklyReview } from "../weeklyReview";
+import { OfflineError } from "./offline";
 import type { KakeiboStore } from "./types";
 
 type TxRow = {
@@ -70,8 +71,9 @@ const toRow = (t: NewTransaction) => ({
   is_sample: t.isSample,
 });
 
-function check<T>(res: { data: T; error: { message: string } | null }): T {
-  if (res.error) throw new Error(res.error.message);
+function check<T>(res: { data: T; error: { message: string } | null; status?: number }): T {
+  // status 0: the request never got an answer (no signal)
+  if (res.error) throw res.status === 0 ? new OfflineError(res.error.message) : new Error(res.error.message);
   return res.data;
 }
 
@@ -248,6 +250,14 @@ export function createSupabaseStore(supabase: SupabaseClient): KakeiboStore {
       const restored = missing.length ? await restoreTransactions(missing) : [];
       check(await supabase.from("deleted_records").delete().eq("id", entry.id));
       return restored;
+    },
+    async sendQueued(items) {
+      // a record whose earlier send got through without an answer is already there
+      const ids = items.map((t) => t.id);
+      const existing = check(await supabase.from("transactions").select(TX_COLUMNS).in("id", ids)) as TxRow[];
+      const known = new Set(existing.map((r) => r.id));
+      const missing = items.filter((t) => !known.has(t.id));
+      return [...existing.map(fromRow), ...(missing.length ? await restoreTransactions(missing) : [])];
     },
     async dropTrash(id) {
       check(await supabase.from("deleted_records").delete().eq("id", id));

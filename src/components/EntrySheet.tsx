@@ -243,15 +243,18 @@ function EntryForm({ onClose }: { onClose: () => void }) {
         const kept = new Set(items.map(([id]) => id));
         for (const [id, item] of items) if (id) await updateTransaction(id, item);
         // One at a time, so each part gets a later creation time and the parts keep their order.
-        for (const [id, item] of items) if (!id) await addTransactions([item]);
+        let offline = false;
+        for (const [id, item] of items) if (!id) offline = (await addTransactions([item])).some((c) => c.pending) || offline;
         for (const p of group) if (!kept.has(p.id)) await deleteTransaction(p.id);
         receiptSaved();
-        toast(t.entry.updated);
+        toast(offline ? t.entry.savedOffline : t.entry.updated);
         onClose();
       } else {
-        for (const [, item] of items) await addTransactions([item]);
+        let offline = false;
+        for (const [, item] of items) offline = (await addTransactions([item])).some((c) => c.pending) || offline;
         receiptSaved();
-        toast(parts.length ? t.entry.recordedSplit(items.length, yen(value)) : t.entry.recorded(getCategory(category).name, yen(value)));
+        if (offline) toast(t.entry.savedOffline);
+        else toast(parts.length ? t.entry.recordedSplit(items.length, yen(value)) : t.entry.recorded(getCategory(category).name, yen(value)));
         if (keepOpen) {
           setAmount("");
           setMemo("");

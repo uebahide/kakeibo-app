@@ -15,6 +15,8 @@ export default defineConfig({
     locale: "ja-JP",
     timezoneId: "Asia/Tokyo",
     trace: "retain-on-failure",
+    // the app's service worker would keep pages between tests
+    serviceWorkers: "block",
     // A Chromium already on the machine can be used instead of the one Playwright downloads.
     launchOptions: process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {},
   },

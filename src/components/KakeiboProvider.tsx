@@ -7,6 +7,7 @@ import { setCurrency } from "@/lib/format";
 import { dict } from "@/lib/i18n/dict";
 import { currentPeriod } from "@/lib/period";
 import { createLocalStore } from "@/lib/store/local";
+import { withOfflineQueue } from "@/lib/store/offline";
 import { createSupabaseStore } from "@/lib/store/supabase";
 import type { KakeiboStore, ReceiptStore } from "@/lib/store/types";
 import { photosOf, sortTrash, type TrashEntry } from "@/lib/trash";
@@ -31,6 +32,8 @@ export type View = "home" | "history" | "analysis" | "ai" | "settings";
 type Ctx = {
   ready: boolean;
   loadError: string | null;
+  /** Opened without a signal: showing what was loaded last time on this device, until the connection is back. */
+  showingSaved: boolean;
   storeKind: KakeiboStore["kind"];
   /** Receipt photos; only when signed in. */
   receipts?: ReceiptStore;
@@ -113,11 +116,12 @@ const byNewest = (a: Transaction, b: Transaction) =>
 /** `canReadReceipts`: the server has a Claude API key, so the app can read receipt photos itself. */
 export function KakeiboProvider({ children, canReadReceipts = false }: { children: ReactNode; canReadReceipts?: boolean }) {
   const store = useMemo<KakeiboStore>(
-    () => (isSupabaseConfigured ? createSupabaseStore(createClient()) : createLocalStore()),
+    () => (isSupabaseConfigured ? withOfflineQueue(createSupabaseStore(createClient())) : createLocalStore()),
     [],
   );
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showingSaved, setShowingSaved] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   // Re-render every screen (they read useKakeibo) when the display language changes.
@@ -154,6 +158,7 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
         setTimeZone(data.settings.timeZone);
         setCategories(data.settings.categories);
         setMonth(currentPeriod(data.settings.monthStartDay));
+        setShowingSaved(Boolean(data.fromDevice));
         try {
           setSavingsHidden(localStorage.getItem(HIDE_KEY) === "1");
         } catch {
@@ -166,6 +171,15 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
       cancelled = true;
     };
   }, [store]);
+
+  // The service worker keeps the app's page and files, so it opens without a signal (production only:
+  // in development it would serve stale code).
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // not supported here (private browsing): the app works as before, online only
+    });
+  }, []);
 
   // A saved language wins over the browser's; it also lands in the cookie the server and login page read.
   useEffect(() => {
@@ -237,6 +251,14 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [ready, store]);
 
+  // Keep what is shown on this device, so the app can open without a signal next time.
+  useEffect(() => {
+    if (!ready || !store.saveSnapshot) return;
+    const save = store.saveSnapshot;
+    const timer = setTimeout(() => save({ transactions, settings }), 1000);
+    return () => clearTimeout(timer);
+  }, [ready, store, transactions, settings]);
+
   const finishUndo = useCallback(() => {
     const expired = undoExpired.current;
     undoExpired.current = null;
@@ -267,6 +289,41 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     window.addEventListener("pagehide", finishUndo);
     return () => window.removeEventListener("pagehide", finishUndo);
   }, [finishUndo]);
+
+  // Records kept on this device while offline go out once the connection is back (and when the app opens or
+  // comes back to the front, in case the "online" event was missed). If the app opened offline, load everything again.
+  useEffect(() => {
+    if (!ready || !store.sync) return;
+    const sync = store.sync;
+    let cancelled = false;
+    const run = () =>
+      sync()
+        .then((result) => {
+          if (cancelled || !result) return;
+          if (result.loaded) {
+            setTransactions(result.loaded.transactions.sort(byNewest));
+            settingsRef.current = result.loaded.settings;
+            setSettings(result.loaded.settings);
+            setShowingSaved(false);
+          } else {
+            const sent = new Map(result.sent.map((t) => [t.id, t]));
+            setTransactions((prev) => prev.map((t) => sent.get(t.id) ?? t));
+          }
+          if (result.sent.length) toast(dict().common.sentPending(result.sent.length));
+        })
+        .catch(() => {
+          // still offline: try again on the next "online" or return to the app
+        });
+    const onVisible = () => document.visibilityState === "visible" && void run();
+    void run();
+    window.addEventListener("online", run);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", run);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [ready, store, toast]);
 
   const setView = useCallback((v: View) => {
     setViewState(v);
@@ -493,6 +550,7 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
   const value: Ctx = {
     ready,
     loadError,
+    showingSaved,
     storeKind: store.kind,
     receipts: store.receipts,
     canReadReceipts,

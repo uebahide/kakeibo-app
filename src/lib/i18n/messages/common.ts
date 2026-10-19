@@ -26,6 +26,11 @@ export const ja = {
   sessionExpired: "ログインが切れました。もう一度ログインしてください",
   verifyFailed: "確認できませんでした。時間をおいてもう一度お試しください",
   recordNotFound: "記録が見つかりません",
+  /** a record kept on this device until the connection is back */
+  pending: "未送信",
+  pendingBanner: (count: number) => `電波がないので、${count}件の記録をこの端末に保存しています。つながったら自動で送ります`,
+  showingSaved: "オフラインです。前に開いたときの内容を表示しています",
+  sentPending: (count: number) => `この端末に保存していた${count}件の記録を送りました`,
 };
 
 export const en: typeof ja = {
@@ -54,4 +59,8 @@ export const en: typeof ja = {
   sessionExpired: "You've been signed out. Please sign in again",
   verifyFailed: "Couldn't check that. Please try again in a little while",
   recordNotFound: "Record not found",
+  pending: "Not sent",
+  pendingBanner: (count: number) => `No connection: ${count === 1 ? "1 record is" : `${count} records are`} saved on this device and will be sent once you're back online`,
+  showingSaved: "Offline: showing what was loaded last time",
+  sentPending: (count: number) => `Sent ${count === 1 ? "1 record" : `${count} records`} saved on this device`,
 };
