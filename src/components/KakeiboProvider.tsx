@@ -66,6 +66,8 @@ type Ctx = {
   deleteSamples: () => Promise<void>;
   /** Claude's weekly reviews, newest week first. */
   weeklyReviews: WeeklyReview[];
+  /** Whether `weeklyReviews` has loaded at least once, so an empty list means none are saved. */
+  weeklyReviewsLoaded: boolean;
   /** Deletes a category the user added; its records and fixed costs move to `moveTo`. */
   deleteCategory: (id: string, moveTo: string) => Promise<void>;
   updateSettings: (change: (s: Settings) => Settings) => Promise<void>;
@@ -307,6 +309,7 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
 
   // Claude saves weekly reviews over MCP on a schedule, so load them once ready and again whenever the app comes back to the front.
   const [weeklyReviews, setWeeklyReviews] = useState<WeeklyReview[]>([]);
+  const [weeklyReviewsLoaded, setWeeklyReviewsLoaded] = useState(false);
   // Demo mode makes its review from the sample records, so load again when they come or go.
   const demoSamples = store.kind === "local" && transactions.some((t) => t.isSample);
   useEffect(() => {
@@ -315,7 +318,11 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     let cancelled = false;
     const load = () =>
       loadWeeklyReviews()
-        .then((reviews) => !cancelled && setWeeklyReviews(reviews))
+        .then((reviews) => {
+          if (cancelled) return;
+          setWeeklyReviews(reviews);
+          setWeeklyReviewsLoaded(true);
+        })
         .catch(() => {
           // offline: keep showing what we have
         });
@@ -517,6 +524,7 @@ export function KakeiboProvider({ children, canReadReceipts = false }: { childre
     emptyTrash,
     deleteSamples,
     weeklyReviews,
+    weeklyReviewsLoaded,
     deleteCategory,
     updateSettings,
     toast,

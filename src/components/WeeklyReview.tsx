@@ -55,12 +55,13 @@ const claudeReviewUrl = (lang: Language, account: string | null) => claudeUrl(DI
  * with none saved yet (no scheduled task in claude.ai, or it hasn't run), a button to write it in Claude.
  */
 export function WeeklyReviewHome() {
-  const { weeklyReviews, settings, setView, storeKind } = useKakeibo();
+  const { weeklyReviews, weeklyReviewsLoaded, settings, setView, storeKind } = useKakeibo();
   const t = useT().weekly;
   const latest = weeklyReviews[0];
   const [dismissed, dismiss] = useDismissed(DISMISSED_KEY);
   if (!showOnHome(latest, settings) || dismissed === latest.weekStart) {
-    return storeKind === "supabase" && askOnHome(weeklyReviews, settings) ? <WeeklyReviewAsk /> : null;
+    // Offered only once the reviews have loaded, so a slow or failed load never invites overwriting a saved one.
+    return storeKind === "supabase" && weeklyReviewsLoaded && askOnHome(weeklyReviews, settings) ? <WeeklyReviewAsk /> : null;
   }
 
   return (
