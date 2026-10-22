@@ -18,7 +18,13 @@ const CONFIRM_RULE =
   "書き込む前に必ず confirm: false で呼んで内訳案を受け取り、ユーザーに見せて OK をもらってから confirm: true で呼ぶ。" +
   " Always call with confirm: false first, show the proposed parts to the user, and call with confirm: true only after they agree.";
 
+// Item names become the parts' notes, which the app shows as they are, so they must be in the user's language.
+const NAMES_RULE =
+  "品目名（name）は、レシートが何語でも必ずユーザーの言語（language: ja＝日本語、en＝英語）に訳して書く。前の読み取り結果の品目名も訳し直す。" +
+  " Always translate item names into the user's `language` (ja = Japanese, en = English), whatever language the receipt is in, including names from an earlier reading.";
+
 const ITEMS_NOTE =
+  NAMES_RULE +
   "items はレシートの品目を印字順に。値引き・割引・クーポンはマイナスの金額で、その対象の品目の直後に置く。小計・合計・税・支払い・お釣り・ポイントの行は入れない。" +
   "category は list_receipts_to_sort が返すカテゴリの id。値引きは直前の品目から引き、税と端数は金額の割合で配って、内訳の合計をレシートの合計に合わせる。" +
   " List the receipt's lines in printed order; a discount is its own line with a negative amount right after its item. Leave out subtotals, totals, tax, payment, change and points." +
@@ -31,7 +37,7 @@ const Reading = {
   items: z
     .array(
       z.object({
-        name: z.string().max(200).describe("品目名。印字のまま省略しない（「…」を付けない）/ Item name as printed, in full (no \"…\")"),
+        name: z.string().max(200).describe("品目名。ユーザーの言語（language）に訳し、省略しない（「…」を付けない）/ Item name translated into the user's `language`, in full (no \"…\")"),
         amount: z.number().int().describe("その行の金額（値引きはマイナス）/ The line's amount (negative for a discount)"),
         category: z.string().max(40).describe("カテゴリ id / Category id"),
       }),
@@ -52,11 +58,19 @@ async function load(ctx: ServerContext) {
   return { supabase, store, ...data };
 }
 
+const languageOf = (settings: Settings) => settings.language ?? "ja";
+
 /** The user's expense categories (id and name), as the app shows them. */
 const expenseCategories = (settings: Settings) =>
-  inLanguage(settings.language ?? "ja", () => inCategories(settings.categories, () => categoriesOf("expense").map((c) => ({ id: c.id, name: c.name }))));
+  inLanguage(languageOf(settings), () => inCategories(settings.categories, () => categoriesOf("expense").map((c) => ({ id: c.id, name: c.name }))));
 
-const nameOf = (settings: Settings, id: string) => inLanguage(settings.language ?? "ja", () => inCategories(settings.categories, () => getCategory(id).name));
+/** Reminds Claude of the language item names go in, with each proposal it shows the user. */
+const namesReminder = (settings: Settings) =>
+  languageOf(settings) === "en"
+    ? "品目名は英語で書く。ほかの言語のままなら英語に訳して呼び直す。/ Item names go in English; if any are in another language, translate them and call again."
+    : "品目名は日本語で書く。ほかの言語のままなら日本語に訳して呼び直す。/ Item names go in Japanese; if any are in another language, translate them and call again.";
+
+const nameOf = (settings: Settings, id: string) => inLanguage(languageOf(settings), () => inCategories(settings.categories, () => getCategory(id).name));
 
 function toReading(settings: Settings, input: { store: string; total: number; tax: number; items: ReceiptReading["items"] }): ReceiptReading {
   const ids = expenseCategories(settings).map((c) => c.id);
@@ -102,7 +116,7 @@ export function registerReceiptTools(server: McpServer) {
       return ok(
         JSON.stringify({
           currency: settings.currency,
-          language: settings.language ?? "ja",
+          language: languageOf(settings),
           records: entries.map((e) => ({
             record_id: e.tx.id,
             date: e.tx.date,
@@ -123,14 +137,15 @@ export function registerReceiptTools(server: McpServer) {
       title: "レシートの写真を取得",
       description:
         "記録に付いたレシートの写真を画像で返す。写真の品目と金額を読み、apply_receipt に渡す。アプリで前に読み取った結果があれば一緒に返す。" +
-        " Returns the receipt photo of a record as an image to read for apply_receipt, with any earlier reading from the app.",
+        NAMES_RULE +
+        " Returns the receipt photo of a record as an image to read for apply_receipt, with any earlier reading from the app, and the user's `language`.",
       inputSchema: z.object({ record_id: z.string().uuid().describe("list_receipts_to_sort の record_id"), account }),
       annotations: { readOnlyHint: true },
     },
     async ({ record_id, account }, ctx) => {
       const mismatch = accountMismatch(ctx, account);
       if (mismatch) return fail(mismatch);
-      const { supabase, transactions } = await load(ctx);
+      const { supabase, transactions, settings } = await load(ctx);
       const tx = transactions.find((t) => t.id === record_id);
       if (!tx?.receiptId) return fail("写真の付いた記録が見つかりません / No record with a receipt photo has this id");
       const { data: receipt } = await supabase.from("receipts").select("path, read_result").eq("id", tx.receiptId).maybeSingle();
@@ -148,6 +163,7 @@ export function registerReceiptTools(server: McpServer) {
               date: tx.date,
               total: parts.reduce((s, p) => s + p.amount, 0),
               memo: tx.memo,
+              language: languageOf(settings),
               ...(receipt.read_result ? { earlier_reading: receipt.read_result } : {}),
             }),
           },
@@ -194,12 +210,12 @@ export function registerReceiptTools(server: McpServer) {
       if (receiptTotal !== recordTotal) {
         if (!input.use_total) {
           const ask = `記録の金額 ${money(recordTotal)} とレシートの合計 ${money(receiptTotal)} が違います。どちらにするかユーザーに聞き、use_total（record か receipt）を付けて呼び直してください。/ The record's amount and the receipt total differ; ask the user which to keep and call again with use_total.`;
-          return input.confirm ? fail(ask) : ok(`${describeParts(settings, parts)}\n\n${ask}`);
+          return input.confirm ? fail(ask) : ok(`${describeParts(settings, parts)}\n\n${ask}\n${namesReminder(settings)}`);
         }
         if (input.use_total === "record") parts = receiptParts({ ...reading, total: recordTotal });
       }
       if (!input.confirm) {
-        return ok(`内訳案 / Proposed parts（${tx.date} ${tx.memo || reading.store}）\n${describeParts(settings, parts)}\n\nユーザーに確認してから confirm: true で呼んでください。/ Check with the user, then call again with confirm: true.`);
+        return ok(`内訳案 / Proposed parts（${tx.date} ${tx.memo || reading.store}）\n${describeParts(settings, parts)}\n\nユーザーに確認してから confirm: true で呼んでください。/ Check with the user, then call again with confirm: true.\n${namesReminder(settings)}`);
       }
       const base: NewTransaction = {
         date: tx.date,
@@ -229,9 +245,11 @@ export function registerReceiptTools(server: McpServer) {
       title: "レシートから新しい記録を作る",
       description:
         "チャットに貼られたレシートの写真を読んで、家計簿に新しい支出を記録する（品目をカテゴリごとの内訳に分ける）。写真は家計簿には保存されない。" +
+        "ユーザーの言語とカテゴリは list_receipts_to_sort で分かる。" +
         "同じ日・同じ金額の記録がすでにあれば内訳案と一緒に知らせるので、同じ支払いならそちらを apply_receipt で分けるかユーザーに聞く。" +
         CONFIRM_RULE +
         " Records a new expense from a receipt photo pasted into the chat, split into one part per category. The photo itself isn't stored." +
+        " list_receipts_to_sort gives the user's language and categories." +
         " If a record with the same date and amount exists, the proposal says so; ask the user whether it is the same payment.",
       inputSchema: z.object({
         ...Reading,
@@ -258,7 +276,7 @@ export function registerReceiptTools(server: McpServer) {
         const note = same.length
           ? `\n\n同じ日・同じ金額の記録があります（${same.map((e) => `${e.tx.memo || nameOf(settings, e.tx.category)} record_id ${e.tx.id}`).join("、")}）。同じ支払いなら新しく作らず、その記録を apply_receipt で分けるとよいか聞いてください。/ A record with the same date and amount exists; ask whether it's the same payment.`
           : "";
-        return ok(`内訳案 / Proposed parts（${date} ${reading.store}）\n${describeParts(settings, parts)}${note}\n\nユーザーに確認してから confirm: true で呼んでください。/ Check with the user, then call again with confirm: true.`);
+        return ok(`内訳案 / Proposed parts（${date} ${reading.store}）\n${describeParts(settings, parts)}${note}\n\nユーザーに確認してから confirm: true で呼んでください。/ Check with the user, then call again with confirm: true.\n${namesReminder(settings)}`);
       }
       const base: NewTransaction = {
         date,
