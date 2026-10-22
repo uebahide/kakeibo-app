@@ -38,7 +38,7 @@ export const ja = {
   claudeSort: "Claude でレシートを整理",
   claudeSortHint: "claude.ai（iPhone では Claude アプリ）が開き、Claude がレシートの写真を読んで内訳の案を見せます。OK すると家計簿に書き込まれ、戻ってくると反映されます。",
   /** prompt filled into a new claude.ai chat; Claude then uses the 家計簿 connector (MCP) */
-  claudeSortPrompt: "家計簿のレシートを整理して。家計簿コネクタで確認待ちのレシートの写真を読み、記録ごとに内訳の案を見せてください。私が OK したら書き込んでください。",
+  claudeSortPrompt: "家計簿のレシートを整理して。家計簿コネクタで確認待ちのレシートの写真を読み、記録ごとに内訳の案を見せてください。品目名は日本語に訳してください。私が OK したら書き込んでください。",
   ok: "OK",
   okAll: "すべてOK",
   confirmed: "確定しました",
@@ -84,7 +84,7 @@ export const en: typeof ja = {
   reviewHintReceipt: "Records saved with a receipt photo to sort out later. Tap one to fix it while looking at the photo, or tap OK if it's fine as is.",
   claudeSort: "Sort receipts in Claude",
   claudeSortHint: "Opens claude.ai (the Claude app on iPhone). Claude reads the receipt photos and shows a proposed split; once you agree it saves them, and they show here when you come back.",
-  claudeSortPrompt: "Sort out the receipts in my household budget. Use the Kakeibo connector to read the photos of the receipts waiting to be sorted and show me a proposed split for each record. Save them once I say OK.",
+  claudeSortPrompt: "Sort out the receipts in my household budget. Use the Kakeibo connector to read the photos of the receipts waiting to be sorted and show me a proposed split for each record. Translate the item names into English. Save them once I say OK.",
   ok: "OK",
   okAll: "All OK",
   confirmed: "Confirmed",

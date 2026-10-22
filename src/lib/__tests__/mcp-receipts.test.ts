@@ -8,8 +8,9 @@ const W1 = "6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f";
 let records: Transaction[] = [];
 const receiptUpdates: unknown[] = [];
 let seq = 0;
+let language: "ja" | "en" | undefined;
 const store = {
-  load: async () => ({ transactions: records, settings: structuredClone(DEFAULT_SETTINGS) }),
+  load: async () => ({ transactions: records, settings: { ...structuredClone(DEFAULT_SETTINGS), language } }),
   updateTransaction: async (id: string, item: NewTransaction) => {
     const i = records.findIndex((r) => r.id === id);
     records[i] = { ...item, id, createdAt: records[i].createdAt };
@@ -56,6 +57,7 @@ const items = [
 beforeEach(() => {
   records = [tx("2026-10-15", 1020, { id: W1, memo: "ライフ", receiptId: "r1", needsReview: true, createdAt: "2026-10-15T09:00:00Z" })];
   receiptUpdates.length = 0;
+  language = undefined;
 });
 
 describe("receipt tools for claude.ai", () => {
@@ -103,6 +105,26 @@ describe("receipt tools for claude.ai", () => {
       ["daily", 640, "ライフ", undefined],
       ["food", 380, "ライフ", undefined],
     ]);
+  });
+});
+
+describe("item names in the app's language", () => {
+  it("tell Claude to translate item names into the user's language", () => {
+    const schema = tools.get("apply_receipt")!.schema as unknown as { shape: { items: { description?: string } } };
+    expect(schema.shape.items.description).toContain("ユーザーの言語");
+    expect(schema.shape.items.description).toContain("Always translate item names");
+  });
+
+  it("give the language with the list, and remind Claude of it with each proposal", async () => {
+    language = "en";
+    expect(JSON.parse(text(await call("list_receipts_to_sort", {}))).language).toBe("en");
+    expect(text(await call("apply_receipt", { record_id: W1, store: "ライフ", total: 1020, items }))).toContain("Item names go in English");
+    expect(text(await call("add_record", { store: "ライフ", total: 1020, items }))).toContain("Item names go in English");
+  });
+
+  it("default to Japanese when no language was picked", async () => {
+    expect(JSON.parse(text(await call("list_receipts_to_sort", {}))).language).toBe("ja");
+    expect(text(await call("add_record", { store: "ライフ", total: 1020, items }))).toContain("品目名は日本語で書く");
   });
 });
 
