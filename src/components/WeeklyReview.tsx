@@ -5,7 +5,7 @@ import { yen } from "@/lib/format";
 import { DICTS } from "@/lib/i18n/dict";
 import type { Language } from "@/lib/i18n";
 import { weekRangeLabel } from "@/lib/week";
-import { showOnHome, type WeeklyReview } from "@/lib/weeklyReview";
+import { askOnHome, lastWeekStart, showOnHome, type WeeklyReview } from "@/lib/weeklyReview";
 import { claudeUrl, useAccount } from "./claudeLink";
 import { useKakeibo } from "./KakeiboProvider";
 import { useLanguage, useT } from "./LanguageProvider";
@@ -13,45 +13,60 @@ import { Card, CardTitle, EmptyState, TextButton, buttonClass, cx } from "./ui";
 
 /** The week whose home card was closed, so it stays closed on this device. */
 const DISMISSED_KEY = "kakeibo-app.reviewDismissed";
+/** The week whose "write last week's review" card was closed; kept apart so the review itself still shows once saved. */
+const ASK_DISMISSED_KEY = "kakeibo-app.reviewAskDismissed";
 
-function readDismissed(): string {
+function readDismissed(key: string): string {
   try {
-    return localStorage.getItem(DISMISSED_KEY) ?? "";
+    return localStorage.getItem(key) ?? "";
   } catch {
     return "";
   }
 }
 
-/** Opens a new claude.ai chat that writes last week's review through the kakeibo connector (MCP). */
-const claudeReviewUrl = (lang: Language, account: string | null) => claudeUrl(DICTS[lang].weekly.claudePrompt, DICTS[lang].common.claudeAccount(account));
-
-/** Home card with last week's review, for the first days of the new week until it is closed. */
-export function WeeklyReviewHome() {
-  const { weeklyReviews, settings, setView } = useKakeibo();
-  const t = useT().weekly;
-  const latest = weeklyReviews[0];
-  // Reviews load after mount, so this never renders with them while prerendering, where localStorage is missing.
-  const [dismissed, setDismissed] = useState(readDismissed);
-  if (!showOnHome(latest, settings) || dismissed === latest.weekStart) return null;
-
-  const close = () => {
-    setDismissed(latest.weekStart);
+function useDismissed(key: string): [string, (week: string) => void] {
+  // Reviews load after mount, so the cards never render while prerendering, where localStorage is missing.
+  const [dismissed, setDismissed] = useState(() => readDismissed(key));
+  const dismiss = (week: string) => {
+    setDismissed(week);
     try {
-      localStorage.setItem(DISMISSED_KEY, latest.weekStart);
+      localStorage.setItem(key, week);
     } catch {
       // storage blocked: closed until reload
     }
   };
+  return [dismissed, dismiss];
+}
+
+function CloseButton({ onClick }: { onClick: () => void }) {
+  const t = useT().weekly;
+  return (
+    <button type="button" aria-label={t.close} onClick={onClick} className="hit -my-1.5 text-lg leading-none text-muted">
+      ×
+    </button>
+  );
+}
+
+/** Opens a new claude.ai chat that writes last week's review through the kakeibo connector (MCP). */
+const claudeReviewUrl = (lang: Language, account: string | null) => claudeUrl(DICTS[lang].weekly.claudePrompt, DICTS[lang].common.claudeAccount(account));
+
+/**
+ * Home card for the first days of the new week until it is closed: last week's review, or, signed in and
+ * with none saved yet (no scheduled task in claude.ai, or it hasn't run), a button to write it in Claude.
+ */
+export function WeeklyReviewHome() {
+  const { weeklyReviews, weeklyReviewsLoaded, settings, setView, storeKind } = useKakeibo();
+  const t = useT().weekly;
+  const latest = weeklyReviews[0];
+  const [dismissed, dismiss] = useDismissed(DISMISSED_KEY);
+  if (!showOnHome(latest, settings) || dismissed === latest.weekStart) {
+    // Offered only once the reviews have loaded, so a slow or failed load never invites overwriting a saved one.
+    return storeKind === "supabase" && weeklyReviewsLoaded && askOnHome(weeklyReviews, settings) ? <WeeklyReviewAsk /> : null;
+  }
 
   return (
     <Card>
-      <CardTitle
-        action={
-          <button type="button" aria-label={t.close} onClick={close} className="hit -my-1.5 text-lg leading-none text-muted">
-            ×
-          </button>
-        }
-      >
+      <CardTitle action={<CloseButton onClick={() => dismiss(latest.weekStart)} />}>
         {t.title}
         <span className="num ml-2 font-medium">{weekRangeLabel(latest.weekStart)}</span>
       </CardTitle>
@@ -59,6 +74,30 @@ export function WeeklyReviewHome() {
       <TextButton className="mt-2" onClick={() => setView("ai")}>
         {t.readMore}
       </TextButton>
+    </Card>
+  );
+}
+
+/** Home card offering to write last week's review in Claude, while none is saved for it. */
+function WeeklyReviewAsk() {
+  const { settings } = useKakeibo();
+  const t = useT().weekly;
+  const language = useLanguage();
+  const account = useAccount(true);
+  const [dismissed, dismiss] = useDismissed(ASK_DISMISSED_KEY);
+  const week = lastWeekStart(settings);
+  if (dismissed === week) return null;
+  return (
+    <Card>
+      <CardTitle action={<CloseButton onClick={() => dismiss(week)} />}>
+        {t.title}
+        <span className="num ml-2 font-medium">{weekRangeLabel(week)}</span>
+      </CardTitle>
+      <p className="mb-3 text-sm">{t.askLead}</p>
+      <a href={claudeReviewUrl(language, account)} target="_blank" rel="noopener noreferrer" className={buttonClass("default")}>
+        {t.claudeButton}
+      </a>
+      <p className="mt-2 text-xs text-muted">{t.claudeNote}</p>
     </Card>
   );
 }

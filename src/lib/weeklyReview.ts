@@ -55,6 +55,12 @@ export function showOnHome(review: WeeklyReview | undefined, settings: Settings)
   return today() < shiftDays(review.weekStart, 7 + REVIEW_HOME_DAYS);
 }
 
+/** Whether the home screen offers to write last week's review: none is saved for it yet, and the current week is in its first days. */
+export function askOnHome(reviews: WeeklyReview[], settings: Settings): boolean {
+  const start = lastWeekStart(settings);
+  return !reviews.some((r) => r.weekStart === start) && today() < shiftDays(start, 7 + REVIEW_HOME_DAYS);
+}
+
 /** Budgeted spending (outside-the-budget records left out) per category from `start` to `end`. */
 function spentByCategory(txs: Transaction[], start: string, end: string): Map<string, number> {
   const out = new Map<string, number>();
