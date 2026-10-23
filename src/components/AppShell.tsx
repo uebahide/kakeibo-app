@@ -57,7 +57,8 @@ function MonthNav() {
 }
 
 export function AppShell() {
-  const { view, setView, openEntry, entry, ready, loadError, storeKind, toastMessage, toastAction } = useKakeibo();
+  const { view, setView, openEntry, entry, ready, loadError, showingSaved, storeKind, transactions, toastMessage, toastAction } = useKakeibo();
+  const pendingCount = transactions.filter((tx) => tx.pending).length;
   const Current = VIEWS[view];
   const t = useT();
 
@@ -120,6 +121,11 @@ export function AppShell() {
           </div>
         </header>
         <SecretModeBanner />
+        {(pendingCount > 0 || showingSaved) && (
+          <p role="status" className="mb-3 rounded-xl bg-warn-soft px-3 py-2 text-xs font-bold text-warn">
+            {pendingCount > 0 ? t.common.pendingBanner(pendingCount) : t.common.showingSaved}
+          </p>
+        )}
         {loadError ? (
           <Card>
             <EmptyState title={t.common.loadFailed}>{loadError}</EmptyState>
@@ -152,11 +158,12 @@ export function AppShell() {
       <EntrySheet />
 
       {toastMessage && (
-        <div className="fixed bottom-24 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-ink px-4 py-2 text-[13px] text-bg lg:bottom-8">
+        // a long message wraps inside the screen instead of running off its edges
+        <div className="fixed bottom-24 left-1/2 z-[60] flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-1 rounded-2xl bg-ink px-4 py-2 text-[13px] leading-snug text-bg lg:bottom-8">
           <span role="status">{toastMessage}</span>
           {toastAction && (
             // the button reaches past the pill so it is 44px tall to tap
-            <button type="button" onClick={toastAction.run} className="-my-3 -mr-2 min-h-11 rounded-full px-3 font-bold underline underline-offset-2">
+            <button type="button" onClick={toastAction.run} className="-my-3 -mr-2 min-h-11 flex-none whitespace-nowrap rounded-full px-3 font-bold underline underline-offset-2">
               {toastAction.label}
             </button>
           )}

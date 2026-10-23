@@ -15,7 +15,8 @@ export interface ReceiptStore {
 /** Where the household data lives. Implemented by the browser (demo) and Supabase stores. */
 export interface KakeiboStore {
   readonly kind: "local" | "supabase";
-  load(): Promise<{ transactions: Transaction[]; settings: Settings }>;
+  /** `fromDevice`: offline, so this is what was loaded last time (see saveSnapshot). */
+  load(): Promise<{ transactions: Transaction[]; settings: Settings; fromDevice?: boolean }>;
   addTransactions(items: NewTransaction[]): Promise<Transaction[]>;
   updateTransaction(id: string, item: NewTransaction): Promise<Transaction>;
   deleteTransaction(id: string): Promise<void>;
@@ -42,6 +43,17 @@ export interface KakeiboStore {
   loadLastAi?(): Promise<Settings["lastAi"]>;
   /** Claude's weekly reviews, newest week first (empty before migration 0016). */
   loadWeeklyReviews?(): Promise<WeeklyReview[]>;
+  /** The signed-in account's id, read without the network; records kept on the device belong to it. */
+  accountId?(): Promise<string | null>;
+  /** Sends records kept on the device while offline, with their own ids; returns them as saved (skipping none already there). */
+  sendQueued?(items: Transaction[]): Promise<Transaction[]>;
+  /**
+   * Once the connection is back: loads everything again if the app opened offline (`loaded`), and sends the
+   * records kept on the device (`sent`). Resolves null when there was nothing to do.
+   */
+  sync?(): Promise<{ sent: Transaction[]; loaded?: { transactions: Transaction[]; settings: Settings } } | null>;
+  /** Keeps what is shown on this device, so the app can open without a signal. */
+  saveSnapshot?(data: { transactions: Transaction[]; settings: Settings }): void;
   /** Receipt photos; missing in demo mode. */
   receipts?: ReceiptStore;
 }

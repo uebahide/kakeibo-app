@@ -26,12 +26,14 @@ export type Transaction = {
   note?: string;
   /** the receipt photo of the payment (shared by all parts of a split payment) */
   receiptId?: string;
+  /** kept on this device because it could not be sent (no signal); sent once the connection is back */
+  pending?: boolean;
   isSample: boolean;
   createdAt: string;
 };
 
 /** `source` is set only by automatic imports; `needsReview: false` confirms an automatic record. */
-export type NewTransaction = Omit<Transaction, "id" | "createdAt" | "source">;
+export type NewTransaction = Omit<Transaction, "id" | "createdAt" | "source" | "pending">;
 
 export type SavingsGoal = {
   /** target amount; 0 means no target */
