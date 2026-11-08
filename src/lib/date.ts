@@ -111,3 +111,31 @@ export function shiftDays(date: string, delta: number): string {
   d.setDate(d.getDate() + delta);
   return toDateString(d);
 }
+
+/** The moment `iso` as YYYY-MM-DD and H:MM in the user's time zone, or null for a missing or broken time. */
+export function localDateTime(iso: string | undefined): { date: string; time: string } | null {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return null;
+  // sv-SE formats as "YYYY-MM-DD HH:MM"
+  const [date, time] = d.toLocaleString("sv-SE", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).split(" ");
+  // 8:05 rather than 08:05
+  return { date, time: time.replace(/^0(?=\d)/, "") };
+}
+
+/**
+ * When a record was entered, for the record list: just the time ("14:32") when it was entered on
+ * the day it is dated, so a record dated yesterday but entered today doesn't read as yesterday 14:32.
+ */
+export function enteredTimeLabel(recordDate: string, createdAt: string | undefined): string | null {
+  const at = localDateTime(createdAt);
+  return at && at.date === recordDate ? at.time : null;
+}
+
+/** When a record was entered, for its details: "14:32", or "11/9（月） 8:05" when entered on another day. */
+export function enteredAtLabel(recordDate: string, createdAt: string | undefined): string | null {
+  const at = localDateTime(createdAt);
+  if (!at) return null;
+  if (at.date === recordDate) return at.time;
+  const day = at.date.slice(0, 4) === recordDate.slice(0, 4) ? shortDayLabel(at.date) : `${at.date.slice(0, 4)}/${shortDayLabel(at.date)}`;
+  return `${day} ${at.time}`;
+}

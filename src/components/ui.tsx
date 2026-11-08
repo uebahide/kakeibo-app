@@ -2,7 +2,7 @@
 
 import { useEffect, useId, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { categoryColor, getCategory } from "@/lib/categories";
-import { dayLabel } from "@/lib/date";
+import { dayLabel, enteredTimeLabel } from "@/lib/date";
 import { yen } from "@/lib/format";
 import type { PaceLevel } from "@/lib/stats";
 import type { Transaction } from "@/lib/types";
@@ -145,7 +145,7 @@ export function TxRow({
             </span>
           ))}
         <span className="block truncate text-[11px] text-muted">
-          {[!split && `${cat.name}${tx.note ? `（${tx.note}）` : ""}`, showDate && dayLabel(tx.date), tx.isSample && t.common.sample]
+          {[!split && `${cat.name}${tx.note ? `（${tx.note}）` : ""}`, showDate && dayLabel(tx.date), enteredTimeLabel(tx.date, tx.createdAt), tx.isSample && t.common.sample]
             .filter(Boolean)
             .join(t.common.sep)}
         </span>
