@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { getCategory } from "@/lib/categories";
-import { dayLabel, today } from "@/lib/date";
+import { dayLabel, enteredAtLabel, today } from "@/lib/date";
 import { yen } from "@/lib/format";
 import { splitParts } from "@/lib/split";
 import { useKakeibo } from "./KakeiboProvider";
@@ -51,6 +51,7 @@ export function EntryDetail({ id, onClose, onEdit }: { id: string; onClose: () =
   const cat = getCategory(main.category);
   const categories = [...new Set(parts.map((p) => getCategory(p.category).name))].join(t.common.sep);
   const year = main.date.slice(0, 4);
+  const enteredAt = enteredAtLabel(main.date, main.createdAt);
   const date = year === today().slice(0, 4) ? dayLabel(main.date) : language === "en" ? `${dayLabel(main.date)}, ${year}` : `${year}年${dayLabel(main.date)}`;
 
   async function remove() {
@@ -94,6 +95,11 @@ export function EntryDetail({ id, onClose, onEdit }: { id: string; onClose: () =
 
       <dl className="mt-3 rounded-xl bg-surface-2 px-3 text-sm">
         <Row label={t.entry.date}>{date}</Row>
+        {enteredAt && (
+          <Row label={t.entry.enteredAt}>
+            <span className="num">{enteredAt}</span>
+          </Row>
+        )}
         <Row label={t.entry.categoryGroup}>{split ? categories : cat.name}</Row>
         {!split && main.note && <Row label={t.entry.note}>{main.note}</Row>}
         {!income && <Row label={t.entry.budget}>{main.outsideBudget ? t.common.outsideBudget : t.entry.inBudget}</Row>}
